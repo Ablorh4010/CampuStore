@@ -166,18 +166,49 @@ export default function Browse() {
             className="cursor-pointer"
             onClick={() => handleCategoryFilter('all')}
           >
-            All
+            📦 All
           </Badge>
-          {categories.map((category) => (
-            <Badge
-              key={category.id}
-              variant={selectedCategory === category.id ? 'default' : 'secondary'}
-              className="cursor-pointer"
-              onClick={() => handleCategoryFilter(category.id)}
-            >
-              {category.name}
-            </Badge>
-          ))}
+          {categories.map((category) => {
+            const getCategoryIcon = (icon: string) => {
+              const iconMap: Record<string, string> = {
+                'fas fa-book': '📚',
+                'fas fa-laptop': '💻',
+                'fas fa-tshirt': '👕',
+                'fas fa-home': '🏠',
+                'fas fa-gamepad': '🎮',
+                'fas fa-music': '🎵',
+                'fas fa-car': '🚗',
+                'fas fa-dumbbell': '💪',
+                'fas fa-utensils': '🍽️',
+                'fas fa-heart': '❤️',
+                'fas fa-star': '⭐',
+                'fas fa-gift': '🎁',
+                'fas fa-camera': '📷',
+                'fas fa-mobile': '📱',
+                'fas fa-bicycle': '🚲',
+                'fas fa-graduation-cap': '🎓',
+                'fas fa-palette': '🎨',
+                'fas fa-calculator': '🧮',
+                'fas fa-microscope': '🔬',
+                'fas fa-football': '⚽',
+                'fas fa-basketball': '🏀',
+                'fas fa-tennis': '🎾',
+              };
+              return iconMap[icon] || '📦';
+            };
+            
+            return (
+              <Badge
+                key={category.id}
+                variant={selectedCategory === category.id ? 'default' : 'secondary'}
+                className="cursor-pointer flex items-center gap-1"
+                onClick={() => handleCategoryFilter(category.id)}
+              >
+                <span>{getCategoryIcon(category.icon)}</span>
+                {category.name}
+              </Badge>
+            );
+          })}
         </div>
       )}
 

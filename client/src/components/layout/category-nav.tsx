@@ -15,7 +15,37 @@ export default function CategoryNav() {
   };
 
   const getCategoryIcon = (icon: string) => {
-    return <i className={`${icon} text-lg`} />;
+    // Map common category icons to actual icon components
+    const iconMap: Record<string, React.ReactNode> = {
+      'fas fa-book': '📚',
+      'fas fa-laptop': '💻',
+      'fas fa-tshirt': '👕',
+      'fas fa-home': '🏠',
+      'fas fa-gamepad': '🎮',
+      'fas fa-music': '🎵',
+      'fas fa-car': '🚗',
+      'fas fa-dumbbell': '💪',
+      'fas fa-utensils': '🍽️',
+      'fas fa-heart': '❤️',
+      'fas fa-star': '⭐',
+      'fas fa-gift': '🎁',
+      'fas fa-camera': '📷',
+      'fas fa-mobile': '📱',
+      'fas fa-bicycle': '🚲',
+      'fas fa-graduation-cap': '🎓',
+      'fas fa-palette': '🎨',
+      'fas fa-calculator': '🧮',
+      'fas fa-microscope': '🔬',
+      'fas fa-football': '⚽',
+      'fas fa-basketball': '🏀',
+      'fas fa-tennis': '🎾',
+    };
+    
+    return (
+      <span className="text-2xl">
+        {iconMap[icon] || '📦'}
+      </span>
+    );
   };
 
   const getColorClass = (color: string) => {
@@ -41,7 +71,7 @@ export default function CategoryNav() {
               onClick={() => handleCategoryClick(category.id)}
               className="flex flex-col items-center space-y-2 text-gray-600 hover:text-primary flex-shrink-0 group h-auto p-3 rounded-xl hover:bg-white/80 transition-all duration-300 hover:scale-105 hover:shadow-md"
             >
-              <div className={`w-14 h-14 ${getColorClass(category.color)} rounded-2xl flex items-center justify-center group-hover:text-white transition-all duration-300 shadow-sm group-hover:shadow-lg group-hover:scale-110`}>
+              <div className={`w-14 h-14 ${getColorClass(category.color)} rounded-2xl flex items-center justify-center transition-all duration-300 shadow-sm group-hover:shadow-lg group-hover:scale-110`}>
                 {getCategoryIcon(category.icon)}
               </div>
               <span className="text-xs font-medium font-body group-hover:font-semibold transition-all">{category.name}</span>
