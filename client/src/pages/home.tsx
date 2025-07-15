@@ -13,11 +13,25 @@ export default function Home() {
   const { user } = useAuth();
 
   const { data: featuredStores = [] } = useQuery<StoreWithUser[]>({
-    queryKey: ['/api/stores/featured'],
+    queryKey: ['/api/stores/featured', user?.university, user?.city, user?.campus],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (user?.university) params.append('userUniversity', user.university);
+      if (user?.city) params.append('userCity', user.city);
+      if (user?.campus) params.append('userCampus', user.campus);
+      return fetch(`/api/stores/featured?${params}`).then(res => res.json());
+    },
   });
 
   const { data: featuredProducts = [] } = useQuery<ProductWithStore[]>({
-    queryKey: ['/api/products/featured'],
+    queryKey: ['/api/products/featured', user?.university, user?.city, user?.campus],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (user?.university) params.append('userUniversity', user.university);
+      if (user?.city) params.append('userCity', user.city);
+      if (user?.campus) params.append('userCampus', user.campus);
+      return fetch(`/api/products/featured?${params}`).then(res => res.json());
+    },
   });
 
   const handleGetStarted = () => {

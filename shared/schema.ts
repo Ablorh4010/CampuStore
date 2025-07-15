@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   university: text("university").notNull(),
+  campus: text("campus"),
+  city: text("city").notNull(),
   isMerchant: boolean("is_merchant").default(false),
   avatar: text("avatar"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -20,6 +22,8 @@ export const stores = pgTable("stores", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   university: text("university").notNull(),
+  campus: text("campus"),
+  city: text("city").notNull(),
   rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
   reviewCount: integer("review_count").default(0),
   isActive: boolean("is_active").default(true),
@@ -81,6 +85,8 @@ export const cartItems = pgTable("cart_items", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+}).extend({
+  campus: z.string().optional(),
 });
 
 export const insertStoreSchema = createInsertSchema(stores).omit({
@@ -88,6 +94,8 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   rating: true,
   reviewCount: true,
   createdAt: true,
+}).extend({
+  campus: z.string().optional(),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({

@@ -15,11 +15,13 @@ import {
 import ProductCard from '@/components/product/product-card';
 import StoreCard from '@/components/store/store-card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/lib/auth-context';
 import type { ProductWithStore, StoreWithUser, Category } from '@shared/schema';
 
 export default function Browse() {
   const [, setLocation] = useLocation();
   const searchParams = useSearch();
+  const { user } = useAuth();
   const [viewMode, setViewMode] = useState<'products' | 'stores'>('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
@@ -40,11 +42,27 @@ export default function Browse() {
   });
 
   const { data: products = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
-    queryKey: ['/api/products', { categoryId: selectedCategory, search: searchQuery }],
+    queryKey: ['/api/products', { categoryId: selectedCategory, search: searchQuery, user: user?.id }],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (selectedCategory) params.append('categoryId', selectedCategory.toString());
+      if (searchQuery) params.append('search', searchQuery);
+      if (user?.university) params.append('userUniversity', user.university);
+      if (user?.city) params.append('userCity', user.city);
+      if (user?.campus) params.append('userCampus', user.campus);
+      return fetch(`/api/products?${params}`).then(res => res.json());
+    },
   });
 
   const { data: stores = [], isLoading: storesLoading } = useQuery<StoreWithUser[]>({
-    queryKey: ['/api/stores'],
+    queryKey: ['/api/stores', user?.university, user?.city, user?.campus],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (user?.university) params.append('userUniversity', user.university);
+      if (user?.city) params.append('userCity', user.city);
+      if (user?.campus) params.append('userCampus', user.campus);
+      return fetch(`/api/stores?${params}`).then(res => res.json());
+    },
   });
 
   const handleSearch = (e: React.FormEvent) => {

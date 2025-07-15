@@ -94,7 +94,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/stores", async (req, res) => {
     try {
-      const stores = await storage.getStoresWithUser();
+      const { userUniversity, userCity, userCampus } = req.query;
+      const filters = {
+        userUniversity: userUniversity as string,
+        userCity: userCity as string,
+        userCampus: userCampus as string,
+      };
+      const stores = await storage.getStoresWithUser(filters);
       res.json(stores);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stores" });
@@ -103,7 +109,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/stores/featured", async (req, res) => {
     try {
-      const stores = await storage.getFeaturedStores();
+      const { userUniversity, userCity, userCampus } = req.query;
+      const filters = {
+        userUniversity: userUniversity as string,
+        userCity: userCity as string,
+        userCampus: userCampus as string,
+      };
+      const stores = await storage.getFeaturedStores(filters);
       res.json(stores);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch featured stores" });
@@ -174,11 +186,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/products", async (req, res) => {
     try {
-      const { categoryId, search, limit } = req.query;
+      const { categoryId, search, limit, userUniversity, userCity, userCampus } = req.query;
       const filters = {
         categoryId: categoryId ? parseInt(categoryId as string) : undefined,
         search: search as string,
-        limit: limit ? parseInt(limit as string) : undefined
+        limit: limit ? parseInt(limit as string) : undefined,
+        userUniversity: userUniversity as string,
+        userCity: userCity as string,
+        userCampus: userCampus as string,
       };
       
       const products = await storage.getProductsWithStore(filters);
@@ -190,7 +205,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/products/featured", async (req, res) => {
     try {
-      const products = await storage.getFeaturedProducts();
+      const { userUniversity, userCity, userCampus } = req.query;
+      const filters = {
+        userUniversity: userUniversity as string,
+        userCity: userCity as string,
+        userCampus: userCampus as string,
+      };
+      const products = await storage.getFeaturedProducts(filters);
       res.json(products);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch featured products" });
