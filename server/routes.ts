@@ -13,10 +13,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userData = insertUserSchema.parse(req.body);
       
-      // Check if email or username already exists
-      const existingEmail = await storage.getUserByEmail(userData.email);
-      if (existingEmail) {
-        return res.status(400).json({ message: "Email already exists" });
+      // Check if email, username, or phone already exists
+      if (userData.email) {
+        const existingEmail = await storage.getUserByEmail(userData.email);
+        if (existingEmail) {
+          return res.status(400).json({ message: "Email already exists" });
+        }
+      }
+      
+      if (userData.phoneNumber) {
+        const existingPhone = await storage.getUserByPhone(userData.phoneNumber);
+        if (existingPhone) {
+          return res.status(400).json({ message: "Phone number already exists" });
+        }
       }
       
       const existingUsername = await storage.getUserByUsername(userData.username);
@@ -25,7 +34,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = await storage.createUser(userData);
-      res.json({ user: { ...user } });
+      res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       res.status(400).json({ message: "Invalid user data" });
     }
@@ -33,19 +42,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, username } = req.body;
+      const { email, username, password, phoneNumber, otpCode } = req.body;
       
-      const user = email 
-        ? await storage.getUserByEmail(email)
-        : await storage.getUserByUsername(username);
+      let user = null;
       
-      if (!user) {
-        return res.status(401).json({ message: "User not found" });
+      if (email && password) {
+        // Email/password login
+        user = await storage.verifyPassword(email, password);
+        if (!user) {
+          return res.status(401).json({ message: "Invalid email or password" });
+        }
+      } else if (phoneNumber && otpCode) {
+        // Phone/OTP login
+        const isValidOtp = await storage.verifyOtp(phoneNumber, otpCode);
+        if (!isValidOtp) {
+          return res.status(401).json({ message: "Invalid or expired OTP code" });
+        }
+        
+        user = await storage.getUserByPhone(phoneNumber);
+        if (!user) {
+          return res.status(401).json({ message: "User not found" });
+        }
+        
+        await storage.markPhoneAsVerified(phoneNumber);
+      } else if (email) {
+        // Legacy email-only login (for backward compatibility)
+        user = await storage.getUserByEmail(email);
+        if (!user) {
+          return res.status(401).json({ message: "User not found" });
+        }
+      } else if (username) {
+        // Legacy username-only login (for backward compatibility)
+        user = await storage.getUserByUsername(username);
+        if (!user) {
+          return res.status(401).json({ message: "User not found" });
+        }
       }
       
-      res.json({ user });
+      if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post("/api/auth/send-otp", async (req, res) => {
+    try {
+      const { phoneNumber } = req.body;
+      
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+      
+      const otpCode = await storage.generateOtp(phoneNumber);
+      
+      // In a real application, you would send this OTP via SMS
+      // For demo purposes, we'll log it to console
+      console.log(`OTP for ${phoneNumber}: ${otpCode}`);
+      
+      res.json({ message: "OTP sent successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to send OTP" });
     }
   });
 

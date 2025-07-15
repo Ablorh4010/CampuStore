@@ -12,32 +12,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
-const loginSchema = z.object({
+const emailLoginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+const phoneLoginSchema = z.object({
+  phoneNumber: z.string().min(10, 'Please enter a valid phone number'),
+  otpCode: z.string().length(6, 'OTP code must be 6 digits'),
 });
 
 const registerSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().email('Please enter a valid email address').optional(),
+  phoneNumber: z.string().min(10, 'Please enter a valid phone number').optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   username: z.string().min(3, 'Username must be at least 3 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   university: z.string().min(1, 'University is required'),
+}).refine((data) => data.email || data.phoneNumber, {
+  message: "Either email or phone number is required",
+  path: ["email"],
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
+type PhoneLoginFormData = z.infer<typeof phoneLoginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function Auth() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
-  const { login, register, isLoading } = useAuth();
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+  const [showOtpField, setShowOtpField] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const { login, register, sendOtp, isLoading } = useAuth();
   const { toast } = useToast();
 
-  const loginForm = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  const emailLoginForm = useForm<EmailLoginFormData>({
+    resolver: zodResolver(emailLoginSchema),
     defaultValues: {
       email: '',
+      password: '',
+    },
+  });
+
+  const phoneLoginForm = useForm<PhoneLoginFormData>({
+    resolver: zodResolver(phoneLoginSchema),
+    defaultValues: {
+      phoneNumber: '',
+      otpCode: '',
     },
   });
 
@@ -45,6 +69,8 @@ export default function Auth() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
+      phoneNumber: '',
+      password: '',
       username: '',
       firstName: '',
       lastName: '',
@@ -52,9 +78,9 @@ export default function Auth() {
     },
   });
 
-  const onLogin = async (data: LoginFormData) => {
+  const onEmailLogin = async (data: EmailLoginFormData) => {
     try {
-      await login({ email: data.email });
+      await login({ email: data.email, password: data.password });
       toast({
         title: 'Welcome back!',
         description: 'You have been successfully signed in.',
@@ -64,6 +90,51 @@ export default function Auth() {
       toast({
         title: 'Sign in failed',
         description: 'Please check your credentials and try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const onPhoneLogin = async (data: PhoneLoginFormData) => {
+    try {
+      await login({ phoneNumber: data.phoneNumber, otpCode: data.otpCode });
+      toast({
+        title: 'Welcome back!',
+        description: 'You have been successfully signed in.',
+      });
+      setLocation('/');
+    } catch (error) {
+      toast({
+        title: 'Sign in failed',
+        description: 'Please check your OTP code and try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSendOtp = async () => {
+    const phoneNumber = phoneLoginForm.getValues('phoneNumber');
+    if (!phoneNumber || phoneNumber.length < 10) {
+      toast({
+        title: 'Invalid phone number',
+        description: 'Please enter a valid phone number.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await sendOtp(phoneNumber);
+      setOtpSent(true);
+      setShowOtpField(true);
+      toast({
+        title: 'OTP sent!',
+        description: 'Please check your phone for the verification code.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to send OTP',
+        description: 'Please try again.',
         variant: 'destructive',
       });
     }
@@ -124,35 +195,157 @@ export default function Auth() {
               </TabsList>
 
               <TabsContent value="login">
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="email" 
-                              placeholder="your@university.edu" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isLoading}
+                <div className="space-y-4">
+                  <div className="flex space-x-2 mb-4">
+                    <Button
+                      type="button"
+                      variant={loginMethod === 'email' ? 'default' : 'outline'}
+                      onClick={() => setLoginMethod('email')}
+                      className="flex-1"
                     >
-                      {isLoading ? 'Signing in...' : 'Sign In'}
+                      Email
                     </Button>
-                  </form>
-                </Form>
+                    <Button
+                      type="button"
+                      variant={loginMethod === 'phone' ? 'default' : 'outline'}
+                      onClick={() => {
+                        setLoginMethod('phone');
+                        setShowOtpField(false);
+                        setOtpSent(false);
+                      }}
+                      className="flex-1"
+                    >
+                      Phone
+                    </Button>
+                  </div>
+
+                  {loginMethod === 'email' ? (
+                    <Form {...emailLoginForm}>
+                      <form onSubmit={emailLoginForm.handleSubmit(onEmailLogin)} className="space-y-4">
+                        <FormField
+                          control={emailLoginForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="email" 
+                                  placeholder="your@university.edu" 
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={emailLoginForm.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Password</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Input 
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Enter your password" 
+                                    {...field} 
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                  >
+                                    {showPassword ? (
+                                      <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                      <Eye className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          disabled={isLoading}
+                        >
+                          {isLoading ? 'Signing in...' : 'Sign In'}
+                        </Button>
+                      </form>
+                    </Form>
+                  ) : (
+                    <Form {...phoneLoginForm}>
+                      <form onSubmit={phoneLoginForm.handleSubmit(onPhoneLogin)} className="space-y-4">
+                        <FormField
+                          control={phoneLoginForm.control}
+                          name="phoneNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Phone Number</FormLabel>
+                              <FormControl>
+                                <div className="flex space-x-2">
+                                  <Input 
+                                    type="tel" 
+                                    placeholder="+1234567890" 
+                                    {...field} 
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleSendOtp}
+                                    disabled={isLoading || otpSent}
+                                  >
+                                    {otpSent ? 'Sent' : 'Send OTP'}
+                                  </Button>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {showOtpField && (
+                          <FormField
+                            control={phoneLoginForm.control}
+                            name="otpCode"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>OTP Code</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="text" 
+                                    placeholder="Enter 6-digit code" 
+                                    maxLength={6}
+                                    {...field} 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        <Button 
+                          type="submit" 
+                          className="w-full" 
+                          disabled={isLoading || !showOtpField}
+                        >
+                          {isLoading ? 'Verifying...' : 'Verify & Sign In'}
+                        </Button>
+                      </form>
+                    </Form>
+                  )}
+                </div>
 
                 <div className="mt-6 text-center text-sm text-gray-600">
                   <p>
@@ -205,13 +398,64 @@ export default function Auth() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>Email (Optional)</FormLabel>
                           <FormControl>
                             <Input 
                               type="email" 
                               placeholder="john.doe@university.edu" 
                               {...field} 
                             />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="phoneNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number (Optional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="tel" 
+                              placeholder="+1234567890" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password (Optional if using phone)</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input 
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Enter your password" 
+                                {...field} 
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowPassword(!showPassword)}
+                              >
+                                {showPassword ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>

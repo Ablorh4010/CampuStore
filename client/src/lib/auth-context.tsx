@@ -6,8 +6,15 @@ import type { User } from '@shared/schema';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (credentials: { email?: string; username?: string }) => Promise<void>;
+  login: (credentials: { 
+    email?: string; 
+    username?: string; 
+    password?: string;
+    phoneNumber?: string;
+    otpCode?: string;
+  }) => Promise<void>;
   register: (userData: any) => Promise<void>;
+  sendOtp: (phoneNumber: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -18,13 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: { email?: string; username?: string }) => {
+    mutationFn: async (credentials: { 
+      email?: string; 
+      username?: string; 
+      password?: string;
+      phoneNumber?: string;
+      otpCode?: string;
+    }) => {
       const response = await apiRequest('POST', '/api/auth/login', credentials);
       return response.json();
     },
     onSuccess: (data) => {
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
+    },
+  });
+
+  const sendOtpMutation = useMutation({
+    mutationFn: async (phoneNumber: string) => {
+      const response = await apiRequest('POST', '/api/auth/send-otp', { phoneNumber });
+      return response.json();
     },
   });
 
@@ -39,12 +59,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const login = async (credentials: { email?: string; username?: string }) => {
+  const login = async (credentials: { 
+    email?: string; 
+    username?: string; 
+    password?: string;
+    phoneNumber?: string;
+    otpCode?: string;
+  }) => {
     await loginMutation.mutateAsync(credentials);
   };
 
   const register = async (userData: any) => {
     await registerMutation.mutateAsync(userData);
+  };
+
+  const sendOtp = async (phoneNumber: string) => {
+    await sendOtpMutation.mutateAsync(phoneNumber);
   };
 
   const logout = () => {
@@ -68,9 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        isLoading: loginMutation.isPending || registerMutation.isPending,
+        isLoading: loginMutation.isPending || registerMutation.isPending || sendOtpMutation.isPending,
         login,
         register,
+        sendOtp,
         logout,
       }}
     >

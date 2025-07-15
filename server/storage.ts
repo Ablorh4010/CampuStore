@@ -1,12 +1,14 @@
 import {
-  users, stores, categories, products, orders, messages, cartItems,
+  users, stores, categories, products, orders, messages, cartItems, otpCodes,
   type User, type InsertUser, type Store, type InsertStore, type Category,
   type Product, type InsertProduct, type Order, type InsertOrder,
   type Message, type InsertMessage, type CartItem, type InsertCartItem,
-  type ProductWithStore, type StoreWithUser, type OrderWithDetails, type CartItemWithProduct
+  type ProductWithStore, type StoreWithUser, type OrderWithDetails, type CartItemWithProduct,
+  type OtpCode, type InsertOtp
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, sql } from "drizzle-orm";
+import { eq, and, or, like, desc, sql, gte } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 export interface IStorage {
   // Users
@@ -15,6 +17,11 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
+  verifyPassword(email: string, password: string): Promise<User | null>;
+  getUserByPhone(phoneNumber: string): Promise<User | undefined>;
+  generateOtp(phoneNumber: string): Promise<string>;
+  verifyOtp(phoneNumber: string, code: string): Promise<boolean>;
+  markPhoneAsVerified(phoneNumber: string): Promise<void>;
 
   // Stores
   createStore(store: InsertStore): Promise<Store>;
@@ -68,11 +75,61 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values({
-      ...insertUser,
-      campus: insertUser.campus || null
-    }).returning();
+    const userData = { ...insertUser };
+    if (userData.password) {
+      userData.password = await bcrypt.hash(userData.password, 10);
+    }
+    const [user] = await db.insert(users).values(userData).returning();
     return user;
+  }
+
+  async verifyPassword(email: string, password: string): Promise<User | null> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    if (!user || !user.password) return null;
+
+    const isValid = await bcrypt.compare(password, user.password);
+    return isValid ? user : null;
+  }
+
+  async getUserByPhone(phoneNumber: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.phoneNumber, phoneNumber));
+    return user || undefined;
+  }
+
+  async generateOtp(phoneNumber: string): Promise<string> {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await db.insert(otpCodes).values({
+      phoneNumber,
+      code,
+      expiresAt,
+    });
+
+    return code;
+  }
+
+  async verifyOtp(phoneNumber: string, code: string): Promise<boolean> {
+    const [otpRecord] = await db
+      .select()
+      .from(otpCodes)
+      .where(
+        and(
+          eq(otpCodes.phoneNumber, phoneNumber),
+          eq(otpCodes.code, code),
+          eq(otpCodes.used, false),
+          gte(otpCodes.expiresAt, new Date())
+        )
+      );
+
+    if (!otpRecord) return false;
+
+    await db.update(otpCodes).set({ used: true }).where(eq(otpCodes.id, otpRecord.id));
+    return true;
+  }
+
+  async markPhoneAsVerified(phoneNumber: string): Promise<void> {
+    await db.update(users).set({ isPhoneVerified: true }).where(eq(users.phoneNumber, phoneNumber));
   }
 
   async getUserById(id: number): Promise<User | undefined> {
@@ -150,7 +207,7 @@ export class DatabaseStorage implements IStorage {
       if (filters.userCampus) {
         conditions.push(eq(stores.campus, filters.userCampus));
       }
-      
+
       if (conditions.length > 1) {
         query = query.where(and(...conditions));
       }
@@ -299,7 +356,7 @@ export class DatabaseStorage implements IStorage {
       if (filters.categoryId) {
         conditions.push(eq(products.categoryId, filters.categoryId));
       }
-      
+
       if (filters.search) {
         conditions.push(
           or(
@@ -312,19 +369,19 @@ export class DatabaseStorage implements IStorage {
       // Location-based filtering with priority
       if (filters.userUniversity || filters.userCity || filters.userCampus) {
         const locationConditions = [];
-        
+
         if (filters.userCampus) {
           locationConditions.push(eq(stores.campus, filters.userCampus));
         }
-        
+
         if (filters.userUniversity) {
           locationConditions.push(eq(stores.university, filters.userUniversity));
         }
-        
+
         if (filters.userCity) {
           locationConditions.push(eq(stores.city, filters.userCity));
         }
-        
+
         if (locationConditions.length > 0) {
           conditions.push(or(...locationConditions)!);
         }
@@ -429,7 +486,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`COUNT(*)::int` })
       .from(messages)
       .where(and(eq(messages.toId, userId), eq(messages.isRead, false)));
-    
+
     return result?.count || 0;
   }
 

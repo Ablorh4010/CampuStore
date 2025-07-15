@@ -4,13 +4,16 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
+  email: text("email").unique(),
   username: text("username").notNull().unique(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   university: text("university").notNull(),
   campus: text("campus"),
   city: text("city").notNull(),
+  password: text("password"),
+  phoneNumber: text("phone_number").unique(),
+  isPhoneVerified: boolean("is_phone_verified").default(false),
   isMerchant: boolean("is_merchant").default(false),
   avatar: text("avatar"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -81,12 +84,25 @@ export const cartItems = pgTable("cart_items", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const otpCodes = pgTable("otp_codes", {
+  id: serial("id").primaryKey(),
+  phoneNumber: text("phone_number").notNull(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  isPhoneVerified: true,
 }).extend({
   campus: z.string().optional(),
+  email: z.string().email().optional(),
+  password: z.string().min(6).optional(),
+  phoneNumber: z.string().optional(),
 });
 
 export const insertStoreSchema = createInsertSchema(stores).omit({
@@ -120,6 +136,12 @@ export const insertCartItemSchema = createInsertSchema(cartItems).omit({
   createdAt: true,
 });
 
+export const insertOtpSchema = createInsertSchema(otpCodes).omit({
+  id: true,
+  used: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -134,6 +156,8 @@ export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type CartItem = typeof cartItems.$inferSelect;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+export type OtpCode = typeof otpCodes.$inferSelect;
+export type InsertOtp = z.infer<typeof insertOtpSchema>;
 
 // Extended types for API responses
 export type ProductWithStore = Product & {
