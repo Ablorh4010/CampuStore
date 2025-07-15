@@ -102,7 +102,7 @@ export default function Home() {
         {featuredStores.length > 0 && (
           <section className="mb-12">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Featured Student Stores</h2>
+              <h2 className="text-2xl font-bold font-heading text-primary">Featured Student Stores</h2>
               <Link href="/browse">
                 <Button variant="ghost" className="text-primary font-medium">
                   View All →

@@ -24,8 +24,10 @@ export default function StoreCard({ store }: StoreCardProps) {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="font-semibold text-gray-900">{store.name}</h3>
-              <p className="text-sm text-gray-600">{store.university}</p>
+              <h3 className="font-bold font-heading text-primary hover:text-accent transition-colors duration-300">
+                {store.name}
+              </h3>
+              <p className="text-sm text-gray-600 font-body">{store.university}</p>
             </div>
           </div>
           
