@@ -1,0 +1,206 @@
+import { useQuery } from '@tanstack/react-query';
+import { Link, useLocation } from 'wouter';
+import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import ProductCard from '@/components/product/product-card';
+import StoreCard from '@/components/store/store-card';
+import { useAuth } from '@/lib/auth-context';
+import type { ProductWithStore, StoreWithUser } from '@shared/schema';
+
+export default function Home() {
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+
+  const { data: featuredStores = [] } = useQuery<StoreWithUser[]>({
+    queryKey: ['/api/stores/featured'],
+  });
+
+  const { data: featuredProducts = [] } = useQuery<ProductWithStore[]>({
+    queryKey: ['/api/products/featured'],
+  });
+
+  const handleGetStarted = () => {
+    if (user) {
+      setLocation('/browse');
+    } else {
+      setLocation('/auth');
+    }
+  };
+
+  const handleCreateStore = () => {
+    if (user) {
+      setLocation('/dashboard');
+    } else {
+      setLocation('/auth');
+    }
+  };
+
+  return (
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="gradient-hero text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold mb-4">
+                CampusStore
+                <span className="text-secondary block">StudentMarket</span>
+              </h1>
+              <p className="text-xl mb-6 text-blue-100">
+                Buy and sell with fellow students. Save money, make money, build community.
+              </p>
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                <Button
+                  size="lg"
+                  className="bg-secondary text-white hover:bg-yellow-500"
+                  onClick={handleGetStarted}
+                >
+                  <ShoppingBag className="mr-2 h-5 w-5" />
+                  Start Shopping
+                </Button>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="bg-white text-primary hover:bg-gray-100"
+                  onClick={handleCreateStore}
+                >
+                  <Store className="mr-2 h-5 w-5" />
+                  Open Your Store
+                </Button>
+              </div>
+            </div>
+            <div className="hidden md:block">
+              <img
+                src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=600"
+                alt="Students collaborating"
+                className="rounded-lg shadow-2xl"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Featured Stores Section */}
+        {featuredStores.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Featured Student Stores</h2>
+              <Link href="/browse">
+                <Button variant="ghost" className="text-primary font-medium">
+                  View All →
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-6">
+              {featuredStores.slice(0, 3).map((store) => (
+                <StoreCard key={store.id} store={store} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Featured Products Section */}
+        {featuredProducts.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Trending Products</h2>
+              <Link href="/browse">
+                <Button variant="ghost" className="text-primary font-medium">
+                  View All →
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {featuredProducts.slice(0, 8).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Quick Actions Section */}
+        <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Ready to Start Selling?</h2>
+            <p className="text-gray-600">Join thousands of students already earning money on StudentMarket</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Camera className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">1. Take Photos</h3>
+              <p className="text-sm text-gray-600">Snap some great photos of your items</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Edit className="h-8 w-8 text-secondary" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">2. Create Listing</h3>
+              <p className="text-sm text-gray-600">Add details and set your price</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="h-8 w-8 text-accent" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">3. Start Earning</h3>
+              <p className="text-sm text-gray-600">Connect with buyers and make money</p>
+            </div>
+          </div>
+          
+          <div className="text-center mt-8">
+            <Button size="lg" onClick={handleCreateStore}>
+              <Plus className="mr-2 h-5 w-5" />
+              Create Your First Listing
+            </Button>
+          </div>
+        </section>
+
+        {/* Empty State for New Users */}
+        {featuredProducts.length === 0 && featuredStores.length === 0 && (
+          <section className="text-center py-12">
+            <div className="max-w-md mx-auto">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Store className="h-12 w-12 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Welcome to StudentMarket!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Be the first to start buying and selling in your student community.
+              </p>
+              <div className="space-y-3">
+                <Button size="lg" onClick={handleGetStarted} className="w-full">
+                  <ShoppingBag className="mr-2 h-5 w-5" />
+                  Start Browsing
+                </Button>
+                <Button size="lg" variant="outline" onClick={handleCreateStore} className="w-full">
+                  <Store className="mr-2 h-5 w-5" />
+                  Create a Store
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* Floating Action Button */}
+      {user && (
+        <Button
+          size="icon"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-secondary hover:bg-yellow-500"
+          onClick={handleCreateStore}
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
+      )}
+    </div>
+  );
+}
