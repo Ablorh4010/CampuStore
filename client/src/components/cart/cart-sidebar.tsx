@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
+import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
 
 export default function CartSidebar() {
   const { user } = useAuth();
@@ -18,6 +19,10 @@ export default function CartSidebar() {
   } = useCart();
 
   if (!user) return null;
+
+  const total = cartItems.reduce((sum, item) => {
+    return sum + (calculatePriceWithFee(item.product.price) * item.quantity);
+  }, 0);
 
   return (
     <>
@@ -61,7 +66,7 @@ export default function CartSidebar() {
                       className="w-16 h-16 object-cover rounded"
                     />
                   )}
-                  
+
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900 line-clamp-2">
                       {item.product.title}
@@ -70,7 +75,7 @@ export default function CartSidebar() {
                       by {item.product.store.user.firstName} {item.product.store.user.lastName[0]}.
                     </p>
                     <p className="text-primary font-semibold">
-                      ${parseFloat(item.product.price).toFixed(2)}
+                      ${formatPriceWithFee(item.product.price)}
                     </p>
                   </div>
 
@@ -114,7 +119,7 @@ export default function CartSidebar() {
             <div className="flex items-center justify-between mb-4">
               <span className="text-lg font-semibold">Total:</span>
               <span className="text-xl font-bold text-primary">
-                ${cartTotal.toFixed(2)}
+                ${total.toFixed(2)}
               </span>
             </div>
             <Button className="w-full" size="lg">

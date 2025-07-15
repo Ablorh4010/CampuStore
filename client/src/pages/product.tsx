@@ -24,6 +24,7 @@ import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
 import type { ProductWithStore } from '@shared/schema';
 
 export default function Product() {
@@ -163,8 +164,10 @@ export default function Product() {
   }
 
   const sellerName = `${product.store.user.firstName} ${product.store.user.lastName}`;
-  const savings = product.originalPrice 
-    ? ((parseFloat(product.originalPrice) - parseFloat(product.price)) / parseFloat(product.originalPrice) * 100).toFixed(0)
+  const priceWithFee = calculatePriceWithFee(product.price);
+  const originalPriceWithFee = product.originalPrice ? calculatePriceWithFee(product.originalPrice) : null;
+  const savings = originalPriceWithFee 
+    ? ((originalPriceWithFee - priceWithFee) / originalPriceWithFee * 100).toFixed(0)
     : null;
 
   const filteredRelatedProducts = relatedProducts.filter(p => p.id !== product.id);
@@ -248,11 +251,11 @@ export default function Product() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.title}</h1>
             <div className="flex items-center space-x-4">
               <span className="text-3xl font-bold text-primary">
-                ${parseFloat(product.price).toFixed(2)}
+                ${formatPriceWithFee(product.price)}
               </span>
               {product.originalPrice && (
                 <span className="text-xl text-gray-500 line-through">
-                  ${parseFloat(product.originalPrice).toFixed(2)}
+                  ${formatPriceWithFee(product.originalPrice)}
                 </span>
               )}
             </div>

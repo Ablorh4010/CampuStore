@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart, MapPin } from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
+import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
 import type { ProductWithStore } from '@shared/schema';
 
 interface ProductCardProps {
@@ -24,8 +25,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   const sellerName = `${product.store.user.firstName} ${product.store.user.lastName[0]}.`;
-  const savings = product.originalPrice 
-    ? ((parseFloat(product.originalPrice) - parseFloat(product.price)) / parseFloat(product.originalPrice) * 100).toFixed(0)
+  const priceWithFee = calculatePriceWithFee(product.price);
+  const originalPriceWithFee = product.originalPrice ? calculatePriceWithFee(product.originalPrice) : null;
+  const savings = originalPriceWithFee 
+    ? ((originalPriceWithFee - priceWithFee) / originalPriceWithFee * 100).toFixed(0)
     : null;
 
   return (
@@ -64,11 +67,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           
           <div className="flex items-center justify-between mb-2">
             <span className="text-lg font-bold text-primary">
-              ${parseFloat(product.price).toFixed(2)}
+              ${formatPriceWithFee(product.price)}
             </span>
             {product.originalPrice && (
               <span className="text-sm text-gray-500 line-through">
-                ${parseFloat(product.originalPrice).toFixed(2)}
+                ${formatPriceWithFee(product.originalPrice)}
               </span>
             )}
           </div>
