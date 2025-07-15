@@ -51,13 +51,20 @@ export default function Header() {
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
             <Link href="/">
-              <div className="cursor-pointer flex items-center space-x-2">
-                <div className="bg-gradient-to-br from-primary to-accent p-2 rounded-lg">
-                  <GraduationCap className="h-6 w-6 text-white" />
+              <div className="cursor-pointer flex items-center space-x-3 group">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
+                  <div className="relative p-2 rounded-full border-2 border-transparent bg-gradient-to-br from-primary/10 to-accent/10 group-hover:border-primary/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
+                    <GraduationCap className="h-7 w-7 text-primary group-hover:text-accent transition-colors duration-300" />
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold font-heading text-primary">CampusStore</h1>
-                  <p className="text-xs text-gray-600 -mt-1 font-body">StudentMarket</p>
+                <div className="group-hover:translate-x-1 transition-transform duration-300">
+                  <h1 className="text-2xl font-bold font-heading text-primary group-hover:text-accent transition-colors duration-300">
+                    CampusStore
+                  </h1>
+                  <p className="text-xs text-gray-600 -mt-1 font-body group-hover:text-gray-700 transition-colors duration-300">
+                    StudentMarket
+                  </p>
                 </div>
               </div>
             </Link>
