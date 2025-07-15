@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import ProductCard from '@/components/product/product-card';
+import ChatBox from '@/components/chat/chat-box';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Store, Product, User, ProductWithStore } from '@shared/schema';
 
@@ -13,7 +14,7 @@ export default function Store() {
   const [, params] = useRoute('/store/:id');
   const storeId = params?.id ? parseInt(params.id) : null;
 
-  const { data: store, isLoading: storeLoading } = useQuery<Store>({
+  const { data: store, isLoading: storeLoading } = useQuery<Store & { user?: User }>({
     queryKey: ['/api/stores', storeId],
     enabled: !!storeId,
   });
@@ -145,6 +146,15 @@ export default function Store() {
           </div>
         )}
       </div>
+
+      {/* Chat Box */}
+      <ChatBox
+        storeId={store.id}
+        sellerId={store.userId}
+        sellerName={`${store.user?.firstName || 'Store'} ${store.user?.lastName || 'Owner'}`}
+        sellerAvatar={store.user?.avatar}
+        storeName={store.name}
+      />
     </div>
   );
 }

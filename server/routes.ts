@@ -191,7 +191,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Store not found" });
       }
       
-      res.json(store);
+      // Get user data for the store
+      const user = await storage.getUserById(store.userId);
+      const storeWithUser = { ...store, user };
+      
+      res.json(storeWithUser);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch store" });
     }
