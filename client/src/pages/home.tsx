@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus } from 'lucide-react';
+import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus, BookOpen, Users, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import ProductCard from '@/components/product/product-card';
@@ -39,33 +39,35 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="gradient-hero text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
+      <section className="student-gradient text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              <h1 className="text-5xl md:text-6xl font-bold font-heading mb-6 leading-tight">
                 CampusStore
-                <span className="text-secondary block">StudentMarket</span>
+                <span className="text-yellow-300 block text-3xl md:text-4xl font-semibold">StudentMarket 🎓</span>
               </h1>
-              <p className="text-xl mb-6 text-blue-100">
-                Buy and sell with fellow students. Save money, make money, build community.
+              <p className="text-xl mb-8 text-white/90 font-body leading-relaxed">
+                Your campus marketplace where students buy, sell, and connect. 
+                <span className="block mt-2 text-yellow-200">💰 Save money • 📚 Make money • 🤝 Build community</span>
               </p>
-              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
                 <Button
                   size="lg"
-                  className="bg-secondary text-white hover:bg-yellow-500"
+                  className="btn-student text-white border-0 px-8 py-4 text-lg font-semibold"
                   onClick={handleGetStarted}
                 >
-                  <ShoppingBag className="mr-2 h-5 w-5" />
-                  Start Shopping
+                  <BookOpen className="mr-3 h-6 w-6 icon-bounce" />
+                  Start Browsing
                 </Button>
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="bg-white text-primary hover:bg-gray-100"
+                  className="bg-white/95 text-purple-700 hover:bg-white border-2 border-white/20 px-8 py-4 text-lg font-semibold playful-shadow"
                   onClick={handleCreateStore}
                 >
-                  <Store className="mr-2 h-5 w-5" />
+                  <Store className="mr-3 h-6 w-6" />
                   Open Your Store
                 </Button>
               </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Search, ShoppingCart, Bell, Plus, Menu, X } from 'lucide-react';
+import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -51,9 +51,14 @@ export default function Header() {
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
             <Link href="/">
-              <div className="cursor-pointer">
-                <h1 className="text-2xl font-bold text-primary">CampusStore</h1>
-                <p className="text-xs text-gray-600 -mt-1">StudentMarket</p>
+              <div className="cursor-pointer flex items-center space-x-2">
+                <div className="bg-gradient-to-br from-primary to-accent p-2 rounded-lg">
+                  <GraduationCap className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold font-heading text-primary">CampusStore</h1>
+                  <p className="text-xs text-gray-600 -mt-1 font-body">StudentMarket</p>
+                </div>
               </div>
             </Link>
 
@@ -75,21 +80,21 @@ export default function Header() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
             {/* Mode Toggle */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-1 shadow-sm border">
               <Link href="/browse">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="bg-white text-primary shadow-sm"
+                  className="bg-white text-primary shadow-md rounded-lg border border-primary/20 font-medium"
                 >
-                  <ShoppingCart className="h-4 w-4 mr-1" />
-                  Buy
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Browse
                 </Button>
               </Link>
               <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="text-gray-600">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Sell
+                <Button variant="ghost" size="sm" className="text-gray-600 hover:text-primary font-medium ml-1">
+                  <Store className="h-4 w-4 mr-2" />
+                  My Store
                 </Button>
               </Link>
             </div>

@@ -31,20 +31,20 @@ export default function CategoryNav() {
   };
 
   return (
-    <nav className="bg-white border-b border-gray-200">
+    <nav className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-b border-gray-200/50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex space-x-8 overflow-x-auto py-4">
+        <div className="flex space-x-6 overflow-x-auto py-4">
           {categories.map((category) => (
             <Button
               key={category.id}
               variant="ghost"
               onClick={() => handleCategoryClick(category.id)}
-              className="flex flex-col items-center space-y-1 text-gray-600 hover:text-primary flex-shrink-0 group h-auto p-2"
+              className="flex flex-col items-center space-y-2 text-gray-600 hover:text-primary flex-shrink-0 group h-auto p-3 rounded-xl hover:bg-white/80 transition-all duration-300 hover:scale-105 hover:shadow-md"
             >
-              <div className={`w-12 h-12 ${getColorClass(category.color)} rounded-full flex items-center justify-center group-hover:text-white transition-colors`}>
+              <div className={`w-14 h-14 ${getColorClass(category.color)} rounded-2xl flex items-center justify-center group-hover:text-white transition-all duration-300 shadow-sm group-hover:shadow-lg group-hover:scale-110`}>
                 {getCategoryIcon(category.icon)}
               </div>
-              <span className="text-xs font-medium">{category.name}</span>
+              <span className="text-xs font-medium font-body group-hover:font-semibold transition-all">{category.name}</span>
             </Button>
           ))}
         </div>
