@@ -252,11 +252,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", async (req, res) => {
+  app.put("/api/users/:id", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
-      const userData = req.body;
+      
+      // Ensure user can only update their own profile
+      if (req.userId !== id) {
+        return res.status(403).json({ message: "Cannot update another user's profile" });
+      }
 
+      const userData = req.body;
       const user = await storage.updateUser(id, userData);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -269,9 +274,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Store routes
-  app.post("/api/stores", async (req, res) => {
+  app.post("/api/stores", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const storeData = insertStoreSchema.parse(req.body);
+      
+      // Ensure userId in store data matches authenticated user
+      if (storeData.userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot create store for another user" });
+      }
+
       const store = await storage.createStore(storeData);
       res.json(store);
     } catch (error) {
@@ -340,15 +351,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/stores/:id", async (req, res) => {
+  app.put("/api/stores/:id", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
-      const storeData = req.body;
-
-      const store = await storage.updateStore(id, storeData);
-      if (!store) {
+      
+      // Verify user owns the store
+      const existingStore = await storage.getStoreById(id);
+      if (!existingStore) {
         return res.status(404).json({ message: "Store not found" });
       }
+      
+      if (existingStore.userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot update another user's store" });
+      }
+
+      const storeData = req.body;
+      const store = await storage.updateStore(id, storeData);
 
       res.json(store);
     } catch (error) {
@@ -369,9 +387,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Product routes
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const productData = insertProductSchema.parse(req.body);
+      
+      // Verify user owns the store
+      const store = await storage.getStoreById(productData.storeId);
+      if (!store) {
+        return res.status(404).json({ message: "Store not found" });
+      }
+      
+      if (store.userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot create product for another user's store" });
+      }
+
       const product = await storage.createProduct(productData);
       res.json(product);
     } catch (error) {
@@ -447,15 +476,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/products/:id", async (req, res) => {
+  app.put("/api/products/:id", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
-      const productData = req.body;
-
-      const product = await storage.updateProduct(id, productData);
-      if (!product) {
+      
+      // Verify user owns the product's store
+      const existingProduct = await storage.getProductById(id);
+      if (!existingProduct) {
         return res.status(404).json({ message: "Product not found" });
       }
+      
+      const store = await storage.getStoreById(existingProduct.storeId);
+      if (!store || store.userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot update another user's product" });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(id, productData);
 
       res.json(product);
     } catch (error) {
@@ -463,15 +500,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/products/:id", async (req, res) => {
+  app.delete("/api/products/:id", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
-      const deleted = await storage.deleteProduct(id);
-
-      if (!deleted) {
+      
+      // Verify user owns the product's store
+      const existingProduct = await storage.getProductById(id);
+      if (!existingProduct) {
         return res.status(404).json({ message: "Product not found" });
       }
+      
+      const store = await storage.getStoreById(existingProduct.storeId);
+      if (!store || store.userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot delete another user's product" });
+      }
 
+      const deleted = await storage.deleteProduct(id);
       res.json({ message: "Product deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete product" });
@@ -479,9 +523,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cart routes
-  app.post("/api/cart", async (req, res) => {
+  app.post("/api/cart", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const cartData = insertCartItemSchema.parse(req.body);
+      
+      // Ensure userId matches authenticated user
+      if (cartData.userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot add to another user's cart" });
+      }
+
       const cartItem = await storage.addToCart(cartData);
       res.json(cartItem);
     } catch (error) {
@@ -489,9 +539,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/cart/:userId", async (req, res) => {
+  app.get("/api/cart/:userId", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const userId = parseInt(req.params.userId);
+      
+      // Ensure user can only access their own cart
+      if (userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot access another user's cart" });
+      }
+
       const cartItems = await storage.getCartByUserId(userId);
       res.json(cartItems);
     } catch (error) {
@@ -499,7 +555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/cart/:id", async (req, res) => {
+  app.put("/api/cart/:id", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       const { quantity } = req.body;
@@ -511,7 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/cart/:id", async (req, res) => {
+  app.delete("/api/cart/:id", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.removeFromCart(id);
@@ -526,9 +582,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/cart/user/:userId", async (req, res) => {
+  app.delete("/api/cart/user/:userId", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const userId = parseInt(req.params.userId);
+      
+      // Ensure user can only clear their own cart
+      if (userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot clear another user's cart" });
+      }
+
       await storage.clearCart(userId);
       res.json({ message: "Cart cleared" });
     } catch (error) {
@@ -537,9 +599,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Order routes
-  app.post("/api/orders", async (req, res) => {
+  app.post("/api/orders", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const orderData = insertOrderSchema.parse(req.body);
+      
+      // Ensure buyerId matches authenticated user
+      if (orderData.buyerId !== req.userId) {
+        return res.status(403).json({ message: "Cannot create order for another user" });
+      }
+
       const order = await storage.createOrder(orderData);
       res.json(order);
     } catch (error) {
@@ -547,9 +615,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/orders/buyer/:buyerId", async (req, res) => {
+  app.get("/api/orders/buyer/:buyerId", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const buyerId = parseInt(req.params.buyerId);
+      
+      // Ensure user can only access their own orders
+      if (buyerId !== req.userId) {
+        return res.status(403).json({ message: "Cannot access another user's orders" });
+      }
+
       const orders = await storage.getOrdersByBuyerId(buyerId);
       res.json(orders);
     } catch (error) {
@@ -557,9 +631,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/orders/seller/:sellerId", async (req, res) => {
+  app.get("/api/orders/seller/:sellerId", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const sellerId = parseInt(req.params.sellerId);
+      
+      // Ensure user can only access their own seller orders
+      if (sellerId !== req.userId) {
+        return res.status(403).json({ message: "Cannot access another user's orders" });
+      }
+
       const orders = await storage.getOrdersBySellerId(sellerId);
       res.json(orders);
     } catch (error) {
@@ -567,26 +647,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/orders/:id/status", async (req, res) => {
+  app.put("/api/orders/:id/status", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
-
-      const order = await storage.updateOrderStatus(id, status);
+      
+      // Verify user is either buyer or seller of the order
+      const order = await storage.getOrderById(id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
+      
+      if (order.buyerId !== req.userId && order.sellerId !== req.userId) {
+        return res.status(403).json({ message: "Cannot update another user's order" });
+      }
 
-      res.json(order);
+      const updatedOrder = await storage.updateOrderStatus(id, status);
+      res.json(updatedOrder);
     } catch (error) {
       res.status(500).json({ message: "Failed to update order status" });
     }
   });
 
   // Message routes
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/messages", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const messageData = insertMessageSchema.parse(req.body);
+      
+      // Ensure senderId matches authenticated user
+      if (messageData.senderId !== req.userId) {
+        return res.status(403).json({ message: "Cannot send message as another user" });
+      }
+
       const message = await storage.createMessage(messageData);
       res.json(message);
     } catch (error) {
@@ -594,12 +686,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/messages/:user1Id/:user2Id", async (req, res) => {
+  app.get("/api/messages/:user1Id/:user2Id", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const user1Id = parseInt(req.params.user1Id);
       const user2Id = parseInt(req.params.user2Id);
-      const productId = req.query.productId ? parseInt(req.query.productId as string) : undefined;
+      
+      // Ensure authenticated user is one of the participants
+      if (req.userId !== user1Id && req.userId !== user2Id) {
+        return res.status(403).json({ message: "Cannot access other users' messages" });
+      }
 
+      const productId = req.query.productId ? parseInt(req.query.productId as string) : undefined;
       const messages = await storage.getMessagesBetweenUsers(user1Id, user2Id, productId);
       res.json(messages);
     } catch (error) {
@@ -607,9 +704,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/messages/unread/:userId", async (req, res) => {
+  app.get("/api/messages/unread/:userId", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const userId = parseInt(req.params.userId);
+      
+      // Ensure user can only check their own unread messages
+      if (userId !== req.userId) {
+        return res.status(403).json({ message: "Cannot access another user's messages" });
+      }
+
       const count = await storage.getUnreadMessageCount(userId);
       res.json({ count });
     } catch (error) {
@@ -617,7 +720,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/messages/:id/read", async (req, res) => {
+  app.put("/api/messages/:id/read", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       const marked = await storage.markMessageAsRead(id);
@@ -633,18 +736,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes for product approval
-  app.get("/api/admin/products/pending", async (req, res) => {
+  app.get("/api/admin/products/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
-      const userId = parseInt(req.query.userId as string);
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const user = await storage.getUserById(userId);
-      if (!user || !user.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const pendingProducts = await storage.getPendingProducts();
       res.json(pendingProducts);
     } catch (error) {
@@ -652,18 +745,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/products", async (req, res) => {
+  app.get("/api/admin/products", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
-      const userId = parseInt(req.query.userId as string);
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const user = await storage.getUserById(userId);
-      if (!user || !user.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const allProducts = await storage.getAllProductsForAdmin();
       res.json(allProducts);
     } catch (error) {
@@ -671,18 +754,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/admin/products/:id/approval", async (req, res) => {
+  app.put("/api/admin/products/:id/approval", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
-      const userId = parseInt(req.body.userId);
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const user = await storage.getUserById(userId);
-      if (!user || !user.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const productId = parseInt(req.params.id);
       const { status } = req.body;
 
@@ -701,19 +774,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/products/import", upload.single('file'), async (req, res) => {
+  app.post("/api/admin/products/import", authenticateToken, requireAdmin, upload.single('file'), async (req: AuthRequest, res) => {
     try {
-      const userId = parseInt(req.body.userId);
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      // CRITICAL: Verify admin status from database, don't trust client input
-      const user = await storage.getUserById(userId);
-      if (!user || !user.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const storeId = parseInt(req.body.storeId);
       if (!storeId) {
         return res.status(400).json({ message: "Store ID is required" });
