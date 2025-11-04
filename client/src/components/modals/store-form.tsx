@@ -20,6 +20,8 @@ const storeSchema = z.object({
   name: z.string().min(1, 'Store name is required'),
   description: z.string().min(1, 'Description is required'),
   university: z.string().min(1, 'University is required'),
+  campus: z.string().optional(),
+  city: z.string().min(1, 'City is required'),
 });
 
 type StoreFormData = z.infer<typeof storeSchema>;
@@ -40,6 +42,8 @@ export default function StoreForm({ isOpen, onClose }: StoreFormProps) {
       name: '',
       description: '',
       university: user?.university || '',
+      campus: user?.campus || '',
+      city: user?.city || '',
     },
   });
 
@@ -48,6 +52,7 @@ export default function StoreForm({ isOpen, onClose }: StoreFormProps) {
       const response = await apiRequest('POST', '/api/stores', {
         ...data,
         userId: user!.id,
+        campus: data.campus || null,
       });
       return response.json();
     },
@@ -121,6 +126,34 @@ export default function StoreForm({ isOpen, onClose }: StoreFormProps) {
                   <FormLabel>University</FormLabel>
                   <FormControl>
                     <Input placeholder="University Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="campus"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Campus (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Main Campus" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>City</FormLabel>
+                  <FormControl>
+                    <Input placeholder="City Name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
