@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -17,9 +17,15 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('pending');
 
-  // Redirect if not admin
+  // Redirect if not admin (using useEffect to avoid render-time side effects)
+  useEffect(() => {
+    if (!user || !user.isAdmin) {
+      setLocation('/');
+    }
+  }, [user, setLocation]);
+
+  // Show loading while redirecting
   if (!user || !user.isAdmin) {
-    setLocation('/');
     return null;
   }
 
@@ -32,7 +38,7 @@ export default function AdminDashboard() {
     mutationFn: ({ productId, status }: { productId: number; status: string }) =>
       apiRequest(`/api/admin/products/${productId}/approval`, 'PUT', { userId: user?.id, status }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products', user?.id] });
       toast({
         title: 'Success',
         description: 'Product status updated successfully',

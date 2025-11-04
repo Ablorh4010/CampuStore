@@ -88,6 +88,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.initializeData();
+    this.seedAdminData();
   }
 
   private initializeData() {
@@ -110,6 +111,98 @@ export class MemStorage implements IStorage {
       };
       this.categories.set(category.id, category);
     });
+  }
+
+  private seedAdminData() {
+    // Create admin user (email: admin@campus.edu, password: admin123)
+    const adminUser: User = {
+      id: this.currentUserId++,
+      username: 'admin',
+      email: 'admin@campus.edu',
+      password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', // hashed "admin123"
+      firstName: 'Admin',
+      lastName: 'User',
+      university: 'Campus University',
+      campus: 'Main Campus',
+      city: 'San Francisco',
+      country: 'United States',
+      isMerchant: true,
+      isAdmin: true,
+      avatar: null,
+      createdAt: new Date()
+    };
+    this.users.set(adminUser.id, adminUser);
+
+    // Create seller user
+    const sellerUser: User = {
+      id: this.currentUserId++,
+      username: 'seller1',
+      email: 'seller@campus.edu',
+      password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', // hashed "admin123"
+      firstName: 'John',
+      lastName: 'Seller',
+      university: 'Campus University',
+      campus: 'Main Campus',
+      city: 'San Francisco',
+      country: 'United States',
+      isMerchant: true,
+      isAdmin: false,
+      avatar: null,
+      createdAt: new Date()
+    };
+    this.users.set(sellerUser.id, sellerUser);
+
+    // Create store for seller
+    const store: Store = {
+      id: this.currentStoreId++,
+      userId: sellerUser.id,
+      name: 'Campus Electronics',
+      description: 'Quality electronics for students',
+      university: 'Campus University',
+      campus: 'Main Campus',
+      city: 'San Francisco',
+      rating: 4.5,
+      reviewCount: 10,
+      isActive: true,
+      createdAt: new Date()
+    };
+    this.stores.set(store.id, store);
+
+    // Create pending product
+    const product: Product = {
+      id: this.currentProductId++,
+      storeId: store.id,
+      categoryId: 2, // Electronics
+      title: 'MacBook Pro 13" - Pending Approval',
+      description: 'Lightly used MacBook Pro, great for students. Includes charger.',
+      price: 899,
+      originalPrice: 1299,
+      condition: 'Used - Like New',
+      images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8'],
+      isAvailable: true,
+      approvalStatus: 'pending',
+      viewCount: 0,
+      createdAt: new Date()
+    };
+    this.products.set(product.id, product);
+
+    // Create an approved product
+    const approvedProduct: Product = {
+      id: this.currentProductId++,
+      storeId: store.id,
+      categoryId: 1, // Textbooks
+      title: 'Introduction to Computer Science - Approved',
+      description: 'CS101 textbook in excellent condition',
+      price: 45,
+      originalPrice: 80,
+      condition: 'Used - Good',
+      images: ['https://images.unsplash.com/photo-1544947950-fa07a98d237f'],
+      isAvailable: true,
+      approvalStatus: 'approved',
+      viewCount: 5,
+      createdAt: new Date()
+    };
+    this.products.set(approvedProduct.id, approvedProduct);
   }
 
   // Users
