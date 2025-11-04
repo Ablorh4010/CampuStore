@@ -14,6 +14,7 @@ import Store from "./pages/store";
 import Product from "./pages/product";
 import Dashboard from "./pages/dashboard";
 import Auth from "./pages/auth";
+import AdminDashboard from "./pages/admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/store/:id" component={Store} />
       <Route path="/product/:id" component={Product} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/auth" component={Auth} />
       <Route component={NotFound} />
     </Switch>
