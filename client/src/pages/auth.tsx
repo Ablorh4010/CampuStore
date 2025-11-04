@@ -49,25 +49,34 @@ export default function Auth() {
   const [showOtpField, setShowOtpField] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
+  const [userMode, setUserMode] = useState<'buyer' | 'seller' | null>(null);
   const { login, register, sendOtp, isLoading } = useAuth();
   const { toast } = useToast();
 
-  // Check for admin query parameter on mount and whenever URL changes
+  // Check for admin and mode query parameters on mount and whenever URL changes
   useEffect(() => {
-    const checkAdminMode = () => {
+    const checkParams = () => {
       const params = new URLSearchParams(window.location.search);
       const isAdmin = params.get('admin') === 'true';
-      console.log('Checking admin mode:', isAdmin, window.location.search);
+      const mode = params.get('mode') as 'buyer' | 'seller' | null;
+      console.log('Checking params:', { isAdmin, mode }, window.location.search);
       setIsAdminMode(isAdmin);
+      if (mode) {
+        setUserMode(mode);
+        localStorage.setItem('userMode', mode);
+      } else {
+        const savedMode = localStorage.getItem('userMode') as 'buyer' | 'seller' | null;
+        setUserMode(savedMode);
+      }
     };
     
-    checkAdminMode();
+    checkParams();
     
     // Listen for popstate events (browser back/forward)
-    window.addEventListener('popstate', checkAdminMode);
+    window.addEventListener('popstate', checkParams);
     
     return () => {
-      window.removeEventListener('popstate', checkAdminMode);
+      window.removeEventListener('popstate', checkParams);
     };
   }, []);
   

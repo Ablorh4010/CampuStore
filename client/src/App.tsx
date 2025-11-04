@@ -8,6 +8,7 @@ import { CartProvider } from "./lib/cart-context";
 import Header from "./components/layout/header";
 import Footer from "./components/layout/footer";
 import CartSidebar from "./components/cart/cart-sidebar";
+import PWAInstallPrompt from "./components/pwa-install-prompt";
 import Home from "./pages/home";
 import Browse from "./pages/browse";
 import Store from "./pages/store";
@@ -17,11 +18,13 @@ import Auth from "./pages/auth";
 import AdminDashboard from "./pages/admin";
 import ForgotPassword from "./pages/forgot-password";
 import ResetPassword from "./pages/reset-password";
+import ModeSelection from "./pages/mode-selection";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
     <Switch>
+      <Route path="/mode-selection" component={ModeSelection} />
       <Route path="/" component={Home} />
       <Route path="/browse" component={Browse} />
       <Route path="/store/:id" component={Store} />
@@ -49,6 +52,7 @@ function App() {
               </main>
               <Footer />
               <CartSidebar />
+              <PWAInstallPrompt />
             </div>
             <Toaster />
           </CartProvider>

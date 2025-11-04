@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus, BookOpen, Users, Heart } from 'lucide-react';
@@ -12,6 +13,19 @@ import studentsShoppingImage from '@assets/stock_images/diverse_students_sho_daf
 export default function Home() {
   const [, setLocation] = useLocation();
   const { user, countryCode } = useAuth();
+  
+  // Check if mobile user should see mode selection
+  useEffect(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const hasSeenModeSelection = localStorage.getItem('hasSeenModeSelection');
+    const userMode = localStorage.getItem('userMode');
+    
+    // If mobile, first time, and not logged in, show mode selection
+    if (isMobile && !hasSeenModeSelection && !user && !userMode) {
+      localStorage.setItem('hasSeenModeSelection', 'true');
+      setLocation('/mode-selection');
+    }
+  }, [user, setLocation]);
 
   const { data: featuredStores = [] } = useQuery<StoreWithUser[]>({
     queryKey: ['/api/stores/featured', user?.university, user?.city, user?.campus],
