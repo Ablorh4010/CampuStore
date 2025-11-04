@@ -6,9 +6,9 @@ import type { User } from '@shared/schema';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (credentials: { 
-    email?: string; 
-    username?: string; 
+  login: (credentials: {
+    email?: string;
+    username?: string;
     password?: string;
     phoneNumber?: string;
     otpCode?: string;
@@ -16,18 +16,20 @@ interface AuthContextType {
   register: (userData: any) => Promise<void>;
   sendOtp: (phoneNumber: string) => Promise<void>;
   logout: () => void;
+  countryCode: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [countryCode, setCountryCode] = useState<string>('US');
   const queryClient = useQueryClient();
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: { 
-      email?: string; 
-      username?: string; 
+    mutationFn: async (credentials: {
+      email?: string;
+      username?: string;
       password?: string;
       phoneNumber?: string;
       otpCode?: string;
@@ -59,9 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const login = async (credentials: { 
-    email?: string; 
-    username?: string; 
+  const login = async (credentials: {
+    email?: string;
+    username?: string;
     password?: string;
     phoneNumber?: string;
     otpCode?: string;
@@ -83,6 +85,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   };
 
+  const detectCountry = async () => {
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      const data = await response.json();
+      if (data.country_code) {
+        setCountryCode(data.country_code);
+      }
+    } catch (error) {
+      console.error('Failed to detect country:', error);
+      // Fallback to US
+      setCountryCode('US');
+    }
+  };
+
   useEffect(() => {
     const stored = localStorage.getItem('user');
     if (stored) {
@@ -92,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('user');
       }
     }
+    detectCountry();
   }, []);
 
   return (
@@ -103,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         sendOtp,
         logout,
+        countryCode,
       }}
     >
       {children}

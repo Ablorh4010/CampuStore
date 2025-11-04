@@ -20,7 +20,7 @@ import CategoryNav from './category-nav';
 
 export default function Header() {
   const [, setLocation] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, countryCode } = useAuth();
   const { cartCount, openCart } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -59,9 +59,14 @@ export default function Header() {
                   </div>
                 </div>
                 <div className="group-hover:translate-x-1 transition-transform duration-300">
-                  <h1 className="text-2xl font-bold font-heading text-primary group-hover:text-accent transition-colors duration-300">
-                    CampusStore
-                  </h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold font-heading text-primary group-hover:text-accent transition-colors duration-300">
+                      CampusStore
+                    </h1>
+                    <span className="text-xs font-bold text-white bg-primary px-2 py-0.5 rounded-md">
+                      {countryCode}
+                    </span>
+                  </div>
                   <p className="text-xs text-gray-600 -mt-1 font-body group-hover:text-gray-700 transition-colors duration-300">
                     StudentMarket
                   </p>

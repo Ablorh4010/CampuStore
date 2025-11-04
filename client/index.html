@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>CampusStore - StudentMarket</title>
+    <script>
+      // Update title with country code once detected
+      window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+          const countryMatch = window.location.pathname.match(/^\/([a-z]{2})\/?/i);
+          if (countryMatch) {
+            document.title = `CampusStore ${countryMatch[1].toUpperCase()} - StudentMarket`;
+          }
+        }, 1000);
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

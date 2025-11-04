@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus, BookOpen, Users, Heart } from 'lucide-react';
@@ -10,7 +11,15 @@ import type { ProductWithStore, StoreWithUser } from '@shared/schema';
 
 export default function Home() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, countryCode } = useAuth();
+  
+  // Update URL with country code
+  useEffect(() => {
+    if (countryCode && window.location.pathname === '/') {
+      const newUrl = `/${countryCode.toLowerCase()}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [countryCode]);
 
   const { data: featuredStores = [] } = useQuery<StoreWithUser[]>({
     queryKey: ['/api/stores/featured', user?.university, user?.city, user?.campus],
@@ -60,6 +69,9 @@ export default function Home() {
             <div>
               <h1 className="text-5xl md:text-6xl font-bold font-heading mb-6 leading-tight">
                 CampusStore
+                <span className="text-yellow-300 ml-3 text-2xl md:text-3xl font-bold bg-white/20 px-3 py-1 rounded-lg">
+                  {countryCode}
+                </span>
                 <span className="text-yellow-300 block text-3xl md:text-4xl font-semibold">StudentMarket 🎓</span>
               </h1>
               <p className="text-xl mb-8 text-white/90 font-body leading-relaxed">
