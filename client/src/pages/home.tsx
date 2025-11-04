@@ -101,31 +101,11 @@ export default function Home() {
       </section>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Featured Stores Section */}
-        {featuredStores.length > 0 && (
-          <section className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold font-heading text-primary">Featured Student Stores</h2>
-              <Link href="/browse">
-                <Button variant="ghost" className="text-primary font-medium">
-                  View All →
-                </Button>
-              </Link>
-            </div>
-            
-            <div className="grid md:grid-cols-3 gap-6">
-              {featuredStores.slice(0, 3).map((store) => (
-                <StoreCard key={store.id} store={store} />
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Featured Products Section */}
         {featuredProducts.length > 0 && (
           <section className="mb-12">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Trending Products</h2>
+              <h2 className="text-3xl font-bold text-gray-900 font-heading">Trending Products</h2>
               <Link href="/browse">
                 <Button variant="ghost" className="text-primary font-medium">
                   View All →
@@ -134,7 +114,47 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {featuredProducts.slice(0, 8).map((product) => (
+              {featuredProducts.slice(0, 16).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Featured Stores Section */}
+        {featuredStores.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold font-heading text-primary">Featured Student Stores</h2>
+              <Link href="/browse">
+                <Button variant="ghost" className="text-primary font-medium">
+                  View All Stores →
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {featuredStores.slice(0, 8).map((store) => (
+                <StoreCard key={store.id} store={store} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* More Products Section */}
+        {featuredProducts.length > 16 && (
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 font-heading">More Products You'll Love</h2>
+              <Link href="/browse">
+                <Button variant="ghost" className="text-primary font-medium">
+                  Browse All →
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              {featuredProducts.slice(16, 32).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>

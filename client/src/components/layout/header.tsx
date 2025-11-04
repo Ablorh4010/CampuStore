@@ -19,11 +19,14 @@ import { useCart } from '@/lib/cart-context';
 import CategoryNav from './category-nav';
 
 export default function Header() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logout, countryCode } = useAuth();
   const { cartCount, openCart } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Show Sign In button only on My Store (dashboard) page
+  const shouldShowSignIn = !user && location === '/dashboard';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,11 +185,11 @@ export default function Header() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+            ) : shouldShowSignIn ? (
               <Link href="/auth">
-                <Button>Sign In</Button>
+                <Button data-testid="button-sign-in">Sign In</Button>
               </Link>
-            )}
+            ) : null}
           </div>
 
           {/* Mobile Menu Button */}
@@ -226,11 +229,11 @@ export default function Header() {
                         Log out
                       </Button>
                     </>
-                  ) : (
+                  ) : shouldShowSignIn ? (
                     <Link href="/auth">
-                      <Button className="w-full">Sign In</Button>
+                      <Button className="w-full" data-testid="button-sign-in-mobile">Sign In</Button>
                     </Link>
-                  )}
+                  ) : null}
                 </div>
               </SheetContent>
             </Sheet>

@@ -1,4 +1,5 @@
-import { X, Minus, Plus, Trash2 } from 'lucide-react';
+import { X, Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -17,8 +18,6 @@ export default function CartSidebar() {
     updateQuantity,
     removeFromCart,
   } = useCart();
-
-  if (!user) return null;
 
   const total = cartItems.reduce((sum, item) => {
     return sum + (calculatePriceWithFee(item.product.price) * item.quantity);
@@ -47,12 +46,29 @@ export default function CartSidebar() {
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 p-6">
-          {cartItems.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Your cart is empty</p>
+        {!user ? (
+          <div className="flex flex-col items-center justify-center p-8 h-full">
+            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+              <ShoppingCart className="h-12 w-12 text-primary" />
             </div>
-          ) : (
+            <h3 className="text-xl font-semibold mb-2">Sign In to Shop</h3>
+            <p className="text-gray-600 text-center mb-6">
+              Sign in to add items to your cart and checkout
+            </p>
+            <Link href="/auth" onClick={closeCart}>
+              <Button size="lg" className="w-full" data-testid="button-cart-signin">
+                Sign In to Continue
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <>
+            <ScrollArea className="flex-1 p-6">
+              {cartItems.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Your cart is empty</p>
+                </div>
+              ) : (
             <div className="space-y-4">
               {cartItems.map((item) => (
                 <div
@@ -110,22 +126,24 @@ export default function CartSidebar() {
                   </div>
                 </div>
               ))}
+              </div>
+            )}
+          </ScrollArea>
+
+          {cartItems.length > 0 && (
+            <div className="border-t border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-semibold">Total:</span>
+                <span className="text-xl font-bold text-primary">
+                  ${total.toFixed(2)}
+                </span>
+              </div>
+              <Button className="w-full" size="lg" data-testid="button-checkout">
+                Proceed to Checkout
+              </Button>
             </div>
           )}
-        </ScrollArea>
-
-        {cartItems.length > 0 && (
-          <div className="border-t border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-semibold">Total:</span>
-              <span className="text-xl font-bold text-primary">
-                ${total.toFixed(2)}
-              </span>
-            </div>
-            <Button className="w-full" size="lg">
-              Proceed to Checkout
-            </Button>
-          </div>
+        </>
         )}
       </div>
     </>
