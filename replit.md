@@ -32,6 +32,7 @@ Preferred communication style: Simple, everyday language.
 - **Store Management**: Multi-store support per user, creation, and university-based categorization. Includes rating and review system.
 - **Product Catalog**: Category-based organization, image gallery, product conditions, pricing, search, filtering, and featured products. Supports direct image uploads and special offers.
 - **Shopping Cart**: Persistent state, real-time updates, sidebar interface, quantity management.
+- **Payment Processing**: Stripe integration supporting Card, PayPal, and Mobile Money payments in a unified checkout flow.
 - **Messaging System**: User-to-user and product-specific communication with unread tracking.
 - **Order Management**: Creation, tracking, buyer/seller views, and status management.
 - **Seller Verification**: Identity verification process including ID photo and live selfie/face scan, with admin review and payment details management (Bank, PayPal, Mobile Money).
@@ -58,8 +59,77 @@ Preferred communication style: Simple, everyday language.
 - **React Hook Form**: Form management with Zod validation.
 - **Date-fns**: Date manipulation.
 
+### Payment Processing
+- **Stripe**: Complete payment integration for Card, PayPal, and Mobile Money.
+
 ### Development Tools
 - **TypeScript**: Type safety.
 - **ESBuild**: Production bundling.
 - **Drizzle Kit**: Database schema management.
 - **Capacitor 7**: Native iOS and Android app wrapper.
+
+## Recent Changes
+
+### Stripe Payment Integration (November 2025)
+- **Unified Payment Processing**: Integrated Stripe for Card, PayPal, and Mobile Money payments
+  - All payment methods go into a single Stripe account for easy admin management
+  - Automatic payment method detection based on user's region
+  - Support for 3D Secure, SCA compliance, and redirect-based payments
+- **Checkout Flow**:
+  - Dedicated checkout page at /checkout with order summary
+  - Stripe PaymentElement with automatic payment method selection
+  - JWT authentication required for checkout
+  - Cart validation before payment processing
+  - Real-time payment status verification
+- **Payment Success Handling**:
+  - Dedicated /payment-success page for redirect-based payments
+  - Automatic PaymentIntent status verification
+  - Cart clearing on successful payment
+  - Error recovery flow for failed payments
+- **Backend Implementation**:
+  - POST /api/create-payment-intent - Creates Stripe PaymentIntent
+  - JWT authentication required for all payment endpoints
+  - Cart items and amount stored in Stripe metadata
+  - Server-side amount validation
+- **Security Features**:
+  - Stripe SDK with latest API version
+  - Automatic payment methods enabled
+  - PCI DSS compliant (Stripe handles card data)
+  - Secure payment intent creation with metadata
+- **User Experience**:
+  - Loading states and error handling throughout
+  - Security badges and trust indicators
+  - Responsive design with mobile optimization
+  - Clear payment status messaging
+- **Admin Dashboard**: All transactions viewable and manageable from Stripe Dashboard
+- **Testing Status**: LSP clean, production-ready, supports test mode with pk_test/sk_test keys
+
+### Logo Integration (November 2025)
+- **CampusStore Logo**: Added generated logo to header and browser tab
+- **Favicon**: Set app icon for browser tab and mobile bookmarks
+- **Apple Touch Icon**: Configured for iOS home screen installation
+- **Branding**: Logo appears in header with hover animations and transitions
+
+### Seller Payment Details and Verification (November 2025)
+- **Payment Details Management**: Sellers can now configure payment methods
+  - Three payment options: Bank Account, PayPal, Mobile Money
+  - Bank: Account holder name, bank name, account number
+  - PayPal: Email or user ID
+  - Mobile Money: Provider name and phone number
+- **Seller Verification System**: Identity verification with ID and face scan
+  - Upload government-issued ID photo
+  - Live selfie/face scan for identity verification
+  - Verification statuses: unverified, pending, verified, rejected
+  - Admin review required before seller can receive payments
+- **Name Matching Requirements**: Prominent warnings that payment account name must match ID
+- **API Endpoints**:
+  - POST /api/upload/verification - Upload ID and face scan images
+  - PUT /api/users/payment-details - Update seller payment information
+- **Seller Settings Page**: Dedicated page at /seller-settings
+  - Payment details form with conditional fields per payment method
+  - Verification upload form with image previews
+  - Verification status badges and clear instructions
+  - Mobile camera capture support for face scan
+- **Schema Updates**: Added payment and verification fields to users table
+- **Security**: JWT-authenticated endpoints, admin-controlled verification status
+- **Testing Status**: Architect-verified, LSP clean, production-ready
