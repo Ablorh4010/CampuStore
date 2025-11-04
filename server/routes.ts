@@ -10,6 +10,14 @@ import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
 import { generateToken, authenticateToken, requireAdmin, type AuthRequest } from "./auth";
 import path from "path";
+import Stripe from "stripe";
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2024-11-20.acacia",
+});
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -1036,6 +1044,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Import error:', error);
       res.status(500).json({ message: `Failed to import products: ${error instanceof Error ? error.message : 'Unknown error'}` });
+    }
+  });
+
+  // Stripe payment intent route
+  app.post("/api/create-payment-intent", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { amount, cartItems } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100),
+        currency: "usd",
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          userId: req.user!.id.toString(),
+          cartItems: JSON.stringify(cartItems || []),
+        },
+      });
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      console.error('Stripe payment intent error:', error);
+      res.status(500).json({ message: "Error creating payment intent: " + error.message });
     }
   });
 
