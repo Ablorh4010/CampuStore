@@ -9,7 +9,8 @@ import {
   TrendingUp,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,6 +75,12 @@ export default function Dashboard() {
         </div>
         
         <div className="flex space-x-3 mt-4 md:mt-0">
+          <Link href="/seller-settings">
+            <Button variant="outline">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </Button>
+          </Link>
           {userStores.length === 0 ? (
             <Button onClick={() => setShowStoreForm(true)}>
               <StoreIcon className="mr-2 h-4 w-4" />

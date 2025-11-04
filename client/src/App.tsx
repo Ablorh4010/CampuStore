@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/admin";
 import ForgotPassword from "./pages/forgot-password";
 import ResetPassword from "./pages/reset-password";
 import ModeSelection from "./pages/mode-selection";
+import SellerSettings from "./pages/seller-settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/store/:id" component={Store} />
       <Route path="/product/:id" component={Product} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/seller-settings" component={SellerSettings} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/auth" component={Auth} />
       <Route path="/forgot-password" component={ForgotPassword} />
