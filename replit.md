@@ -1,313 +1,65 @@
 # CampusStore - StudentMarket
 
 ## Overview
-
-CampusStore (with the subheading "StudentMarket") is a **Progressive Web App (PWA)** that serves as a mobile-installable marketplace connecting university students for buying and selling items. The platform works on Android and iPhone devices with a native app-like experience, featuring buyer/seller mode selection, OTP authentication, store creation, product listings, and student-to-student messaging. Built with React, Express.js, and in-memory storage (MemStorage) for fast performance.
+CampusStore is a Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. It offers a native app-like experience on Android and iPhone, featuring buyer/seller mode selection, OTP authentication, store creation, product listings, student-to-student messaging, and a robust product upload system with image handling and special offers. The platform aims to provide a fast and efficient trading environment within university communities.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
+### Frontend
 - **Framework**: React 18 with TypeScript
 - **Routing**: Wouter for client-side routing
 - **Styling**: Tailwind CSS with shadcn/ui component library
 - **State Management**: TanStack Query for server state, React Context for client state
-- **Build Tool**: Vite for fast development and building
-- **UI Components**: Radix UI primitives with custom styling
-- **PWA**: Service Worker with cache-first strategy, manifest.json, offline capabilities
-- **Mobile**: Installable on Android/iPhone, touch-optimized UI, mode selection for buyer/seller roles
+- **Build Tool**: Vite
+- **UI Components**: Radix UI primitives
+- **PWA Features**: Service Worker with cache-first strategy, manifest.json, offline capabilities, installable on mobile devices, touch-optimized UI.
+- **Mode Selection**: Users choose between Buyer and Seller modes on first launch, stored in localStorage.
 
-### Backend Architecture
-- **Runtime**: Node.js with Express.js framework
+### Backend
+- **Runtime**: Node.js with Express.js
 - **Language**: TypeScript with ES modules
-- **API Design**: RESTful API architecture
-- **Request Handling**: JSON parsing and URL encoding middleware
-- **Error Handling**: Centralized error handling middleware
-- **Development**: Hot reloading with Vite middleware integration
+- **API Design**: RESTful API
+- **Error Handling**: Centralized middleware
+- **Authentication**: JWT-based for regular users (phone OTP) and admins (email/password). Includes secure token management, ownership verification, and admin-specific middleware.
+- **Data Storage**: Currently uses MemStorage (in-memory) for development, with PostgreSQL and Drizzle ORM configured for future persistence.
+- **File Uploads**: Dedicated endpoint for image uploads with validation and storage.
 
-### Data Storage Solutions
-- **Storage**: MemStorage (in-memory) for fast, lightweight data persistence
-- **Database**: PostgreSQL available but currently using MemStorage for development
-- **ORM**: Drizzle ORM configured for type-safe database operations
-- **Schema**: Shared TypeScript schemas with Zod validation
+### Core Features
+- **Authentication System**: Phone OTP for regular users, email/password for admin. Supports mode-based authentication.
+- **Store Management**: Multi-store support per user, creation, and university-based categorization. Includes rating and review system.
+- **Product Catalog**: Category-based organization, image gallery, product conditions, pricing, search, filtering, and featured products. Supports direct image uploads and special offers.
+- **Shopping Cart**: Persistent state, real-time updates, sidebar interface, quantity management.
+- **Messaging System**: User-to-user and product-specific communication with unread tracking.
+- **Order Management**: Creation, tracking, buyer/seller views, and status management.
+- **Seller Verification**: Identity verification process including ID photo and live selfie/face scan, with admin review and payment details management (Bank, PayPal, Mobile Money).
+- **Admin Features**: Product import via CSV or URL (Shopify, WooCommerce).
 
-## Progressive Web App (PWA) Features
-
-### Mobile App Capabilities
-- **Installable**: Add to home screen on Android and iPhone devices
-- **Offline Mode**: Service worker caches assets for offline access
-- **Native Experience**: Standalone display mode, no browser UI
-- **App Icons**: 192x192 and 512x512 icons for different devices
-- **Theme Integration**: Custom theme colors for Android/iOS status bars
-
-### Mode Selection System
-- **First Launch**: Mobile users see buyer vs seller mode selection
-- **Buyer Mode**: Focus on shopping, browsing products, saving money
-- **Seller Mode**: Focus on store creation, listing products, earning money
-- **Persistence**: Mode choice saved in localStorage
-- **Auth Flow**: Mode passed to authentication (e.g., /auth?mode=buyer)
-
-### Service Worker Strategy
-- **Cache-First**: Returns cached content immediately, updates in background
-- **GET Only**: Only caches GET requests, skips POST/PUT/DELETE
-- **Smart Caching**: Caches successful responses (status 200) automatically
-- **Network Fallback**: Falls back to cache when offline
-- **Auto-Activation**: skipWaiting() for immediate service worker updates
-
-### Install Prompt
-- **Smart Timing**: Appears for compatible browsers with beforeinstallprompt support
-- **Dismissible**: Users can dismiss and it won't show again
-- **User Choice**: Respects user's install/dismiss decision
-- **iOS Support**: Apple mobile web app meta tags for iOS home screen
-
-## Key Components
-
-### Authentication System
-- **Regular Users**: Phone OTP authentication only (no email/password)
-- **Admin**: Email/password (richard.jil@outlook.com / Concierge2020) with password reset via email
-- **OTP Security**: 5-minute expiration, one-time use enforcement, in-memory storage
-- **Mode Selection**: First-time mobile users choose Buyer or Seller mode
-- Context-based authentication state management
-- Local storage persistence for user sessions and mode preference
-- University-based user accounts
-
-### Store Management
-- Multi-store support per user
-- Store creation and management
-- University-based store categorization
-- Rating and review system
-
-### Product Catalog
-- Category-based product organization
-- Image gallery support
-- Product conditions and pricing
-- Search and filtering capabilities
-- Featured products system
-
-### Shopping Cart
-- Persistent cart state
-- Real-time cart updates
-- Sidebar cart interface
-- Quantity management
-
-### Messaging System
-- User-to-user communication
-- Product-specific messaging
-- Unread message tracking
-
-### Order Management
-- Order creation and tracking
-- Buyer and seller order views
-- Order status management
-
-## Data Flow
-
-1. **Client Requests**: React components make API calls through TanStack Query
-2. **JWT Authentication**: Authorization header with Bearer token included in all requests
-3. **Service Worker**: Intercepts requests, serves from cache if available (cache-first)
-4. **API Layer**: Express.js routes handle requests and validate data with Zod schemas
-5. **Authentication Middleware**: Verifies JWT token for protected routes
-6. **Admin Middleware**: Additionally verifies admin status for admin routes
-7. **Business Logic**: Route handlers process business logic and data transformations
-8. **Data Access**: Storage interface abstracts operations using MemStorage (in-memory)
-9. **Response**: JSON responses sent back to client with error handling
-
-## Mobile User Journey
-
-### First-Time Mobile User
-1. User opens app on mobile device (Android/iPhone)
-2. Automatically redirected to /mode-selection page
-3. Chooses Buyer or Seller mode
-4. Redirected to /auth with mode parameter (e.g., /auth?mode=buyer)
-5. Enters phone number and receives OTP via SMS
-6. Verifies OTP to complete registration/login
-7. Mode preference saved in localStorage
-8. App ready to use with role-specific features
-
-### Returning User
-1. User opens app (mode already set in localStorage)
-2. If logged in: Goes to home page
-3. If not logged in: Prompted to sign in with OTP
-4. Service worker loads cached content for fast startup
-
-### App Installation
-1. PWA install prompt appears on compatible browsers
-2. User taps "Install App" button
-3. App icon added to home screen
-4. Opens in standalone mode (no browser UI)
-5. Works offline with cached content
+### PWA and Mobile Capabilities
+- **Installable**: Add to home screen on Android and iPhone.
+- **Offline Mode**: Service worker caches assets for offline access.
+- **Native Experience**: Standalone display mode.
+- **Service Worker Strategy**: Cache-first for GET requests, network fallback.
+- **Install Prompt**: Smart timing for compatible browsers.
+- **Capacitor Setup**: Configured for native iOS and Android app deployment (com.campusstore.app).
 
 ## External Dependencies
 
 ### UI and Styling
-- Radix UI for accessible component primitives
-- Tailwind CSS for utility-first styling
-- Lucide React for icons
-- shadcn/ui for pre-built components
+- **Radix UI**: Accessible component primitives.
+- **Tailwind CSS**: Utility-first styling.
+- **Lucide React**: Icons.
+- **shadcn/ui**: Pre-built components.
 
 ### Data Management
-- TanStack Query for server state synchronization
-- React Hook Form with Zod validation
-- Date-fns for date manipulation
+- **TanStack Query**: Server state synchronization.
+- **React Hook Form**: Form management with Zod validation.
+- **Date-fns**: Date manipulation.
 
 ### Development Tools
-- TypeScript for type safety
-- ESBuild for production bundling
-- Drizzle Kit for database schema management
-- Replit-specific development plugins
-
-## Deployment Strategy
-
-### Build Process
-- Frontend: Vite builds React app to `dist/public`
-- Backend: ESBuild bundles Express server to `dist/index.js`
-- Database: Drizzle migrations applied via `db:push` command
-
-### Environment Configuration
-- Development: Hot reloading with Vite middleware
-- Production: Static file serving for built React app
-- Database: Environment variable-based PostgreSQL connection
-
-### Development Workflow
-- `npm run dev`: Starts development server with hot reloading
-- `npm run build`: Builds both client and server for production
-- `npm run start`: Runs production server
-- `npm run db:push`: Applies database schema changes
-
-## Technical Implementation Notes
-
-### PWA Configuration
-- **Manifest**: `/client/public/manifest.json` defines app metadata
-- **Service Worker**: `/client/public/sw.js` handles caching and offline mode
-- **Icons**: App icons in `/client/public/` (icon-192.png, icon-512.png)
-- **Meta Tags**: iOS and Android PWA tags in `index.html`
-
-### Authentication Architecture
-- **JWT Authentication**: All protected routes secured with JSON Web Tokens (7-day expiry)
-- **Token Storage**: JWT tokens stored in localStorage, included in Authorization header
-- **Server Verification**: authenticateToken middleware verifies JWT for all protected routes
-- **Admin Routes**: requireAdmin middleware additionally verifies isAdmin status
-- **OTP Storage**: In-memory Map with phone → {code, expiresAt, used} mapping
-- **OTP Lifecycle**: 5-minute expiration, deleted after successful verification
-- **Admin Auth**: Email/password (richard.jil@outlook.com / Concierge2020) only
-- **Regular Users**: Phone OTP authentication only (no email/password)
-- **Password Reset**: Email verification via Resend integration
-- **Ownership Verification**: Users can only access/modify their own data
-- **Security**: No client-provided userId trust - all authentication via JWT tokens
-
-### Storage Design
-- **Current**: MemStorage (in-memory) for fast development and testing
-- **Future**: Can switch to PostgreSQL by updating storage implementation
-- **Interface**: IStorage abstraction allows easy storage backend swapping
-
-### Mode System
-- **localStorage Keys**: 
-  - `hasSeenModeSelection`: Tracks if user has seen mode selection
-  - `userMode`: Stores chosen mode (buyer/seller)
-- **URL Parameter**: `mode=buyer` or `mode=seller` in auth flow
-- **Mobile Detection**: User agent string check for automatic redirect
-
-The application is designed as a mobile-first PWA that works on Android and iPhone devices with offline capabilities and native app-like experience. It can be deployed on platforms like Replit with seamless integration between development and production environments.
-
-## Native App Deployment (Capacitor)
-
-### Capacitor Setup
-- **Framework**: Capacitor 7 for native iOS and Android apps
-- **App ID**: com.campusstore.app
-- **Web Directory**: dist/public (production build output)
-- **Platforms**: iOS and Android ready for App Store and Play Store
-
-### Quick Commands
-- `npm run build` - Build web app for production
-- `npx cap sync` - Sync web build to native platforms
-- `npx cap open ios` - Open iOS project in Xcode (Mac only)
-- `npx cap open android` - Open Android project in Android Studio
-
-### Deployment Guide
-See [MOBILE_DEPLOYMENT.md](./MOBILE_DEPLOYMENT.md) for complete instructions on:
-- Setting up developer accounts (Apple $99/year, Google $25 one-time)
-- Building and testing native apps
-- Submitting to App Store and Play Store
-- Required app assets and documentation
-## Recent Changes
-
-### Seller Payment Details and Verification (November 2025)
-- **Payment Details Management**: Sellers can now configure payment methods
-  - Three payment options: Bank Account, PayPal, Mobile Money
-  - Bank: Account holder name, bank name, account number
-  - PayPal: Email or user ID
-  - Mobile Money: Provider name and phone number
-- **Seller Verification System**: Identity verification with ID and face scan
-  - Upload government-issued ID photo
-  - Live selfie/face scan for identity verification
-  - Verification statuses: unverified, pending, verified, rejected
-  - Admin review required before seller can receive payments
-- **Name Matching Requirements**: Prominent warnings that payment account name must match ID
-- **API Endpoints**:
-  - POST /api/upload/verification - Upload ID and face scan images
-  - PUT /api/users/payment-details - Update seller payment information
-- **Seller Settings Page**: Dedicated page at /seller-settings
-  - Payment details form with conditional fields per payment method
-  - Verification upload form with image previews
-  - Verification status badges and clear instructions
-  - Mobile camera capture support for face scan
-- **Schema Updates**: Added payment and verification fields to users table
-- **Security**: JWT-authenticated endpoints, admin-controlled verification status
-- **Testing Status**: Architect-verified, LSP clean, production-ready
-
-### Seller Product Upload with File Upload and Special Offers (November 2025)
-- **Direct File Upload**: Sellers can now upload images directly (replacing URL-based approach)
-- **Image Upload Endpoint**: POST /api/upload/images with JWT authentication
-  - Accepts up to 5 images per upload
-  - File validation: JPEG, PNG, WebP, GIF only
-  - Size limit: 5MB per image
-  - Returns array of uploaded image URLs
-- **Image Management UI**:
-  - Real-time image preview with thumbnails
-  - Remove button for each image
-  - Upload counter (e.g., "3/5 uploaded")
-  - Client-side validation with error messages
-- **Special Offers Field**: New optional field for promotional text (e.g., "Buy 2 Get 1 Free")
-- **Product Schema Update**: Added `specialOffer` field to products table
-- **Static File Serving**: Uploaded images served from `/uploads` directory
-- **Upload Flow**: Images upload first to server, then product created with image URLs
-- **Form Improvements**: Added comprehensive data-testid attributes for testing
-- **Store Form Fix**: Added missing `city` field (required) and `campus` field (optional) to store creation form
-- **Testing Status**: Architect-verified, LSP clean, ready for testing
-
-### Database Status (November 2025)
-- **Current Storage**: Using MemStorage (in-memory) for development
-- **Database Available**: PostgreSQL database provisioned via Replit
-- **DatabaseStorage**: Fully implemented but authentication failing
-- **Issue**: DATABASE_URL configured for Neon database, but password authentication fails
-- **Error**: "password authentication failed for user 'neondb_owner'"
-- **Next Steps**: Fix database credentials or reconfigure DATABASE_URL for proper authentication
-- **Impact**: Data is not persistent across server restarts (MemStorage is temporary)
-- **Note**: All database code is ready; only authentication needs to be resolved
-
-### JWT Authentication Security Overhaul (November 2025)
-- **Complete Security Rewrite**: Replaced client-provided userId with JWT tokens
-- **Backend Changes**: 
-  - Created authenticateToken and requireAdmin middleware
-  - Updated ALL protected routes to require JWT authentication
-  - Added ownership verification (users can only modify their own data)
-  - Removed insecure legacy login paths
-- **Frontend Changes**:
-  - Auth context stores JWT tokens in localStorage
-  - All API requests include Authorization: Bearer <token> header
-  - Automatic token management via queryClient
-- **Protected Routes**: User routes, store routes, product routes, cart, orders, messages, admin routes
-- **Security Guarantees**: No authentication bypass, server-side token verification, 7-day token expiry
-- **Testing Status**: Architect-verified, no LSP errors, production-ready
-
-### Import Feature (November 2025)
-- **Admin Product Import**: Bulk import products via CSV upload or URL
-- **CSV Format**: title,description,price,originalPrice,condition,categoryId,images
-- **URL Import**: Supports Shopify, WooCommerce, and generic ecommerce stores
-- **Validation**: Robust CSV parsing with error reporting per row
-- **Multiple Images**: Pipe-delimited format (image1.jpg|image2.jpg)
-- **Store Selection**: Admin selects destination store for imported products
-- **Security**: Server-side JWT authentication and admin verification required
+- **TypeScript**: Type safety.
+- **ESBuild**: Production bundling.
+- **Drizzle Kit**: Database schema management.
+- **Capacitor 7**: Native iOS and Android app wrapper.
