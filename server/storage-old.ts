@@ -42,6 +42,11 @@ export interface IStorage {
   getFeaturedProducts(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<ProductWithStore[]>;
   updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: number): Promise<boolean>;
+  
+  // Admin - Product Approval
+  getPendingProducts(): Promise<ProductWithStore[]>;
+  updateProductApprovalStatus(id: number, status: 'pending' | 'approved' | 'rejected'): Promise<Product | undefined>;
+  getAllProductsForAdmin(): Promise<ProductWithStore[]>;
 
   // Orders
   createOrder(order: InsertOrder): Promise<Order>;
@@ -224,6 +229,7 @@ export class MemStorage implements IStorage {
       id: this.currentProductId++,
       originalPrice: insertProduct.originalPrice || null,
       isAvailable: insertProduct.isAvailable !== undefined ? insertProduct.isAvailable : true,
+      approvalStatus: 'pending',
       viewCount: 0,
       createdAt: new Date()
     };
@@ -271,6 +277,8 @@ export class MemStorage implements IStorage {
     
     for (const product of this.products.values()) {
       if (!product.isAvailable) continue;
+      // Only show approved products to regular users
+      if (product.approvalStatus !== 'approved') continue;
       
       if (filters?.categoryId && product.categoryId !== filters.categoryId) continue;
       
@@ -324,6 +332,78 @@ export class MemStorage implements IStorage {
 
   async deleteProduct(id: number): Promise<boolean> {
     return this.products.delete(id);
+  }
+
+  // Admin - Product Approval
+  async getPendingProducts(): Promise<ProductWithStore[]> {
+    const productsWithStore: ProductWithStore[] = [];
+    
+    for (const product of this.products.values()) {
+      if (product.approvalStatus !== 'pending') continue;
+      
+      const store = this.stores.get(product.storeId);
+      if (!store) continue;
+
+      const user = this.users.get(store.userId);
+      if (!user) continue;
+
+      const category = this.categories.get(product.categoryId);
+      if (!category) continue;
+
+      productsWithStore.push({
+        ...product,
+        store: {
+          ...store,
+          user: {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            avatar: user.avatar
+          }
+        },
+        category
+      });
+    }
+    
+    return productsWithStore.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async updateProductApprovalStatus(id: number, status: 'pending' | 'approved' | 'rejected'): Promise<Product | undefined> {
+    const product = this.products.get(id);
+    if (!product) return undefined;
+    
+    const updatedProduct = { ...product, approvalStatus: status };
+    this.products.set(id, updatedProduct);
+    return updatedProduct;
+  }
+
+  async getAllProductsForAdmin(): Promise<ProductWithStore[]> {
+    const productsWithStore: ProductWithStore[] = [];
+    
+    for (const product of this.products.values()) {
+      const store = this.stores.get(product.storeId);
+      if (!store) continue;
+
+      const user = this.users.get(store.userId);
+      if (!user) continue;
+
+      const category = this.categories.get(product.categoryId);
+      if (!category) continue;
+
+      productsWithStore.push({
+        ...product,
+        store: {
+          ...store,
+          user: {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            avatar: user.avatar
+          }
+        },
+        category
+      });
+    }
+    
+    return productsWithStore.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   // Orders
