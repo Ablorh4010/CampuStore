@@ -38,7 +38,11 @@ export default function AdminDashboard() {
     mutationFn: ({ productId, status }: { productId: number; status: string }) =>
       apiRequest('PUT', `/api/admin/products/${productId}/approval`, { userId: user?.id, status }),
     onSuccess: () => {
+      // Invalidate admin products list
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products', user?.id] });
+      // Invalidate public product listings (featured, browse, etc.)
+      queryClient.invalidateQueries({ queryKey: ['/api/products/featured'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       toast({
         title: 'Success',
         description: 'Product status updated successfully',
