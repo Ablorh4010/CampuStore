@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful API
 - **Error Handling**: Centralized middleware
 - **Authentication**: JWT-based for regular users (phone OTP) and admins (email/password). Includes secure token management, ownership verification, and admin-specific middleware.
-- **Data Storage**: Currently uses MemStorage (in-memory) for development, with PostgreSQL and Drizzle ORM configured for future persistence.
+- **Data Storage**: Replit PostgreSQL database with Drizzle ORM using node-postgres driver. Full persistence enabled.
 - **File Uploads**: Dedicated endpoint for image uploads with validation and storage.
 
 ### Core Features
@@ -69,6 +69,14 @@ Preferred communication style: Simple, everyday language.
 - **Capacitor 7**: Native iOS and Android app wrapper.
 
 ## Recent Changes
+
+### Database Migration to Replit PostgreSQL (November 4, 2025)
+- **Fresh Database Setup**: Migrated from deleted Neon database to new Replit PostgreSQL
+- **Driver Update**: Switched from `@neondatabase/serverless` to standard `node-postgres` (pg) driver
+- **Schema Initialization**: All 8 tables successfully created (users, stores, products, categories, cart_items, orders, messages, otp_codes)
+- **Storage Layer**: Switched from MemStorage to DatabaseStorage for full data persistence
+- **Database Configuration**: Using `drizzle-orm/node-postgres` with pg Pool for connection management
+- **Status**: ✅ Fully operational, all API endpoints working correctly with PostgreSQL
 
 ### Stripe Payment Integration (November 2025)
 - **Unified Payment Processing**: Integrated Stripe for Card, PayPal, and Mobile Money payments

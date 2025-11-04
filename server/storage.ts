@@ -535,7 +535,4 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Database authentication is failing with both neon-http and pg drivers
-// The DATABASE_URL credentials appear to be invalid or expired
-// Switching back to MemStorage while we investigate
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
