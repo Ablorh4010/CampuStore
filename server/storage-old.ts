@@ -5,6 +5,7 @@ import {
   type Message, type InsertMessage, type CartItem, type InsertCartItem,
   type ProductWithStore, type StoreWithUser, type OrderWithDetails, type CartItemWithProduct
 } from "@shared/schema";
+import bcrypt from "bcryptjs";
 
 export interface IStorage {
   // Users
@@ -12,7 +13,11 @@ export interface IStorage {
   getUserById(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByPhone(phoneNumber: string): Promise<User | undefined>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
+  verifyPassword(email: string, password: string): Promise<User | null>;
+  generateOtp(phoneNumber: string): Promise<string>;
+  verifyOtp(phoneNumber: string, otpCode: string): Promise<boolean>;
 
   // Stores
   createStore(store: InsertStore): Promise<Store>;
@@ -119,7 +124,7 @@ export class MemStorage implements IStorage {
       id: this.currentUserId++,
       username: 'admin',
       email: 'admin@campus.edu',
-      password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', // hashed "admin123"
+      password: bcrypt.hashSync('admin123', 10), // hashed "admin123"
       firstName: 'Admin',
       lastName: 'User',
       university: 'Campus University',
@@ -138,7 +143,7 @@ export class MemStorage implements IStorage {
       id: this.currentUserId++,
       username: 'seller1',
       email: 'seller@campus.edu',
-      password: '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', // hashed "admin123"
+      password: bcrypt.hashSync('admin123', 10), // hashed "admin123"
       firstName: 'John',
       lastName: 'Seller',
       university: 'Campus University',
@@ -237,6 +242,32 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...data };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async getUserByPhone(phoneNumber: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.phoneNumber === phoneNumber);
+  }
+
+  async verifyPassword(email: string, password: string): Promise<User | null> {
+    const user = await this.getUserByEmail(email);
+    if (!user) return null;
+    
+    const isValid = await bcrypt.compare(password, user.password);
+    return isValid ? user : null;
+  }
+
+  async generateOtp(phoneNumber: string): Promise<string> {
+    // Generate a 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // In MemStorage, we'll just return the OTP without storing it
+    // A real implementation would store it with expiration
+    return otpCode;
+  }
+
+  async verifyOtp(phoneNumber: string, otpCode: string): Promise<boolean> {
+    // For MemStorage, always return true for demo purposes
+    // A real implementation would verify against stored OTP
+    return true;
   }
 
   // Stores
