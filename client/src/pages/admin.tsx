@@ -6,16 +6,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, Edit } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Edit, Upload, Link as LinkIcon, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
-import type { ProductWithStore } from '@shared/schema';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { ProductWithStore, Category, Store } from '@shared/schema';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('pending');
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [importUrl, setImportUrl] = useState('');
+  const [importApiKey, setImportApiKey] = useState('');
+  const [importPlatform, setImportPlatform] = useState('csv');
+  const [selectedStore, setSelectedStore] = useState<string>('');
 
   // Redirect if not admin (using useEffect to avoid render-time side effects)
   useEffect(() => {
@@ -32,6 +41,14 @@ export default function AdminDashboard() {
   const { data: allProducts = [], isLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/admin/products', user?.id],
     queryFn: () => fetch(`/api/admin/products?userId=${user?.id}`).then(res => res.json()),
+  });
+
+  const { data: stores = [] } = useQuery<Store[]>({
+    queryKey: ['/api/stores'],
+  });
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
   });
 
   const updateStatusMutation = useMutation({
@@ -63,6 +80,86 @@ export default function AdminDashboard() {
 
   const handleReject = (productId: number) => {
     updateStatusMutation.mutate({ productId, status: 'rejected' });
+  };
+
+  const importProductsMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch('/api/admin/products/import', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) throw new Error('Import failed');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products', user?.id] });
+      toast({
+        title: 'Success',
+        description: `Imported ${data.count} products successfully`,
+      });
+      setCsvFile(null);
+      setImportUrl('');
+      setImportApiKey('');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Import Failed',
+        description: error.message || 'Failed to import products',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleCsvImport = () => {
+    if (!csvFile || !selectedStore) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please select a CSV file and choose a store',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', csvFile);
+    formData.append('storeId', selectedStore);
+    formData.append('userId', user?.id.toString() || '');
+
+    importProductsMutation.mutate(formData);
+  };
+
+  const handleUrlImport = () => {
+    if (!importUrl || !selectedStore) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please enter a URL and choose a store',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('url', importUrl);
+    formData.append('platform', importPlatform);
+    formData.append('apiKey', importApiKey);
+    formData.append('storeId', selectedStore);
+    formData.append('userId', user?.id.toString() || '');
+
+    importProductsMutation.mutate(formData);
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = 'title,description,price,originalPrice,condition,categoryId,images\n' +
+      'Example Product,Product description here,29.99,39.99,new,1,https://example.com/image.jpg\n' +
+      'Used Textbook,Biology textbook in good condition,15.00,50.00,used,1,https://example.com/book.jpg';
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'product-import-template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const pendingProducts = allProducts.filter(p => p.approvalStatus === 'pending');
@@ -163,7 +260,7 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8" data-testid="admin-tabs">
+          <TabsList className="grid w-full grid-cols-4 mb-8" data-testid="admin-tabs">
             <TabsTrigger value="pending" className="relative" data-testid="tab-pending">
               Pending
               {pendingProducts.length > 0 && (
@@ -177,6 +274,10 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="rejected" data-testid="tab-rejected">
               Rejected ({rejectedProducts.length})
+            </TabsTrigger>
+            <TabsTrigger value="import" data-testid="tab-import">
+              <Upload className="h-4 w-4 mr-2" />
+              Import
             </TabsTrigger>
           </TabsList>
 
@@ -256,6 +357,175 @@ export default function AdminDashboard() {
             ) : (
               rejectedProducts.map(product => renderProductCard(product))
             )}
+          </TabsContent>
+
+          <TabsContent value="import" data-testid="content-import">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5 text-primary" />
+                    CSV Import
+                  </CardTitle>
+                  <CardDescription>
+                    Upload a CSV file to import products in bulk
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="store-select">Select Store</Label>
+                    <Select value={selectedStore} onValueChange={setSelectedStore}>
+                      <SelectTrigger id="store-select" data-testid="select-store">
+                        <SelectValue placeholder="Choose a store" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stores.map(store => (
+                          <SelectItem key={store.id} value={store.id.toString()}>
+                            {store.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="csv-file">CSV File</Label>
+                    <Input
+                      id="csv-file"
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                      data-testid="input-csv-file"
+                    />
+                    {csvFile && (
+                      <p className="text-sm text-muted-foreground">
+                        Selected: {csvFile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={downloadTemplate}
+                      variant="outline"
+                      className="flex-1"
+                      data-testid="button-download-template"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Template
+                    </Button>
+                    <Button
+                      onClick={handleCsvImport}
+                      disabled={!csvFile || !selectedStore || importProductsMutation.isPending}
+                      className="flex-1"
+                      data-testid="button-import-csv"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {importProductsMutation.isPending ? 'Importing...' : 'Import CSV'}
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-sm mb-2">CSV Format:</h4>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Your CSV should include: title, description, price, originalPrice, condition, categoryId, images
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Category IDs:</strong> {categories.map(c => `${c.name} (${c.id})`).join(', ')}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LinkIcon className="h-5 w-5 text-primary" />
+                    Import from Store URL
+                  </CardTitle>
+                  <CardDescription>
+                    Sync products from Shopify, WooCommerce, or other ecommerce platforms
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="store-select-url">Select Store</Label>
+                    <Select value={selectedStore} onValueChange={setSelectedStore}>
+                      <SelectTrigger id="store-select-url" data-testid="select-store-url">
+                        <SelectValue placeholder="Choose a store" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stores.map(store => (
+                          <SelectItem key={store.id} value={store.id.toString()}>
+                            {store.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="platform">Platform</Label>
+                    <Select value={importPlatform} onValueChange={setImportPlatform}>
+                      <SelectTrigger id="platform" data-testid="select-platform">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="shopify">Shopify</SelectItem>
+                        <SelectItem value="woocommerce">WooCommerce</SelectItem>
+                        <SelectItem value="generic">Generic URL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="store-url">Store URL</Label>
+                    <Input
+                      id="store-url"
+                      type="url"
+                      placeholder="https://your-store.myshopify.com"
+                      value={importUrl}
+                      onChange={(e) => setImportUrl(e.target.value)}
+                      data-testid="input-store-url"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="api-key">API Key / Access Token (Optional)</Label>
+                    <Input
+                      id="api-key"
+                      type="password"
+                      placeholder="Enter your API key"
+                      value={importApiKey}
+                      onChange={(e) => setImportApiKey(e.target.value)}
+                      data-testid="input-api-key"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Required for private stores or API access
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleUrlImport}
+                    disabled={!importUrl || !selectedStore || importProductsMutation.isPending}
+                    className="w-full"
+                    data-testid="button-import-url"
+                  >
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    {importProductsMutation.isPending ? 'Importing...' : 'Import from URL'}
+                  </Button>
+
+                  <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <h4 className="font-semibold text-sm mb-2">Platform Setup:</h4>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li><strong>Shopify:</strong> Use Admin API and create a private app</li>
+                      <li><strong>WooCommerce:</strong> Generate API keys in WooCommerce settings</li>
+                      <li><strong>Generic:</strong> Provide a public product feed URL</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
