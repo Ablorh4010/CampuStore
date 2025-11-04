@@ -234,6 +234,36 @@ See [MOBILE_DEPLOYMENT.md](./MOBILE_DEPLOYMENT.md) for complete instructions on:
 - Required app assets and documentation
 ## Recent Changes
 
+### Seller Product Upload with File Upload and Special Offers (November 2025)
+- **Direct File Upload**: Sellers can now upload images directly (replacing URL-based approach)
+- **Image Upload Endpoint**: POST /api/upload/images with JWT authentication
+  - Accepts up to 5 images per upload
+  - File validation: JPEG, PNG, WebP, GIF only
+  - Size limit: 5MB per image
+  - Returns array of uploaded image URLs
+- **Image Management UI**:
+  - Real-time image preview with thumbnails
+  - Remove button for each image
+  - Upload counter (e.g., "3/5 uploaded")
+  - Client-side validation with error messages
+- **Special Offers Field**: New optional field for promotional text (e.g., "Buy 2 Get 1 Free")
+- **Product Schema Update**: Added `specialOffer` field to products table
+- **Static File Serving**: Uploaded images served from `/uploads` directory
+- **Upload Flow**: Images upload first to server, then product created with image URLs
+- **Form Improvements**: Added comprehensive data-testid attributes for testing
+- **Store Form Fix**: Added missing `city` field (required) and `campus` field (optional) to store creation form
+- **Testing Status**: Architect-verified, LSP clean, ready for testing
+
+### Database Status (November 2025)
+- **Current Storage**: Using MemStorage (in-memory) for development
+- **Database Available**: PostgreSQL database provisioned via Replit
+- **DatabaseStorage**: Fully implemented but authentication failing
+- **Issue**: DATABASE_URL configured for Neon database, but password authentication fails
+- **Error**: "password authentication failed for user 'neondb_owner'"
+- **Next Steps**: Fix database credentials or reconfigure DATABASE_URL for proper authentication
+- **Impact**: Data is not persistent across server restarts (MemStorage is temporary)
+- **Note**: All database code is ready; only authentication needs to be resolved
+
 ### JWT Authentication Security Overhaul (November 2025)
 - **Complete Security Rewrite**: Replaced client-provided userId with JWT tokens
 - **Backend Changes**: 

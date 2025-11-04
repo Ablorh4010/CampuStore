@@ -535,6 +535,8 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Temporarily using MemStorage - database authentication is failing
-// This needs to be fixed before deployment will work
+// NOTE: DatabaseStorage is fully implemented but database authentication is failing
+// Error: "password authentication failed for user 'neondb_owner'"
+// The DATABASE_URL appears to be for a Neon database, but authentication is not working
+// Using MemStorage temporarily until database credentials are fixed
 export const storage = new MemStorage();
