@@ -7,6 +7,7 @@ import ProductCard from '@/components/product/product-card';
 import StoreCard from '@/components/store/store-card';
 import { useAuth } from '@/lib/auth-context';
 import type { ProductWithStore, StoreWithUser } from '@shared/schema';
+import studentsShoppingImage from '@assets/stock_images/diverse_students_sho_daf6aae6.jpg';
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -91,8 +92,8 @@ export default function Home() {
             </div>
             <div className="hidden md:block">
               <img
-                src="https://images.unsplash.com/photo-1544717297-fa95b6ee9643?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&h=600"
-                alt="Diverse students interacting on campus"
+                src={studentsShoppingImage}
+                alt="Students shopping in campus marketplace"
                 className="rounded-lg shadow-2xl"
               />
             </div>
