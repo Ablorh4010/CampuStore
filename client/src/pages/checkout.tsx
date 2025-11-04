@@ -47,13 +47,6 @@ function CheckoutForm() {
         variant: "destructive",
       });
       setIsProcessing(false);
-    } else {
-      clearCart();
-      toast({
-        title: "Payment Successful",
-        description: "Your order has been placed successfully!",
-      });
-      setLocation('/');
     }
   };
 
