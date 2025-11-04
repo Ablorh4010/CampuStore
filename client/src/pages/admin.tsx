@@ -39,8 +39,7 @@ export default function AdminDashboard() {
   }
 
   const { data: allProducts = [], isLoading } = useQuery<ProductWithStore[]>({
-    queryKey: ['/api/admin/products', user?.id],
-    queryFn: () => fetch(`/api/admin/products?userId=${user?.id}`).then(res => res.json()),
+    queryKey: ['/api/admin/products'],
   });
 
   const { data: stores = [] } = useQuery<Store[]>({
@@ -53,10 +52,10 @@ export default function AdminDashboard() {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ productId, status }: { productId: number; status: string }) =>
-      apiRequest('PUT', `/api/admin/products/${productId}/approval`, { userId: user?.id, status }),
+      apiRequest('PUT', `/api/admin/products/${productId}/approval`, { status }),
     onSuccess: () => {
       // Invalidate admin products list
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/products', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
       // Invalidate public product listings (featured, browse, etc.)
       queryClient.invalidateQueries({ queryKey: ['/api/products/featured'] });
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
@@ -84,15 +83,23 @@ export default function AdminDashboard() {
 
   const importProductsMutation = useMutation({
     mutationFn: async (formData: FormData) => {
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/admin/products/import', {
         method: 'POST',
+        headers,
         body: formData,
       });
       if (!response.ok) throw new Error('Import failed');
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/products', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
       
       const hasErrors = data.errors && data.errors.length > 0;
       toast({
@@ -131,7 +138,6 @@ export default function AdminDashboard() {
     const formData = new FormData();
     formData.append('file', csvFile);
     formData.append('storeId', selectedStore);
-    formData.append('userId', user?.id.toString() || '');
 
     importProductsMutation.mutate(formData);
   };
@@ -151,7 +157,6 @@ export default function AdminDashboard() {
     formData.append('platform', importPlatform);
     formData.append('apiKey', importApiKey);
     formData.append('storeId', selectedStore);
-    formData.append('userId', user?.id.toString() || '');
 
     importProductsMutation.mutate(formData);
   };
