@@ -17,6 +17,8 @@ export const users = pgTable("users", {
   isMerchant: boolean("is_merchant").default(false),
   isAdmin: boolean("is_admin").default(false),
   avatar: text("avatar"),
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

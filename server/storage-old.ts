@@ -18,6 +18,11 @@ export interface IStorage {
   verifyPassword(email: string, password: string): Promise<User | null>;
   generateOtp(phoneNumber: string): Promise<string>;
   verifyOtp(phoneNumber: string, otpCode: string): Promise<boolean>;
+  
+  // Password Reset
+  setPasswordResetToken(email: string, token: string, expiry: Date): Promise<boolean>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  resetPassword(token: string, newPassword: string): Promise<boolean>;
 
   // Stores
   createStore(store: InsertStore): Promise<Store>;
@@ -267,6 +272,43 @@ export class MemStorage implements IStorage {
   async verifyOtp(phoneNumber: string, otpCode: string): Promise<boolean> {
     // For MemStorage, always return true for demo purposes
     // A real implementation would verify against stored OTP
+    return true;
+  }
+
+  // Password Reset
+  async setPasswordResetToken(email: string, token: string, expiry: Date): Promise<boolean> {
+    const user = await this.getUserByEmail(email);
+    if (!user) return false;
+    
+    const updatedUser = { 
+      ...user, 
+      resetToken: token, 
+      resetTokenExpiry: expiry 
+    };
+    this.users.set(user.id, updatedUser);
+    return true;
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      user => user.resetToken === token && 
+              user.resetTokenExpiry && 
+              user.resetTokenExpiry > new Date()
+    );
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const user = await this.getUserByResetToken(token);
+    if (!user) return false;
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const updatedUser = { 
+      ...user, 
+      password: hashedPassword,
+      resetToken: null,
+      resetTokenExpiry: null
+    };
+    this.users.set(user.id, updatedUser);
     return true;
   }
 

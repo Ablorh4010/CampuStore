@@ -280,6 +280,18 @@ export default function Auth() {
                         >
                           {isLoading ? 'Signing in...' : 'Sign In'}
                         </Button>
+
+                        <div className="text-center">
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="text-sm text-primary"
+                            onClick={() => setLocation('/forgot-password')}
+                            data-testid="link-forgot-password"
+                          >
+                            Forgot your password?
+                          </Button>
+                        </div>
                       </form>
                     </Form>
                   ) : (
