@@ -201,3 +201,24 @@ Preferred communication style: Simple, everyday language.
 - **Mobile Detection**: User agent string check for automatic redirect
 
 The application is designed as a mobile-first PWA that works on Android and iPhone devices with offline capabilities and native app-like experience. It can be deployed on platforms like Replit with seamless integration between development and production environments.
+
+## Native App Deployment (Capacitor)
+
+### Capacitor Setup
+- **Framework**: Capacitor 7 for native iOS and Android apps
+- **App ID**: com.campusstore.app
+- **Web Directory**: dist/public (production build output)
+- **Platforms**: iOS and Android ready for App Store and Play Store
+
+### Quick Commands
+- `npm run build` - Build web app for production
+- `npx cap sync` - Sync web build to native platforms
+- `npx cap open ios` - Open iOS project in Xcode (Mac only)
+- `npx cap open android` - Open Android project in Android Studio
+
+### Deployment Guide
+See [MOBILE_DEPLOYMENT.md](./MOBILE_DEPLOYMENT.md) for complete instructions on:
+- Setting up developer accounts (Apple $99/year, Google $25 one-time)
+- Building and testing native apps
+- Submitting to App Store and Play Store
+- Required app assets and documentation
