@@ -9,6 +9,7 @@ import {
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, gte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { MemStorage } from './storage-old';
 
 export interface IStorage {
   // Users
@@ -527,4 +528,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Temporarily using MemStorage instead of DatabaseStorage due to database connection issues
+export const storage = new MemStorage();

@@ -3,9 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
   insertUserSchema, insertStoreSchema, insertProductSchema, 
-  insertOrderSchema, insertMessageSchema, insertCartItemSchema 
+  insertOrderSchema, insertMessageSchema, insertCartItemSchema
 } from "@shared/schema";
-import { db, eq, desc, users, stores, categories, products } from '@shared/db'; // Assuming these imports exist
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -172,35 +171,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/stores/featured', async (req, res) => {
     try {
       const { userUniversity, userCity, userCampus } = req.query;
-
-      const featuredStores = await db.select({
-        id: stores.id,
-        name: stores.name,
-        description: stores.description,
-        logo: stores.logo,
-        banner: stores.banner,
-        category: stores.category,
-        userId: stores.userId,
-        university: stores.university,
-        city: stores.city,
-        campus: stores.campus,
-        isActive: stores.isActive,
-        viewCount: stores.viewCount,
-        createdAt: stores.createdAt,
-        user: {
-          id: users.id,
-          username: users.username,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          avatar: users.avatar,
-        }
-      })
-      .from(stores)
-      .leftJoin(users, eq(stores.userId, users.id))
-      .where(eq(stores.isActive, true))
-      .orderBy(desc(stores.viewCount))
-      .limit(6);
-
+      const filters = {
+        userUniversity: userUniversity as string,
+        userCity: userCity as string,
+        userCampus: userCampus as string,
+      };
+      const featuredStores = await storage.getFeaturedStores(filters);
       res.json(featuredStores);
     } catch (error) {
       console.error('Error fetching featured stores:', error);
@@ -257,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all categories
   app.get('/api/categories', async (req, res) => {
     try {
-      const allCategories = await db.select().from(categories);
+      const allCategories = await storage.getAllCategories();
       res.json(allCategories);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -299,32 +275,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/products/featured', async (req, res) => {
     try {
       const { userUniversity, userCity, userCampus } = req.query;
-
-      const featuredProducts = await db.select({
-        id: products.id,
-        name: products.name,
-        description: products.description,
-        price: products.price,
-        images: products.images,
-        category: products.category,
-        condition: products.condition,
-        storeId: products.storeId,
-        isActive: products.isActive,
-        viewCount: products.viewCount,
-        createdAt: products.createdAt,
-        store: {
-          id: stores.id,
-          name: stores.name,
-          logo: stores.logo,
-          userId: stores.userId,
-        }
-      })
-      .from(products)
-      .leftJoin(stores, eq(products.storeId, stores.id))
-      .where(eq(products.isActive, true))
-      .orderBy(desc(products.viewCount))
-      .limit(8);
-
+      const filters = {
+        userUniversity: userUniversity as string,
+        userCity: userCity as string,
+        userCampus: userCampus as string,
+      };
+      const featuredProducts = await storage.getFeaturedProducts(filters);
       res.json(featuredProducts);
     } catch (error) {
       console.error('Error fetching featured products:', error);
