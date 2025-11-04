@@ -505,6 +505,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin routes for product approval
+  app.get("/api/admin/products/pending", async (req, res) => {
+    try {
+      const userId = parseInt(req.query.userId as string);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const pendingProducts = await storage.getPendingProducts();
+      res.json(pendingProducts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending products" });
+    }
+  });
+
+  app.get("/api/admin/products", async (req, res) => {
+    try {
+      const userId = parseInt(req.query.userId as string);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const allProducts = await storage.getAllProductsForAdmin();
+      res.json(allProducts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch all products" });
+    }
+  });
+
+  app.put("/api/admin/products/:id/approval", async (req, res) => {
+    try {
+      const userId = parseInt(req.body.userId);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const productId = parseInt(req.params.id);
+      const { status } = req.body;
+
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Invalid approval status" });
+      }
+
+      const product = await storage.updateProductApprovalStatus(productId, status);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update product approval status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
