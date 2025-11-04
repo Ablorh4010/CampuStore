@@ -5,14 +5,15 @@ import {
   insertUserSchema, insertStoreSchema, insertProductSchema, 
   insertOrderSchema, insertMessageSchema, insertCartItemSchema 
 } from "@shared/schema";
+import { db, eq, desc, users, stores, categories, products } from '@shared/db'; // Assuming these imports exist
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      
+
       // Check if email, username, or phone already exists
       if (userData.email) {
         const existingEmail = await storage.getUserByEmail(userData.email);
@@ -20,19 +21,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Email already exists" });
         }
       }
-      
+
       if (userData.phoneNumber) {
         const existingPhone = await storage.getUserByPhone(userData.phoneNumber);
         if (existingPhone) {
           return res.status(400).json({ message: "Phone number already exists" });
         }
       }
-      
+
       const existingUsername = await storage.getUserByUsername(userData.username);
       if (existingUsername) {
         return res.status(400).json({ message: "Username already exists" });
       }
-      
+
       const user = await storage.createUser(userData);
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
@@ -43,9 +44,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, username, password, phoneNumber, otpCode } = req.body;
-      
+
       let user = null;
-      
+
       if (email && password) {
         // Email/password login
         user = await storage.verifyPassword(email, password);
@@ -58,12 +59,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!isValidOtp) {
           return res.status(401).json({ message: "Invalid or expired OTP code" });
         }
-        
+
         user = await storage.getUserByPhone(phoneNumber);
         if (!user) {
           return res.status(401).json({ message: "User not found" });
         }
-        
+
         await storage.markPhoneAsVerified(phoneNumber);
       } else if (email) {
         // Legacy email-only login (for backward compatibility)
@@ -78,11 +79,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ message: "User not found" });
         }
       }
-      
+
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
-      
+
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       res.status(500).json({ message: "Login failed" });
@@ -92,17 +93,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/send-otp", async (req, res) => {
     try {
       const { phoneNumber } = req.body;
-      
+
       if (!phoneNumber) {
         return res.status(400).json({ message: "Phone number is required" });
       }
-      
+
       const otpCode = await storage.generateOtp(phoneNumber);
-      
+
       // In a real application, you would send this OTP via SMS
       // For demo purposes, we'll log it to console
       console.log(`OTP for ${phoneNumber}: ${otpCode}`);
-      
+
       res.json({ message: "OTP sent successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to send OTP" });
@@ -114,11 +115,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const user = await storage.getUserById(id);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch user" });
@@ -129,12 +130,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const userData = req.body;
-      
+
       const user = await storage.updateUser(id, userData);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Failed to update user" });
@@ -167,18 +168,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/stores/featured", async (req, res) => {
+  // Get featured stores
+  app.get('/api/stores/featured', async (req, res) => {
     try {
       const { userUniversity, userCity, userCampus } = req.query;
-      const filters = {
-        userUniversity: userUniversity as string,
-        userCity: userCity as string,
-        userCampus: userCampus as string,
-      };
-      const stores = await storage.getFeaturedStores(filters);
-      res.json(stores);
+
+      const featuredStores = await db.select({
+        id: stores.id,
+        name: stores.name,
+        description: stores.description,
+        logo: stores.logo,
+        banner: stores.banner,
+        category: stores.category,
+        userId: stores.userId,
+        university: stores.university,
+        city: stores.city,
+        campus: stores.campus,
+        isActive: stores.isActive,
+        viewCount: stores.viewCount,
+        createdAt: stores.createdAt,
+        user: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          avatar: users.avatar,
+        }
+      })
+      .from(stores)
+      .leftJoin(users, eq(stores.userId, users.id))
+      .where(eq(stores.isActive, true))
+      .orderBy(desc(stores.viewCount))
+      .limit(6);
+
+      res.json(featuredStores);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch featured stores" });
+      console.error('Error fetching featured stores:', error);
+      res.status(500).json({ message: 'Failed to fetch featured stores', error: String(error) });
     }
   });
 
@@ -186,15 +212,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const store = await storage.getStoreById(id);
-      
+
       if (!store) {
         return res.status(404).json({ message: "Store not found" });
       }
-      
+
       // Get user data for the store
       const user = await storage.getUserById(store.userId);
       const storeWithUser = { ...store, user };
-      
+
       res.json(storeWithUser);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch store" });
@@ -215,12 +241,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const storeData = req.body;
-      
+
       const store = await storage.updateStore(id, storeData);
       if (!store) {
         return res.status(404).json({ message: "Store not found" });
       }
-      
+
       res.json(store);
     } catch (error) {
       res.status(500).json({ message: "Failed to update store" });
@@ -228,12 +254,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Category routes
-  app.get("/api/categories", async (req, res) => {
+  // Get all categories
+  app.get('/api/categories', async (req, res) => {
     try {
-      const categories = await storage.getAllCategories();
-      res.json(categories);
+      const allCategories = await db.select().from(categories);
+      res.json(allCategories);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch categories" });
+      console.error('Error fetching categories:', error);
+      res.status(500).json({ message: 'Failed to fetch categories', error: String(error) });
     }
   });
 
@@ -259,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userCity: userCity as string,
         userCampus: userCampus as string,
       };
-      
+
       const products = await storage.getProductsWithStore(filters);
       res.json(products);
     } catch (error) {
@@ -267,18 +295,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/products/featured", async (req, res) => {
+  // Get featured products
+  app.get('/api/products/featured', async (req, res) => {
     try {
       const { userUniversity, userCity, userCampus } = req.query;
-      const filters = {
-        userUniversity: userUniversity as string,
-        userCity: userCity as string,
-        userCampus: userCampus as string,
-      };
-      const products = await storage.getFeaturedProducts(filters);
-      res.json(products);
+
+      const featuredProducts = await db.select({
+        id: products.id,
+        name: products.name,
+        description: products.description,
+        price: products.price,
+        images: products.images,
+        category: products.category,
+        condition: products.condition,
+        storeId: products.storeId,
+        isActive: products.isActive,
+        viewCount: products.viewCount,
+        createdAt: products.createdAt,
+        store: {
+          id: stores.id,
+          name: stores.name,
+          logo: stores.logo,
+          userId: stores.userId,
+        }
+      })
+      .from(products)
+      .leftJoin(stores, eq(products.storeId, stores.id))
+      .where(eq(products.isActive, true))
+      .orderBy(desc(products.viewCount))
+      .limit(8);
+
+      res.json(featuredProducts);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch featured products" });
+      console.error('Error fetching featured products:', error);
+      res.status(500).json({ message: 'Failed to fetch featured products', error: String(error) });
     }
   });
 
@@ -286,18 +336,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const product = await storage.getProductWithStore(id);
-      
+
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       // Increment view count (handled directly in storage)
       const currentProduct = await storage.getProductById(id);
       if (currentProduct) {
         // Direct update in storage to handle viewCount which isn't in the update schema
         (currentProduct as any).viewCount = (currentProduct.viewCount || 0) + 1;
       }
-      
+
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch product" });
@@ -318,12 +368,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const productData = req.body;
-      
+
       const product = await storage.updateProduct(id, productData);
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Failed to update product" });
@@ -334,11 +384,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteProduct(id);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Product not found" });
       }
-      
+
       res.json({ message: "Product deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete product" });
@@ -370,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const { quantity } = req.body;
-      
+
       const cartItem = await storage.updateCartItemQuantity(id, quantity);
       res.json(cartItem);
     } catch (error) {
@@ -382,11 +432,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.removeFromCart(id);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Cart item not found" });
       }
-      
+
       res.json({ message: "Item removed from cart" });
     } catch (error) {
       res.status(500).json({ message: "Failed to remove cart item" });
@@ -438,12 +488,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const { status } = req.body;
-      
+
       const order = await storage.updateOrderStatus(id, status);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       res.json(order);
     } catch (error) {
       res.status(500).json({ message: "Failed to update order status" });
@@ -466,7 +516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user1Id = parseInt(req.params.user1Id);
       const user2Id = parseInt(req.params.user2Id);
       const productId = req.query.productId ? parseInt(req.query.productId as string) : undefined;
-      
+
       const messages = await storage.getMessagesBetweenUsers(user1Id, user2Id, productId);
       res.json(messages);
     } catch (error) {
@@ -488,11 +538,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const marked = await storage.markMessageAsRead(id);
-      
+
       if (!marked) {
         return res.status(404).json({ message: "Message not found" });
       }
-      
+
       res.json({ message: "Message marked as read" });
     } catch (error) {
       res.status(500).json({ message: "Failed to mark message as read" });
