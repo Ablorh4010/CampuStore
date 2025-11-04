@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus, BookOpen, Users, Heart } from 'lucide-react';
@@ -12,14 +11,6 @@ import type { ProductWithStore, StoreWithUser } from '@shared/schema';
 export default function Home() {
   const [, setLocation] = useLocation();
   const { user, countryCode } = useAuth();
-  
-  // Update URL with country code
-  useEffect(() => {
-    if (countryCode && window.location.pathname === '/') {
-      const newUrl = `/${countryCode.toLowerCase()}`;
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, [countryCode]);
 
   const { data: featuredStores = [] } = useQuery<StoreWithUser[]>({
     queryKey: ['/api/stores/featured', user?.university, user?.city, user?.campus],
