@@ -15,6 +15,7 @@ export const users = pgTable("users", {
   phoneNumber: text("phone_number").unique(),
   isPhoneVerified: boolean("is_phone_verified").default(false),
   isMerchant: boolean("is_merchant").default(false),
+  isAdmin: boolean("is_admin").default(false),
   avatar: text("avatar"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -51,6 +52,7 @@ export const products = pgTable("products", {
   condition: text("condition").notNull(),
   images: text("images").array().notNull(),
   isAvailable: boolean("is_available").default(true),
+  approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
   viewCount: integer("view_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -98,6 +100,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   isPhoneVerified: true,
+  isAdmin: true,
 }).extend({
   campus: z.string().optional(),
   email: z.string().email().optional(),
@@ -117,6 +120,7 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
   viewCount: true,
+  approvalStatus: true,
   createdAt: true,
 });
 
