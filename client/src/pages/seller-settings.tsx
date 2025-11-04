@@ -31,7 +31,7 @@ export default function SellerSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('bank');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>(user?.paymentMethod || 'bank');
   const [idScanFile, setIdScanFile] = useState<File | null>(null);
   const [faceScanFile, setFaceScanFile] = useState<File | null>(null);
   const [idScanPreview, setIdScanPreview] = useState<string | null>(null);

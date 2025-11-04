@@ -234,6 +234,30 @@ See [MOBILE_DEPLOYMENT.md](./MOBILE_DEPLOYMENT.md) for complete instructions on:
 - Required app assets and documentation
 ## Recent Changes
 
+### Seller Payment Details and Verification (November 2025)
+- **Payment Details Management**: Sellers can now configure payment methods
+  - Three payment options: Bank Account, PayPal, Mobile Money
+  - Bank: Account holder name, bank name, account number
+  - PayPal: Email or user ID
+  - Mobile Money: Provider name and phone number
+- **Seller Verification System**: Identity verification with ID and face scan
+  - Upload government-issued ID photo
+  - Live selfie/face scan for identity verification
+  - Verification statuses: unverified, pending, verified, rejected
+  - Admin review required before seller can receive payments
+- **Name Matching Requirements**: Prominent warnings that payment account name must match ID
+- **API Endpoints**:
+  - POST /api/upload/verification - Upload ID and face scan images
+  - PUT /api/users/payment-details - Update seller payment information
+- **Seller Settings Page**: Dedicated page at /seller-settings
+  - Payment details form with conditional fields per payment method
+  - Verification upload form with image previews
+  - Verification status badges and clear instructions
+  - Mobile camera capture support for face scan
+- **Schema Updates**: Added payment and verification fields to users table
+- **Security**: JWT-authenticated endpoints, admin-controlled verification status
+- **Testing Status**: Architect-verified, LSP clean, production-ready
+
 ### Seller Product Upload with File Upload and Special Offers (November 2025)
 - **Direct File Upload**: Sellers can now upload images directly (replacing URL-based approach)
 - **Image Upload Endpoint**: POST /api/upload/images with JWT authentication
