@@ -528,5 +528,6 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-// Temporarily using MemStorage instead of DatabaseStorage due to database connection issues
+// Temporarily using MemStorage - database authentication is failing
+// This needs to be fixed before deployment will work
 export const storage = new MemStorage();
