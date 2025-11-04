@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from 'wouter';
-import { Eye, EyeOff, GraduationCap } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -16,22 +17,67 @@ const emailLoginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-const phoneLoginSchema = z.object({
+const phoneAuthSchema = z.object({
   phoneNumber: z.string().min(10, 'Please enter a valid phone number'),
-  otpCode: z.string().length(6, 'OTP code must be 6 digits'),
+  otpCode: z.string().optional(),
+}).refine((data) => !data.otpCode || data.otpCode.length === 6, {
+  message: 'OTP code must be 6 digits',
+  path: ['otpCode'],
+});
+
+const registerSchema = z.object({
+  phoneNumber: z.string().min(10, 'Please enter a valid phone number'),
+  otpCode: z.string().optional(),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+  university: z.string().min(1, 'University is required'),
+  city: z.string().min(1, 'City is required'),
+}).refine((data) => !data.otpCode || data.otpCode.length === 6, {
+  message: 'OTP code must be 6 digits',
+  path: ['otpCode'],
 });
 
 type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
-type PhoneLoginFormData = z.infer<typeof phoneLoginSchema>;
+type PhoneAuthFormData = z.infer<typeof phoneAuthSchema>;
+type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function Auth() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [showOtpField, setShowOtpField] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const { login, sendOtp, isLoading } = useAuth();
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const { login, register, sendOtp, isLoading } = useAuth();
   const { toast } = useToast();
+
+  // Check for admin query parameter on mount and whenever URL changes
+  useEffect(() => {
+    const checkAdminMode = () => {
+      const params = new URLSearchParams(window.location.search);
+      const isAdmin = params.get('admin') === 'true';
+      console.log('Checking admin mode:', isAdmin, window.location.search);
+      setIsAdminMode(isAdmin);
+    };
+    
+    checkAdminMode();
+    
+    // Listen for popstate events (browser back/forward)
+    window.addEventListener('popstate', checkAdminMode);
+    
+    return () => {
+      window.removeEventListener('popstate', checkAdminMode);
+    };
+  }, []);
+  
+  // Also check when location changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isAdmin = params.get('admin') === 'true';
+    console.log('Location changed, admin mode:', isAdmin);
+    setIsAdminMode(isAdmin);
+  }, [location]);
 
   const emailLoginForm = useForm<EmailLoginFormData>({
     resolver: zodResolver(emailLoginSchema),
@@ -41,11 +87,24 @@ export default function Auth() {
     },
   });
 
-  const phoneLoginForm = useForm<PhoneLoginFormData>({
-    resolver: zodResolver(phoneLoginSchema),
+  const phoneAuthForm = useForm<PhoneAuthFormData>({
+    resolver: zodResolver(phoneAuthSchema),
     defaultValues: {
       phoneNumber: '',
       otpCode: '',
+    },
+  });
+
+  const registerForm = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      phoneNumber: '',
+      otpCode: '',
+      username: '',
+      firstName: '',
+      lastName: '',
+      university: '',
+      city: '',
     },
   });
 
@@ -53,10 +112,10 @@ export default function Auth() {
     try {
       await login({ email: data.email, password: data.password });
       toast({
-        title: 'Welcome back!',
+        title: 'Welcome back, Admin!',
         description: 'You have been successfully signed in.',
       });
-      setLocation('/');
+      setLocation('/admin');
     } catch (error) {
       toast({
         title: 'Sign in failed',
@@ -66,7 +125,7 @@ export default function Auth() {
     }
   };
 
-  const onPhoneLogin = async (data: PhoneLoginFormData) => {
+  const onPhoneLogin = async (data: PhoneAuthFormData) => {
     try {
       await login({ phoneNumber: data.phoneNumber, otpCode: data.otpCode });
       toast({
@@ -83,26 +142,68 @@ export default function Auth() {
     }
   };
 
-  const handleSendOtp = async () => {
-    const phoneNumber = phoneLoginForm.getValues('phoneNumber');
-    if (!phoneNumber || phoneNumber.length < 10) {
+  const onRegister = async (data: RegisterFormData) => {
+    if (!data.otpCode || data.otpCode.length !== 6) {
+      toast({
+        title: 'OTP Required',
+        description: 'Please enter the 6-digit OTP code sent to your phone.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      await register({
+        phoneNumber: data.phoneNumber,
+        otpCode: data.otpCode,
+        username: data.username,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        university: data.university,
+        city: data.city,
+        isMerchant: false,
+      });
+      toast({
+        title: 'Account created!',
+        description: 'Welcome to StudentMarket.',
+      });
+      setLocation('/');
+    } catch (error: any) {
+      toast({
+        title: 'Registration failed',
+        description: error.message || 'Please try again with different details.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSendOtp = async (formType: 'login' | 'register') => {
+    const phoneNumber = formType === 'login' 
+      ? phoneAuthForm.getValues('phoneNumber')
+      : registerForm.getValues('phoneNumber');
+      
+    // Remove any spaces and validate phone number
+    const cleanPhone = phoneNumber?.trim();
+    
+    if (!cleanPhone || cleanPhone.length < 10) {
       toast({
         title: 'Invalid phone number',
-        description: 'Please enter a valid phone number.',
+        description: 'Please enter a valid phone number (at least 10 digits).',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      await sendOtp(phoneNumber);
+      await sendOtp(cleanPhone);
       setOtpSent(true);
       setShowOtpField(true);
       toast({
         title: 'OTP sent!',
-        description: 'Please check your phone for the verification code.',
+        description: `Please check your phone (${cleanPhone}) for the verification code.`,
       });
     } catch (error) {
+      console.error('OTP send error:', error);
       toast({
         title: 'Failed to send OTP',
         description: 'Please try again.',
@@ -111,10 +212,134 @@ export default function Auth() {
     }
   };
 
+  // Admin login interface
+  if (isAdminMode) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-white to-secondary/10 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+                <Lock className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Admin Portal</h1>
+            <p className="text-gray-600">Secure administrative access</p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-center">Admin Sign In</CardTitle>
+              <CardDescription className="text-center">
+                Enter your admin credentials
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <Form {...emailLoginForm}>
+                <form onSubmit={emailLoginForm.handleSubmit(onEmailLogin)} className="space-y-4">
+                  <FormField
+                    control={emailLoginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="email" 
+                            placeholder="admin@example.com" 
+                            {...field}
+                            data-testid="input-admin-email"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={emailLoginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input 
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Enter your password" 
+                              {...field}
+                              data-testid="input-admin-password"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowPassword(!showPassword)}
+                              data-testid="button-toggle-password"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoading}
+                    data-testid="button-admin-sign-in"
+                  >
+                    {isLoading ? 'Signing in...' : 'Sign In'}
+                  </Button>
+
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-sm text-primary"
+                      onClick={() => setLocation('/forgot-password')}
+                      data-testid="link-admin-forgot-password"
+                    >
+                      Forgot your password?
+                    </Button>
+                  </div>
+
+                  <div className="text-center pt-4 border-t">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-sm"
+                      onClick={() => {
+                        setIsAdminMode(false);
+                        window.history.pushState({}, '', '/auth');
+                      }}
+                      data-testid="button-back-to-user-auth"
+                    >
+                      Back to User Login
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular user OTP-based authentication
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-white to-secondary/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
@@ -122,128 +347,38 @@ export default function Auth() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">StudentMarket</h1>
-          <p className="text-gray-600">Sign in to the student marketplace</p>
+          <p className="text-gray-600">Join the student marketplace community</p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">Welcome Back</CardTitle>
+            <CardTitle className="text-center">
+              {activeTab === 'login' ? 'Welcome Back' : 'Create Account'}
+            </CardTitle>
             <CardDescription className="text-center">
-              Sign in to continue buying and selling
+              {activeTab === 'login' 
+                ? 'Sign in with your phone number' 
+                : 'Join thousands of students using StudentMarket'
+              }
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex space-x-2 mb-4">
-                <Button
-                  type="button"
-                  variant={loginMethod === 'email' ? 'default' : 'outline'}
-                  onClick={() => setLoginMethod('email')}
-                  className="flex-1"
-                  data-testid="button-email-method"
-                >
-                  Email
-                </Button>
-                <Button
-                  type="button"
-                  variant={loginMethod === 'phone' ? 'default' : 'outline'}
-                  onClick={() => {
-                    setLoginMethod('phone');
-                    setShowOtpField(false);
-                    setOtpSent(false);
-                  }}
-                  className="flex-1"
-                  data-testid="button-phone-method"
-                >
-                  Phone
-                </Button>
-              </div>
+            <Tabs value={activeTab} onValueChange={(v) => {
+              setActiveTab(v as 'login' | 'register');
+              setShowOtpField(false);
+              setOtpSent(false);
+            }} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="login" data-testid="tab-sign-in">Sign In</TabsTrigger>
+                <TabsTrigger value="register" data-testid="tab-sign-up">Sign Up</TabsTrigger>
+              </TabsList>
 
-              {loginMethod === 'email' ? (
-                <Form {...emailLoginForm}>
-                  <form onSubmit={emailLoginForm.handleSubmit(onEmailLogin)} className="space-y-4">
+              <TabsContent value="login">
+                <Form {...phoneAuthForm}>
+                  <form onSubmit={phoneAuthForm.handleSubmit(onPhoneLogin)} className="space-y-4">
                     <FormField
-                      control={emailLoginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="email" 
-                              placeholder="your@university.edu" 
-                              {...field}
-                              data-testid="input-email"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={emailLoginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                type={showPassword ? "text" : "password"}
-                                placeholder="Enter your password" 
-                                {...field}
-                                data-testid="input-password"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowPassword(!showPassword)}
-                                data-testid="button-toggle-password"
-                              >
-                                {showPassword ? (
-                                  <EyeOff className="h-4 w-4" />
-                                ) : (
-                                  <Eye className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={isLoading}
-                      data-testid="button-sign-in"
-                    >
-                      {isLoading ? 'Signing in...' : 'Sign In'}
-                    </Button>
-
-                    <div className="text-center">
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="text-sm text-primary"
-                        onClick={() => setLocation('/forgot-password')}
-                        data-testid="link-forgot-password"
-                      >
-                        Forgot your password?
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              ) : (
-                <Form {...phoneLoginForm}>
-                  <form onSubmit={phoneLoginForm.handleSubmit(onPhoneLogin)} className="space-y-4">
-                    <FormField
-                      control={phoneLoginForm.control}
+                      control={phoneAuthForm.control}
                       name="phoneNumber"
                       render={({ field }) => (
                         <FormItem>
@@ -255,14 +390,14 @@ export default function Auth() {
                                 placeholder="+1234567890" 
                                 {...field} 
                                 className="flex-1"
-                                data-testid="input-phone"
+                                data-testid="input-login-phone"
                               />
                               <Button
                                 type="button"
                                 variant="outline"
-                                onClick={handleSendOtp}
+                                onClick={() => handleSendOtp('login')}
                                 disabled={isLoading || otpSent}
-                                data-testid="button-send-otp"
+                                data-testid="button-send-login-otp"
                               >
                                 {otpSent ? 'Sent' : 'Send OTP'}
                               </Button>
@@ -275,7 +410,7 @@ export default function Auth() {
 
                     {showOtpField && (
                       <FormField
-                        control={phoneLoginForm.control}
+                        control={phoneAuthForm.control}
                         name="otpCode"
                         render={({ field }) => (
                           <FormItem>
@@ -286,7 +421,7 @@ export default function Auth() {
                                 placeholder="Enter 6-digit code" 
                                 maxLength={6}
                                 {...field}
-                                data-testid="input-otp"
+                                data-testid="input-login-otp"
                               />
                             </FormControl>
                             <FormMessage />
@@ -298,15 +433,171 @@ export default function Auth() {
                     <Button 
                       type="submit" 
                       className="w-full" 
-                      disabled={isLoading || !showOtpField}
-                      data-testid="button-verify-otp"
+                      disabled={isLoading || !showOtpField || !phoneAuthForm.watch('otpCode') || phoneAuthForm.watch('otpCode')?.length !== 6}
+                      data-testid="button-verify-login"
                     >
                       {isLoading ? 'Verifying...' : 'Verify & Sign In'}
                     </Button>
                   </form>
                 </Form>
-              )}
-            </div>
+
+                <div className="mt-6 text-center">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-xs text-gray-500"
+                    onClick={() => {
+                      setIsAdminMode(true);
+                      window.history.pushState({}, '', '/auth?admin=true');
+                    }}
+                    data-testid="link-admin-login"
+                  >
+                    <Lock className="h-3 w-3 mr-1" />
+                    Admin Login
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="register">
+                <Form {...registerForm}>
+                  <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={registerForm.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="John" {...field} data-testid="input-first-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={registerForm.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Doe" {...field} data-testid="input-last-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={registerForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Username</FormLabel>
+                          <FormControl>
+                            <Input placeholder="johndoe123" {...field} data-testid="input-username" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="university"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>University</FormLabel>
+                          <FormControl>
+                            <Input placeholder="University of Example" {...field} data-testid="input-university" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input placeholder="New York" {...field} data-testid="input-city" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="phoneNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <div className="flex space-x-2">
+                              <Input 
+                                type="tel" 
+                                placeholder="+1234567890" 
+                                {...field} 
+                                className="flex-1"
+                                data-testid="input-register-phone"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleSendOtp('register')}
+                                disabled={isLoading || otpSent}
+                                data-testid="button-send-register-otp"
+                              >
+                                {otpSent ? 'Sent' : 'Send OTP'}
+                              </Button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {showOtpField && (
+                      <FormField
+                        control={registerForm.control}
+                        name="otpCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>OTP Code</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="text" 
+                                placeholder="Enter 6-digit code" 
+                                maxLength={6}
+                                {...field}
+                                data-testid="input-register-otp"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isLoading || !showOtpField || !registerForm.watch('otpCode') || registerForm.watch('otpCode')?.length !== 6}
+                      data-testid="button-create-account"
+                    >
+                      {isLoading ? 'Creating Account...' : 'Create Account'}
+                    </Button>
+                  </form>
+                </Form>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

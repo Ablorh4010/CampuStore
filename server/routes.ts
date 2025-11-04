@@ -11,31 +11,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const userData = insertUserSchema.parse(req.body);
+      const { otpCode, ...userData } = req.body;
+      const parsedUserData = insertUserSchema.parse(userData);
+
+      // Verify OTP for phone-based registration
+      if (parsedUserData.phoneNumber) {
+        if (!otpCode) {
+          return res.status(400).json({ message: "OTP code is required for phone registration" });
+        }
+
+        const isValidOtp = await storage.verifyOtp(parsedUserData.phoneNumber, otpCode);
+        if (!isValidOtp) {
+          return res.status(401).json({ message: "Invalid or expired OTP code" });
+        }
+      }
 
       // Check if email, username, or phone already exists
-      if (userData.email) {
-        const existingEmail = await storage.getUserByEmail(userData.email);
+      if (parsedUserData.email) {
+        const existingEmail = await storage.getUserByEmail(parsedUserData.email);
         if (existingEmail) {
           return res.status(400).json({ message: "Email already exists" });
         }
       }
 
-      if (userData.phoneNumber) {
-        const existingPhone = await storage.getUserByPhone(userData.phoneNumber);
+      if (parsedUserData.phoneNumber) {
+        const existingPhone = await storage.getUserByPhone(parsedUserData.phoneNumber);
         if (existingPhone) {
           return res.status(400).json({ message: "Phone number already exists" });
         }
       }
 
-      const existingUsername = await storage.getUserByUsername(userData.username);
+      const existingUsername = await storage.getUserByUsername(parsedUserData.username);
       if (existingUsername) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      const user = await storage.createUser(userData);
+      const user = await storage.createUser(parsedUserData);
+      
+      // Mark phone as verified since we just verified the OTP
+      if (parsedUserData.phoneNumber) {
+        await storage.markPhoneAsVerified(parsedUserData.phoneNumber);
+      }
+      
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
+      console.error('Registration error:', error);
       res.status(400).json({ message: "Invalid user data" });
     }
   });

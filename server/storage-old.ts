@@ -23,6 +23,9 @@ export interface IStorage {
   setPasswordResetToken(email: string, token: string, expiry: Date): Promise<boolean>;
   getUserByResetToken(token: string): Promise<User | undefined>;
   resetPassword(token: string, newPassword: string): Promise<boolean>;
+  
+  // Phone Verification
+  markPhoneAsVerified(phoneNumber: string): Promise<boolean>;
 
   // Stores
   createStore(store: InsertStore): Promise<Store>;
@@ -307,6 +310,18 @@ export class MemStorage implements IStorage {
       password: hashedPassword,
       resetToken: null,
       resetTokenExpiry: null
+    };
+    this.users.set(user.id, updatedUser);
+    return true;
+  }
+
+  async markPhoneAsVerified(phoneNumber: string): Promise<boolean> {
+    const user = await this.getUserByPhone(phoneNumber);
+    if (!user) return false;
+    
+    const updatedUser = { 
+      ...user, 
+      isPhoneVerified: true
     };
     this.users.set(user.id, updatedUser);
     return true;
