@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap } from 'lucide-react';
+import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,9 @@ export default function Header() {
     switch (action) {
       case 'dashboard':
         setLocation('/dashboard');
+        break;
+      case 'admin':
+        setLocation('/admin');
         break;
       case 'logout':
         logout();
@@ -168,6 +171,12 @@ export default function Header() {
                   <DropdownMenuItem onClick={() => handleProfileAction('dashboard')}>
                     Dashboard
                   </DropdownMenuItem>
+                  {user.isAdmin && (
+                    <DropdownMenuItem onClick={() => handleProfileAction('admin')}>
+                      <Shield className="mr-2 h-4 w-4" />
+                      Admin Portal
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => handleProfileAction('logout')}>
                     Log out
                   </DropdownMenuItem>
@@ -207,6 +216,12 @@ export default function Header() {
                       <Button onClick={() => handleProfileAction('dashboard')} className="w-full">
                         Dashboard
                       </Button>
+                      {user.isAdmin && (
+                        <Button onClick={() => handleProfileAction('admin')} variant="outline" className="w-full">
+                          <Shield className="mr-2 h-4 w-4" />
+                          Admin Portal
+                        </Button>
+                      )}
                       <Button variant="outline" onClick={() => handleProfileAction('logout')} className="w-full">
                         Log out
                       </Button>
