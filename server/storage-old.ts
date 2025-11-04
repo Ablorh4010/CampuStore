@@ -82,6 +82,11 @@ export interface IStorage {
   clearCart(userId: number): Promise<boolean>;
 }
 
+interface OtpData {
+  code: string;
+  expiry: Date;
+}
+
 export class MemStorage implements IStorage {
   private users: Map<number, User> = new Map();
   private stores: Map<number, Store> = new Map();
@@ -90,6 +95,7 @@ export class MemStorage implements IStorage {
   private orders: Map<number, Order> = new Map();
   private messages: Map<number, Message> = new Map();
   private cartItems: Map<number, CartItem> = new Map();
+  private otpStorage: Map<string, OtpData> = new Map();
   
   private currentUserId = 1;
   private currentStoreId = 1;
@@ -267,14 +273,46 @@ export class MemStorage implements IStorage {
   async generateOtp(phoneNumber: string): Promise<string> {
     // Generate a 6-digit OTP
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    // In MemStorage, we'll just return the OTP without storing it
-    // A real implementation would store it with expiration
+    
+    // Store OTP with 5-minute expiration
+    const expiry = new Date();
+    expiry.setMinutes(expiry.getMinutes() + 5);
+    
+    this.otpStorage.set(phoneNumber, {
+      code: otpCode,
+      expiry
+    });
+    
+    console.log(`[OTP] Generated for ${phoneNumber}: ${otpCode} (expires at ${expiry.toISOString()})`);
+    
     return otpCode;
   }
 
   async verifyOtp(phoneNumber: string, otpCode: string): Promise<boolean> {
-    // For MemStorage, always return true for demo purposes
-    // A real implementation would verify against stored OTP
+    const storedOtp = this.otpStorage.get(phoneNumber);
+    
+    if (!storedOtp) {
+      console.log(`[OTP] No OTP found for ${phoneNumber}`);
+      return false;
+    }
+    
+    // Check if OTP has expired
+    if (new Date() > storedOtp.expiry) {
+      console.log(`[OTP] OTP expired for ${phoneNumber}`);
+      this.otpStorage.delete(phoneNumber); // Clean up expired OTP
+      return false;
+    }
+    
+    // Verify OTP code matches
+    if (storedOtp.code !== otpCode) {
+      console.log(`[OTP] Invalid OTP for ${phoneNumber}: expected ${storedOtp.code}, got ${otpCode}`);
+      return false;
+    }
+    
+    // OTP is valid - delete it for one-time use
+    this.otpStorage.delete(phoneNumber);
+    console.log(`[OTP] Valid OTP verified for ${phoneNumber}`);
+    
     return true;
   }
 
