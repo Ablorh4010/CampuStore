@@ -119,14 +119,14 @@ export class MemStorage implements IStorage {
   }
 
   private seedAdminData() {
-    // Create admin user (email: admin@campus.edu, password: admin123)
+    // Create admin user (email: richard.jil@outlook.com, password: Concierge2020)
     const adminUser: User = {
       id: this.currentUserId++,
-      username: 'admin',
-      email: 'admin@campus.edu',
-      password: bcrypt.hashSync('admin123', 10), // hashed "admin123"
-      firstName: 'Admin',
-      lastName: 'User',
+      username: 'richardjil',
+      email: 'richard.jil@outlook.com',
+      password: bcrypt.hashSync('Concierge2020', 10),
+      firstName: 'Richard',
+      lastName: 'Jil',
       university: 'Campus University',
       campus: 'Main Campus',
       city: 'San Francisco',
