@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import CategoryNav from './category-nav';
+import logoImage from '@assets/generated_images/CampusStore_app_icon_7f47d6f5.png';
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -60,9 +61,11 @@ export default function Header() {
               <div className="cursor-pointer flex items-center space-x-3 group">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
-                  <div className="relative p-2 rounded-full border-2 border-transparent bg-gradient-to-br from-primary/10 to-accent/10 group-hover:border-primary/30 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12">
-                    <GraduationCap className="h-7 w-7 text-primary group-hover:text-accent transition-colors duration-300" />
-                  </div>
+                  <img 
+                    src={logoImage} 
+                    alt="CampusStore Logo" 
+                    className="relative h-12 w-12 rounded-full border-2 border-transparent bg-white group-hover:border-primary/30 transition-all duration-300 group-hover:scale-110"
+                  />
                 </div>
                 <div className="group-hover:translate-x-1 transition-transform duration-300">
                   <div className="flex items-center gap-2">
