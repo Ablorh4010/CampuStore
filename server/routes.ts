@@ -409,6 +409,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Verification document upload (ID and face scan)
+  app.post("/api/upload/verification", authenticateToken, imageUpload.fields([
+    { name: 'idScan', maxCount: 1 },
+    { name: 'faceScan', maxCount: 1 }
+  ]), async (req: AuthRequest, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      if (!files || (!files.idScan && !files.faceScan)) {
+        return res.status(400).json({ message: "No verification documents uploaded" });
+      }
+
+      const idScanUrl = files.idScan ? `/uploads/${files.idScan[0].filename}` : undefined;
+      const faceScanUrl = files.faceScan ? `/uploads/${files.faceScan[0].filename}` : undefined;
+
+      // Update user verification status to pending
+      await storage.updateUser(req.userId!, {
+        idScanUrl,
+        faceScanUrl,
+        verificationStatus: 'pending'
+      });
+
+      res.json({ 
+        idScanUrl, 
+        faceScanUrl,
+        message: "Verification documents uploaded successfully. Pending admin review." 
+      });
+    } catch (error) {
+      console.error('Verification upload error:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : 'Failed to upload verification documents'
+      });
+    }
+  });
+
+  // Update user payment details
+  app.put("/api/users/payment-details", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const paymentData = req.body;
+      
+      // Validate payment method
+      const validMethods = ['bank', 'paypal', 'mobile_money'];
+      if (paymentData.paymentMethod && !validMethods.includes(paymentData.paymentMethod)) {
+        return res.status(400).json({ message: "Invalid payment method" });
+      }
+
+      // Update user with payment details
+      const updatedUser = await storage.updateUser(req.userId!, {
+        paymentMethod: paymentData.paymentMethod,
+        bankAccountNumber: paymentData.bankAccountNumber,
+        bankName: paymentData.bankName,
+        accountHolderName: paymentData.accountHolderName,
+        paypalUserId: paymentData.paypalUserId,
+        mobileMoneyProvider: paymentData.mobileMoneyProvider,
+        mobileMoneyPhone: paymentData.mobileMoneyPhone,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json({ message: "Payment details updated successfully", user: updatedUser });
+    } catch (error) {
+      console.error('Payment details update error:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : 'Failed to update payment details'
+      });
+    }
+  });
+
   // Category routes
   // Get all categories
   app.get('/api/categories', async (req, res) => {
