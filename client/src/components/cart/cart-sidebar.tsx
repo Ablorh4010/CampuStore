@@ -1,5 +1,5 @@
 import { X, Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -10,6 +10,7 @@ import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
 
 export default function CartSidebar() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const {
     cartItems,
     cartTotal,
@@ -138,7 +139,15 @@ export default function CartSidebar() {
                   ${total.toFixed(2)}
                 </span>
               </div>
-              <Button className="w-full" size="lg" data-testid="button-checkout">
+              <Button 
+                className="w-full" 
+                size="lg" 
+                data-testid="button-checkout"
+                onClick={() => {
+                  closeCart();
+                  setLocation('/checkout');
+                }}
+              >
                 Proceed to Checkout
               </Button>
             </div>
