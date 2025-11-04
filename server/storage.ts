@@ -38,6 +38,7 @@ export interface IStorage {
 
   // Products
   createProduct(product: InsertProduct): Promise<Product>;
+  bulkCreateProducts(products: InsertProduct[]): Promise<Product[]>;
   getProductById(id: number): Promise<Product | undefined>;
   getProductWithStore(id: number): Promise<ProductWithStore | undefined>;
   getProductsByStoreId(storeId: number): Promise<Product[]>;
@@ -239,6 +240,12 @@ export class DatabaseStorage implements IStorage {
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const [product] = await db.insert(products).values(insertProduct).returning();
     return product;
+  }
+
+  async bulkCreateProducts(insertProducts: InsertProduct[]): Promise<Product[]> {
+    if (insertProducts.length === 0) return [];
+    const createdProducts = await db.insert(products).values(insertProducts).returning();
+    return createdProducts;
   }
 
   async getProductById(id: number): Promise<Product | undefined> {

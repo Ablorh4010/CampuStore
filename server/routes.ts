@@ -5,6 +5,10 @@ import {
   insertUserSchema, insertStoreSchema, insertProductSchema, 
   insertOrderSchema, insertMessageSchema, insertCartItemSchema
 } from "@shared/schema";
+import multer from "multer";
+import { readFileSync } from "fs";
+
+const upload = multer({ dest: 'uploads/' });
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -680,6 +684,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Failed to update product approval status" });
+    }
+  });
+
+  app.post("/api/admin/products/import", upload.single('file'), async (req, res) => {
+    try {
+      const userId = parseInt(req.body.userId);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUserById(userId);
+      if (!user || !user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const storeId = parseInt(req.body.storeId);
+      if (!storeId) {
+        return res.status(400).json({ message: "Store ID is required" });
+      }
+
+      let products = [];
+
+      // CSV import
+      if (req.file) {
+        const csvContent = readFileSync(req.file.path, 'utf-8');
+        const lines = csvContent.split('\n').filter(line => line.trim());
+        const headers = lines[0].split(',');
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',');
+          if (values.length < headers.length) continue;
+
+          const product = {
+            storeId,
+            title: values[0]?.trim() || '',
+            description: values[1]?.trim() || '',
+            price: values[2]?.trim() || '0',
+            originalPrice: values[3]?.trim() || null,
+            condition: values[4]?.trim() || 'new',
+            categoryId: parseInt(values[5]?.trim()) || 1,
+            images: values[6]?.trim() ? [values[6].trim()] : [],
+          };
+
+          if (product.title && product.description && product.price) {
+            products.push(product);
+          }
+        }
+      }
+      // URL import
+      else if (req.body.url) {
+        const { url, platform, apiKey } = req.body;
+        
+        try {
+          let response;
+          if (platform === 'shopify') {
+            const shopUrl = new URL(url);
+            const apiUrl = `${shopUrl.origin}/admin/api/2024-01/products.json`;
+            response = await fetch(apiUrl, {
+              headers: apiKey ? { 'X-Shopify-Access-Token': apiKey } : {},
+            });
+          } else if (platform === 'woocommerce') {
+            const wcUrl = new URL(url);
+            const apiUrl = `${wcUrl.origin}/wp-json/wc/v3/products`;
+            response = await fetch(apiUrl, {
+              headers: apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {},
+            });
+          } else {
+            response = await fetch(url);
+          }
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch from ${platform}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          
+          if (platform === 'shopify' && data.products) {
+            products = data.products.map((p: any) => ({
+              storeId,
+              title: p.title,
+              description: p.body_html || p.title,
+              price: p.variants?.[0]?.price || '0',
+              originalPrice: p.variants?.[0]?.compare_at_price || null,
+              condition: 'new',
+              categoryId: 1,
+              images: p.images?.map((img: any) => img.src) || [],
+            }));
+          } else if (platform === 'woocommerce' && Array.isArray(data)) {
+            products = data.map((p: any) => ({
+              storeId,
+              title: p.name,
+              description: p.description || p.name,
+              price: p.price,
+              originalPrice: p.regular_price !== p.price ? p.regular_price : null,
+              condition: 'new',
+              categoryId: 1,
+              images: p.images?.map((img: any) => img.src) || [],
+            }));
+          } else {
+            return res.status(400).json({ message: "Unsupported data format from URL" });
+          }
+        } catch (error) {
+          return res.status(500).json({ message: `Failed to import from URL: ${error instanceof Error ? error.message : 'Unknown error'}` });
+        }
+      } else {
+        return res.status(400).json({ message: "Either file or URL is required" });
+      }
+
+      // Bulk create products
+      const createdProducts = await storage.bulkCreateProducts(products);
+
+      res.json({ 
+        count: createdProducts.length,
+        products: createdProducts 
+      });
+    } catch (error) {
+      console.error('Import error:', error);
+      res.status(500).json({ message: `Failed to import products: ${error instanceof Error ? error.message : 'Unknown error'}` });
     }
   });
 

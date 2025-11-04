@@ -456,6 +456,24 @@ export class MemStorage implements IStorage {
     return product;
   }
 
+  async bulkCreateProducts(insertProducts: InsertProduct[]): Promise<Product[]> {
+    const createdProducts: Product[] = [];
+    for (const insertProduct of insertProducts) {
+      const product: Product = {
+        ...insertProduct,
+        id: this.currentProductId++,
+        originalPrice: insertProduct.originalPrice || null,
+        isAvailable: insertProduct.isAvailable !== undefined ? insertProduct.isAvailable : true,
+        approvalStatus: 'pending',
+        viewCount: 0,
+        createdAt: new Date()
+      };
+      this.products.set(product.id, product);
+      createdProducts.push(product);
+    }
+    return createdProducts;
+  }
+
   async getProductById(id: number): Promise<Product | undefined> {
     return this.products.get(id);
   }
