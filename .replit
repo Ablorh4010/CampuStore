@@ -18,6 +18,10 @@ externalPort = 80
 localPort = 36073
 externalPort = 3000
 
+[[ports]]
+localPort = 36525
+externalPort = 3001
+
 [workflows]
 runButton = "Project"
 
@@ -40,4 +44,4 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
-integrations = ["resend:1.0.0"]
+integrations = ["resend:1.0.0", "javascript_stripe:1.0.0"]
