@@ -36,7 +36,7 @@ export default function AdminDashboard() {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ productId, status }: { productId: number; status: string }) =>
-      apiRequest(`/api/admin/products/${productId}/approval`, 'PUT', { userId: user?.id, status }),
+      apiRequest('PUT', `/api/admin/products/${productId}/approval`, { userId: user?.id, status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products', user?.id] });
       toast({
