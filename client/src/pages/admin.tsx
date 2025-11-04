@@ -93,10 +93,18 @@ export default function AdminDashboard() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products', user?.id] });
+      
+      const hasErrors = data.errors && data.errors.length > 0;
       toast({
-        title: 'Success',
-        description: `Imported ${data.count} products successfully`,
+        title: hasErrors ? 'Import Completed with Warnings' : 'Success',
+        description: data.message || `Imported ${data.count} products successfully`,
+        variant: hasErrors ? 'default' : 'default',
       });
+
+      if (hasErrors) {
+        console.warn('Import errors:', data.errors);
+      }
+
       setCsvFile(null);
       setImportUrl('');
       setImportApiKey('');
@@ -150,8 +158,8 @@ export default function AdminDashboard() {
 
   const downloadTemplate = () => {
     const csvContent = 'title,description,price,originalPrice,condition,categoryId,images\n' +
-      'Example Product,Product description here,29.99,39.99,new,1,https://example.com/image.jpg\n' +
-      'Used Textbook,Biology textbook in good condition,15.00,50.00,used,1,https://example.com/book.jpg';
+      '"Example Product","Product description here",29.99,39.99,new,1,https://example.com/image1.jpg|https://example.com/image2.jpg\n' +
+      '"Used Textbook, Biology","Biology textbook, good condition",15.00,50.00,used,1,https://example.com/book.jpg';
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -428,7 +436,10 @@ export default function AdminDashboard() {
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <h4 className="font-semibold text-sm mb-2">CSV Format:</h4>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Your CSV should include: title, description, price, originalPrice, condition, categoryId, images
+                      Required columns: title, description, price, originalPrice, condition, categoryId, images
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      <strong>Multiple images:</strong> Separate with pipe (|): image1.jpg|image2.jpg
                     </p>
                     <p className="text-xs text-muted-foreground">
                       <strong>Category IDs:</strong> {categories.map(c => `${c.name} (${c.id})`).join(', ')}

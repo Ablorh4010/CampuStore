@@ -7,6 +7,7 @@ import {
 } from "@shared/schema";
 import multer from "multer";
 import { readFileSync } from "fs";
+import { parse } from "csv-parse/sync";
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -694,6 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
+      // CRITICAL: Verify admin status from database, don't trust client input
       const user = await storage.getUserById(userId);
       if (!user || !user.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
@@ -704,32 +706,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Store ID is required" });
       }
 
+      // Verify store exists
+      const store = await storage.getStoreById(storeId);
+      if (!store) {
+        return res.status(404).json({ message: "Store not found" });
+      }
+
       let products = [];
+      const errors: string[] = [];
 
-      // CSV import
+      // CSV import with robust parsing
       if (req.file) {
-        const csvContent = readFileSync(req.file.path, 'utf-8');
-        const lines = csvContent.split('\n').filter(line => line.trim());
-        const headers = lines[0].split(',');
+        try {
+          const csvContent = readFileSync(req.file.path, 'utf-8');
+          
+          // Parse CSV with proper handling of quoted fields and commas
+          const records = parse(csvContent, {
+            columns: true,
+            skip_empty_lines: true,
+            trim: true,
+            relax_quotes: true,
+          });
 
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(',');
-          if (values.length < headers.length) continue;
+          for (let i = 0; i < records.length; i++) {
+            const row = records[i];
+            
+            try {
+              // Validate required fields
+              if (!row.title || !row.description || !row.price) {
+                errors.push(`Row ${i + 2}: Missing required fields (title, description, or price)`);
+                continue;
+              }
 
-          const product = {
-            storeId,
-            title: values[0]?.trim() || '',
-            description: values[1]?.trim() || '',
-            price: values[2]?.trim() || '0',
-            originalPrice: values[3]?.trim() || null,
-            condition: values[4]?.trim() || 'new',
-            categoryId: parseInt(values[5]?.trim()) || 1,
-            images: values[6]?.trim() ? [values[6].trim()] : [],
-          };
+              const parsedCategoryId = row.categoryId ? parseInt(String(row.categoryId)) : 1;
+              
+              const product = {
+                storeId,
+                title: String(row.title).trim(),
+                description: String(row.description).trim(),
+                price: String(row.price).trim(),
+                originalPrice: row.originalPrice ? String(row.originalPrice).trim() : null,
+                condition: row.condition ? String(row.condition).trim() : 'new',
+                categoryId: parsedCategoryId,
+                images: row.images ? String(row.images).split('|').map(img => img.trim()).filter(Boolean) : [],
+              };
 
-          if (product.title && product.description && product.price) {
-            products.push(product);
+              // Validate numeric fields
+              const priceNum = parseFloat(product.price);
+              if (!Number.isFinite(priceNum) || priceNum < 0) {
+                errors.push(`Row ${i + 2}: Invalid price value "${row.price}" (must be a positive number)`);
+                continue;
+              }
+
+              if (!Number.isFinite(parsedCategoryId) || parsedCategoryId < 1 || parsedCategoryId > 6) {
+                errors.push(`Row ${i + 2}: Invalid categoryId "${row.categoryId}" (must be a number between 1-6)`);
+                continue;
+              }
+
+              products.push(product);
+            } catch (rowError) {
+              errors.push(`Row ${i + 2}: ${rowError instanceof Error ? rowError.message : 'Unknown error'}`);
+            }
           }
+        } catch (csvError) {
+          return res.status(400).json({ 
+            message: `CSV parsing error: ${csvError instanceof Error ? csvError.message : 'Invalid CSV format'}` 
+          });
         }
       }
       // URL import
@@ -793,11 +835,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Bulk create products
+      if (products.length === 0) {
+        return res.status(400).json({ 
+          message: "No valid products to import",
+          errors,
+          count: 0
+        });
+      }
+
       const createdProducts = await storage.bulkCreateProducts(products);
 
       res.json({ 
         count: createdProducts.length,
-        products: createdProducts 
+        products: createdProducts,
+        errors: errors.length > 0 ? errors : undefined,
+        message: errors.length > 0 
+          ? `Imported ${createdProducts.length} products with ${errors.length} errors`
+          : `Successfully imported ${createdProducts.length} products`
       });
     } catch (error) {
       console.error('Import error:', error);
