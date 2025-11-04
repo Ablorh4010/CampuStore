@@ -53,6 +53,7 @@ export const products = pgTable("products", {
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   condition: text("condition").notNull(),
   images: text("images").array().notNull(),
+  specialOffer: text("special_offer"),
   isAvailable: boolean("is_available").default(true),
   approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
   viewCount: integer("view_count").default(0),
