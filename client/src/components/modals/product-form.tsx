@@ -274,7 +274,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="Product title" {...field} />
+                    <Input placeholder="Product title" {...field} data-testid="input-product-title" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -288,7 +288,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Product description" {...field} />
+                    <Textarea placeholder="Product description" {...field} data-testid="input-product-description" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -303,7 +303,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                   <FormItem>
                     <FormLabel>Price ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-product-price" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -317,7 +317,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                   <FormItem>
                     <FormLabel>Original Price ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-product-original-price" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
