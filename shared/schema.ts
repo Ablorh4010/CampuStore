@@ -19,6 +19,23 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
+  
+  // Payment details
+  paymentMethod: text("payment_method"), // bank, paypal, mobile_money
+  bankAccountNumber: text("bank_account_number"),
+  bankName: text("bank_name"),
+  accountHolderName: text("account_holder_name"),
+  paypalUserId: text("paypal_user_id"),
+  mobileMoneyProvider: text("mobile_money_provider"),
+  mobileMoneyPhone: text("mobile_money_phone"),
+  
+  // Seller verification
+  verificationStatus: text("verification_status").default("unverified"), // unverified, pending, verified, rejected
+  idScanUrl: text("id_scan_url"),
+  faceScanUrl: text("face_scan_url"),
+  verificationNotes: text("verification_notes"),
+  verifiedAt: timestamp("verified_at"),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
