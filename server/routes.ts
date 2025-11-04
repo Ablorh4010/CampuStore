@@ -74,18 +74,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, username, password, phoneNumber, otpCode } = req.body;
+      const { email, password, phoneNumber, otpCode } = req.body;
 
       let user = null;
 
       if (email && password) {
-        // Email/password login
+        // Email/password login (admin only)
         user = await storage.verifyPassword(email, password);
         if (!user) {
           return res.status(401).json({ message: "Invalid email or password" });
         }
       } else if (phoneNumber && otpCode) {
-        // Phone/OTP login
+        // Phone/OTP login (regular users)
         const isValidOtp = await storage.verifyOtp(phoneNumber, otpCode);
         if (!isValidOtp) {
           return res.status(401).json({ message: "Invalid or expired OTP code" });
@@ -97,18 +97,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         await storage.markPhoneAsVerified(phoneNumber);
-      } else if (email) {
-        // Legacy email-only login (for backward compatibility)
-        user = await storage.getUserByEmail(email);
-        if (!user) {
-          return res.status(401).json({ message: "User not found" });
-        }
-      } else if (username) {
-        // Legacy username-only login (for backward compatibility)
-        user = await storage.getUserByUsername(username);
-        if (!user) {
-          return res.status(401).json({ message: "User not found" });
-        }
+      } else {
+        // No valid credentials provided
+        return res.status(400).json({ message: "Email/password or phone/OTP required" });
       }
 
       if (!user) {
