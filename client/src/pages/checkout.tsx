@@ -33,11 +33,12 @@ function CheckoutForm() {
 
     setIsProcessing(true);
 
-    const { error } = await stripe.confirmPayment({
+    const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/payment-success`,
       },
+      redirect: 'if_required',
     });
 
     if (error) {
@@ -47,6 +48,8 @@ function CheckoutForm() {
         variant: "destructive",
       });
       setIsProcessing(false);
+    } else if (paymentIntent) {
+      setLocation(`/payment-success?payment_intent_client_secret=${paymentIntent.client_secret}`);
     }
   };
 
