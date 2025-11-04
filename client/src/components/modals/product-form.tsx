@@ -34,6 +34,7 @@ const productSchema = z.object({
   originalPrice: z.string().optional(),
   condition: z.string().min(1, 'Condition is required'),
   images: z.array(z.string()).min(1, 'At least one image is required'),
+  specialOffer: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -47,7 +48,9 @@ interface ProductFormProps {
 export default function ProductForm({ isOpen, onClose, userStores }: ProductFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [imageUrls, setImageUrls] = useState<string[]>(['']);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
@@ -61,20 +64,63 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       price: '',
       originalPrice: '',
       condition: '',
-      images: [''],
+      specialOffer: '',
+      images: [],
     },
   });
 
+  const uploadImages = async (files: File[]): Promise<string[]> => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('images', file);
+    });
+
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch('/api/upload/images', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to upload images');
+    }
+
+    const data = await response.json();
+    return data.urls;
+  };
+
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
-      const response = await apiRequest('POST', '/api/products', {
-        ...data,
-        price: data.price,
-        originalPrice: data.originalPrice || null,
-        images: data.images.filter(url => url.trim()),
-        isAvailable: true,
-      });
-      return response.json();
+      setIsUploading(true);
+      
+      try {
+        // Upload images first if there are any
+        let imageUrls: string[] = [];
+        if (imageFiles.length > 0) {
+          imageUrls = await uploadImages(imageFiles);
+        }
+
+        // Create product with uploaded image URLs
+        const response = await apiRequest('POST', '/api/products', {
+          ...data,
+          price: data.price,
+          originalPrice: data.originalPrice || null,
+          specialOffer: data.specialOffer || null,
+          images: imageUrls,
+          isAvailable: true,
+        });
+        return response.json();
+      } finally {
+        setIsUploading(false);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
@@ -84,35 +130,81 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       });
       onClose();
       form.reset();
-      setImageUrls(['']);
+      setImageFiles([]);
+      setImagePreviews([]);
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: 'Error',
-        description: 'Failed to create product. Please try again.',
+        description: error.message || 'Failed to create product. Please try again.',
         variant: 'destructive',
       });
     },
   });
 
-  const handleImageUrlChange = (index: number, value: string) => {
-    const newUrls = [...imageUrls];
-    newUrls[index] = value;
-    setImageUrls(newUrls);
-    form.setValue('images', newUrls.filter(url => url.trim()));
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    
+    // Validate file count
+    if (files.length + imageFiles.length > 5) {
+      toast({
+        title: 'Too many images',
+        description: 'You can upload a maximum of 5 images.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size and type
+    const invalidFiles = files.filter(file => {
+      const isValidType = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'].includes(file.type);
+      const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+      return !isValidType || !isValidSize;
+    });
+
+    if (invalidFiles.length > 0) {
+      toast({
+        title: 'Invalid files',
+        description: 'Only JPEG, PNG, WebP, and GIF images under 5MB are allowed.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Add files and create previews
+    const newFiles = [...imageFiles, ...files];
+    setImageFiles(newFiles);
+
+    // Create image previews
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Update form
+    form.setValue('images', newFiles.map((_, i) => `temp-${i}`));
   };
 
-  const addImageUrl = () => {
-    setImageUrls([...imageUrls, '']);
-  };
-
-  const removeImageUrl = (index: number) => {
-    const newUrls = imageUrls.filter((_, i) => i !== index);
-    setImageUrls(newUrls);
-    form.setValue('images', newUrls.filter(url => url.trim()));
+  const removeImage = (index: number) => {
+    const newFiles = imageFiles.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    setImageFiles(newFiles);
+    setImagePreviews(newPreviews);
+    form.setValue('images', newFiles.map((_, i) => `temp-${i}`));
   };
 
   const onSubmit = (data: ProductFormData) => {
+    if (imageFiles.length === 0) {
+      toast({
+        title: 'No images',
+        description: 'Please add at least one product image.',
+        variant: 'destructive',
+      });
+      return;
+    }
     createProductMutation.mutate(data);
   };
 
@@ -259,36 +351,64 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="specialOffer"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Special Offer (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Buy 2 Get 1 Free, 20% Off Today" {...field} data-testid="input-special-offer" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div>
-              <Label>Product Images</Label>
-              <div className="space-y-2 mt-2">
-                {imageUrls.map((url, index) => (
-                  <div key={index} className="flex space-x-2">
-                    <Input
-                      placeholder="Image URL"
-                      value={url}
-                      onChange={(e) => handleImageUrlChange(index, e.target.value)}
-                    />
-                    {imageUrls.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removeImageUrl(index)}
-                      >
-                        ×
-                      </Button>
-                    )}
+              <Label>Product Images (Max 5)</Label>
+              <div className="space-y-3 mt-2">
+                {/* Image Previews */}
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded border"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => removeImage(index)}
+                          data-testid={`button-remove-image-${index}`}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addImageUrl}
-                >
-                  Add Image URL
-                </Button>
+                )}
+
+                {/* File Upload Input */}
+                {imageFiles.length < 5 && (
+                  <div>
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      multiple
+                      onChange={handleImageChange}
+                      className="cursor-pointer"
+                      data-testid="input-product-images"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      JPEG, PNG, WebP, or GIF • Max 5MB per image • {imageFiles.length}/5 uploaded
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -298,15 +418,17 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                 variant="outline"
                 onClick={onClose}
                 className="flex-1"
+                data-testid="button-cancel-product"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={createProductMutation.isPending}
+                disabled={createProductMutation.isPending || isUploading}
                 className="flex-1"
+                data-testid="button-submit-product"
               >
-                {createProductMutation.isPending ? 'Creating...' : 'Create Product'}
+                {isUploading ? 'Uploading Images...' : createProductMutation.isPending ? 'Creating...' : 'Create Product'}
               </Button>
             </div>
           </form>
