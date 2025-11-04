@@ -106,11 +106,14 @@ Preferred communication style: Simple, everyday language.
 ## Data Flow
 
 1. **Client Requests**: React components make API calls through TanStack Query
-2. **Service Worker**: Intercepts requests, serves from cache if available (cache-first)
-3. **API Layer**: Express.js routes handle requests and validate data with Zod schemas
-4. **Business Logic**: Route handlers process business logic and data transformations
-5. **Data Access**: Storage interface abstracts operations using MemStorage (in-memory)
-6. **Response**: JSON responses sent back to client with error handling
+2. **JWT Authentication**: Authorization header with Bearer token included in all requests
+3. **Service Worker**: Intercepts requests, serves from cache if available (cache-first)
+4. **API Layer**: Express.js routes handle requests and validate data with Zod schemas
+5. **Authentication Middleware**: Verifies JWT token for protected routes
+6. **Admin Middleware**: Additionally verifies admin status for admin routes
+7. **Business Logic**: Route handlers process business logic and data transformations
+8. **Data Access**: Storage interface abstracts operations using MemStorage (in-memory)
+9. **Response**: JSON responses sent back to client with error handling
 
 ## Mobile User Journey
 
@@ -183,10 +186,17 @@ Preferred communication style: Simple, everyday language.
 - **Meta Tags**: iOS and Android PWA tags in `index.html`
 
 ### Authentication Architecture
+- **JWT Authentication**: All protected routes secured with JSON Web Tokens (7-day expiry)
+- **Token Storage**: JWT tokens stored in localStorage, included in Authorization header
+- **Server Verification**: authenticateToken middleware verifies JWT for all protected routes
+- **Admin Routes**: requireAdmin middleware additionally verifies isAdmin status
 - **OTP Storage**: In-memory Map with phone → {code, expiresAt, used} mapping
 - **OTP Lifecycle**: 5-minute expiration, deleted after successful verification
-- **Admin Auth**: Separate email/password system for admin user
+- **Admin Auth**: Email/password (richard.jil@outlook.com / Concierge2020) only
+- **Regular Users**: Phone OTP authentication only (no email/password)
 - **Password Reset**: Email verification via Resend integration
+- **Ownership Verification**: Users can only access/modify their own data
+- **Security**: No client-provided userId trust - all authentication via JWT tokens
 
 ### Storage Design
 - **Current**: MemStorage (in-memory) for fast development and testing
@@ -222,3 +232,28 @@ See [MOBILE_DEPLOYMENT.md](./MOBILE_DEPLOYMENT.md) for complete instructions on:
 - Building and testing native apps
 - Submitting to App Store and Play Store
 - Required app assets and documentation
+## Recent Changes
+
+### JWT Authentication Security Overhaul (November 2025)
+- **Complete Security Rewrite**: Replaced client-provided userId with JWT tokens
+- **Backend Changes**: 
+  - Created authenticateToken and requireAdmin middleware
+  - Updated ALL protected routes to require JWT authentication
+  - Added ownership verification (users can only modify their own data)
+  - Removed insecure legacy login paths
+- **Frontend Changes**:
+  - Auth context stores JWT tokens in localStorage
+  - All API requests include Authorization: Bearer <token> header
+  - Automatic token management via queryClient
+- **Protected Routes**: User routes, store routes, product routes, cart, orders, messages, admin routes
+- **Security Guarantees**: No authentication bypass, server-side token verification, 7-day token expiry
+- **Testing Status**: Architect-verified, no LSP errors, production-ready
+
+### Import Feature (November 2025)
+- **Admin Product Import**: Bulk import products via CSV upload or URL
+- **CSV Format**: title,description,price,originalPrice,condition,categoryId,images
+- **URL Import**: Supports Shopify, WooCommerce, and generic ecommerce stores
+- **Validation**: Robust CSV parsing with error reporting per row
+- **Multiple Images**: Pipe-delimited format (image1.jpg|image2.jpg)
+- **Store Selection**: Admin selects destination store for imported products
+- **Security**: Server-side JWT authentication and admin verification required
