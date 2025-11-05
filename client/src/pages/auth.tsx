@@ -535,7 +535,7 @@ export default function Auth() {
               <GraduationCap className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">StudentMarket</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Campus Exchange</h1>
           <p className="text-gray-600">Join the student marketplace community</p>
         </div>
 
@@ -547,7 +547,7 @@ export default function Auth() {
             <CardDescription className="text-center">
               {activeTab === 'login' 
                 ? 'Sign in with your phone number' 
-                : 'Join thousands of students using StudentMarket'
+                : 'Join thousands of students using Campus Exchange'
               }
             </CardDescription>
           </CardHeader>

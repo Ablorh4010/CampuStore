@@ -1,7 +1,7 @@
-# CampusStore - StudentMarket
+# Campus Exchange
 
 ## Overview
-CampusStore is a Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. It offers a native app-like experience on Android and iPhone, featuring buyer/seller mode selection, OTP authentication, store creation, product listings, student-to-student messaging, and a robust product upload system with image handling and special offers. The platform aims to provide a fast and efficient trading environment within university communities.
+Campus Exchange is a Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. It offers a native app-like experience on Android and iPhone, featuring buyer/seller mode selection, OTP authentication, store creation, product listings, student-to-student messaging, and a robust product upload system with image handling and special offers. The platform aims to provide a fast and efficient trading environment within university communities.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
