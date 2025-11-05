@@ -1,9 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { 
   insertUserSchema, insertStoreSchema, insertProductSchema, 
-  insertOrderSchema, insertMessageSchema, insertCartItemSchema
+  insertOrderSchema, insertMessageSchema, insertCartItemSchema,
+  users
 } from "@shared/schema";
 import multer from "multer";
 import { readFileSync } from "fs";
@@ -129,10 +131,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Username already exists" });
       }
 
-      // Create admin user
-      const adminUser = await storage.createUser({
+      // Hash password
+      const bcrypt = await import('bcryptjs');
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create admin user directly in database with isAdmin flag
+      const [adminUser] = await db.insert(users).values({
         email,
-        password,
+        password: hashedPassword,
         username,
         firstName,
         lastName,
@@ -140,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: 'Admin',
         isAdmin: true,
         isMerchant: false,
-      });
+      }).returning();
 
       // Generate JWT token
       const token = generateToken(adminUser.id);
