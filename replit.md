@@ -70,6 +70,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Admin Signup System (November 5, 2025)
+- **Removed Hardcoded Admin Credentials**: Deleted existing admin user from database
+- **Admin Registration Route**: Added POST /api/auth/admin/register endpoint
+  - Accepts email, password, username, firstName, lastName
+  - Automatically sets isAdmin: true for admin accounts
+  - Includes validation for duplicate emails/usernames
+  - Returns JWT token on successful registration
+- **Frontend Admin Signup**: Updated admin auth page with tabbed interface
+  - Two tabs: Sign In and Sign Up
+  - Default tab set to "Sign Up" for easy first-time admin registration
+  - Complete signup form with email, username, first/last name, password fields
+  - Password visibility toggle for both login and signup
+  - Integrated with auth context via new registerAdmin function
+- **Auth Context Enhancement**: Added registerAdmin mutation and function
+- **Status**: ✅ Fully operational, admins can now self-register
+
 ### Database Migration to Replit PostgreSQL (November 4, 2025)
 - **Fresh Database Setup**: Migrated from deleted Neon database to new Replit PostgreSQL
 - **Driver Update**: Switched from `@neondatabase/serverless` to standard `node-postgres` (pg) driver

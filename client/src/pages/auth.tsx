@@ -17,6 +17,14 @@ const emailLoginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const adminRegisterSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().min(1, 'Last name is required'),
+});
+
 const phoneAuthSchema = z.object({
   phoneNumber: z.string().min(10, 'Please enter a valid phone number'),
   otpCode: z.string().optional(),
@@ -39,6 +47,7 @@ const registerSchema = z.object({
 });
 
 type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
+type AdminRegisterFormData = z.infer<typeof adminRegisterSchema>;
 type PhoneAuthFormData = z.infer<typeof phoneAuthSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
@@ -46,11 +55,12 @@ export default function Auth() {
   const [location, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  const [adminActiveTab, setAdminActiveTab] = useState<'login' | 'signup'>('signup');
   const [showOtpField, setShowOtpField] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [userMode, setUserMode] = useState<'buyer' | 'seller' | null>(null);
-  const { login, register, sendOtp, isLoading } = useAuth();
+  const { login, register, registerAdmin, sendOtp, isLoading } = useAuth();
   const { toast } = useToast();
 
   // Check for admin and mode query parameters on mount and whenever URL changes
@@ -117,6 +127,17 @@ export default function Auth() {
     },
   });
 
+  const adminRegisterForm = useForm<AdminRegisterFormData>({
+    resolver: zodResolver(adminRegisterSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      username: '',
+      firstName: '',
+      lastName: '',
+    },
+  });
+
   const onEmailLogin = async (data: EmailLoginFormData) => {
     try {
       await login({ email: data.email, password: data.password });
@@ -129,6 +150,23 @@ export default function Auth() {
       toast({
         title: 'Sign in failed',
         description: 'Please check your credentials and try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const onAdminRegister = async (data: AdminRegisterFormData) => {
+    try {
+      await registerAdmin(data);
+      toast({
+        title: 'Admin account created!',
+        description: 'Welcome to the admin portal.',
+      });
+      setLocation('/admin');
+    } catch (error: any) {
+      toast({
+        title: 'Registration failed',
+        description: error.message || 'Please try again with different details.',
         variant: 'destructive',
       });
     }
@@ -238,15 +276,27 @@ export default function Auth() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">Admin Sign In</CardTitle>
+              <CardTitle className="text-center">
+                {adminActiveTab === 'login' ? 'Admin Sign In' : 'Create Admin Account'}
+              </CardTitle>
               <CardDescription className="text-center">
-                Enter your admin credentials
+                {adminActiveTab === 'login' 
+                  ? 'Enter your admin credentials' 
+                  : 'Set up your admin account'
+                }
               </CardDescription>
             </CardHeader>
 
             <CardContent>
-              <Form {...emailLoginForm}>
-                <form onSubmit={emailLoginForm.handleSubmit(onEmailLogin)} className="space-y-4">
+              <Tabs value={adminActiveTab} onValueChange={(v) => setAdminActiveTab(v as 'login' | 'signup')} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="login" data-testid="tab-admin-sign-in">Sign In</TabsTrigger>
+                  <TabsTrigger value="signup" data-testid="tab-admin-sign-up">Sign Up</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="login">
+                  <Form {...emailLoginForm}>
+                    <form onSubmit={emailLoginForm.handleSubmit(onEmailLogin)} className="space-y-4">
                   <FormField
                     control={emailLoginForm.control}
                     name="email"
@@ -310,34 +360,164 @@ export default function Auth() {
                     {isLoading ? 'Signing in...' : 'Sign In'}
                   </Button>
 
-                  <div className="text-center">
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="text-sm text-primary"
-                      onClick={() => setLocation('/forgot-password')}
-                      data-testid="link-admin-forgot-password"
-                    >
-                      Forgot your password?
-                    </Button>
-                  </div>
+                      <div className="text-center">
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="text-sm text-primary"
+                          onClick={() => setLocation('/forgot-password')}
+                          data-testid="link-admin-forgot-password"
+                        >
+                          Forgot your password?
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </TabsContent>
 
-                  <div className="text-center pt-4 border-t">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="text-sm"
-                      onClick={() => {
-                        setIsAdminMode(false);
-                        window.history.pushState({}, '', '/auth');
-                      }}
-                      data-testid="button-back-to-user-auth"
-                    >
-                      Back to User Login
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+                <TabsContent value="signup">
+                  <Form {...adminRegisterForm}>
+                    <form onSubmit={adminRegisterForm.handleSubmit(onAdminRegister)} className="space-y-4">
+                      <FormField
+                        control={adminRegisterForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="email" 
+                                placeholder="admin@example.com" 
+                                {...field}
+                                data-testid="input-admin-signup-email"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={adminRegisterForm.control}
+                        name="username"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="text" 
+                                placeholder="adminuser" 
+                                {...field}
+                                data-testid="input-admin-signup-username"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={adminRegisterForm.control}
+                          name="firstName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>First Name</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="text" 
+                                  placeholder="John" 
+                                  {...field}
+                                  data-testid="input-admin-signup-firstname"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={adminRegisterForm.control}
+                          name="lastName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Last Name</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="text" 
+                                  placeholder="Doe" 
+                                  {...field}
+                                  data-testid="input-admin-signup-lastname"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={adminRegisterForm.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input 
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Create a strong password" 
+                                  {...field}
+                                  data-testid="input-admin-signup-password"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  data-testid="button-toggle-signup-password"
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={isLoading}
+                        data-testid="button-admin-sign-up"
+                      >
+                        {isLoading ? 'Creating account...' : 'Create Admin Account'}
+                      </Button>
+                    </form>
+                  </Form>
+                </TabsContent>
+              </Tabs>
+
+              <div className="text-center pt-4 mt-4 border-t">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-sm"
+                  onClick={() => {
+                    setIsAdminMode(false);
+                    window.history.pushState({}, '', '/auth');
+                  }}
+                  data-testid="button-back-to-user-auth"
+                >
+                  Back to User Login
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

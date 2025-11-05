@@ -14,6 +14,13 @@ interface AuthContextType {
     otpCode?: string;
   }) => Promise<void>;
   register: (userData: any) => Promise<void>;
+  registerAdmin: (userData: {
+    email: string;
+    password: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+  }) => Promise<void>;
   sendOtp: (phoneNumber: string) => Promise<void>;
   logout: () => void;
   countryCode: string;
@@ -63,6 +70,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const registerAdminMutation = useMutation({
+    mutationFn: async (userData: {
+      email: string;
+      password: string;
+      username: string;
+      firstName: string;
+      lastName: string;
+    }) => {
+      const response = await apiRequest('POST', '/api/auth/admin/register', userData);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+    },
+  });
+
   const login = async (credentials: {
     email?: string;
     username?: string;
@@ -75,6 +100,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (userData: any) => {
     await registerMutation.mutateAsync(userData);
+  };
+
+  const registerAdmin = async (userData: {
+    email: string;
+    password: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+  }) => {
+    await registerAdminMutation.mutateAsync(userData);
   };
 
   const sendOtp = async (phoneNumber: string) => {
@@ -118,9 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        isLoading: loginMutation.isPending || registerMutation.isPending || sendOtpMutation.isPending,
+        isLoading: loginMutation.isPending || registerMutation.isPending || registerAdminMutation.isPending || sendOtpMutation.isPending,
         login,
         register,
+        registerAdmin,
         sendOtp,
         logout,
         countryCode,

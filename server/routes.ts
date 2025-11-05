@@ -107,6 +107,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Registration - Email/Password based
+  app.post("/api/auth/admin/register", async (req, res) => {
+    try {
+      const { email, password, username, firstName, lastName } = req.body;
+
+      // Validate required fields
+      if (!email || !password || !username || !firstName || !lastName) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Check if email already exists
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      // Check if username already exists
+      const existingUsername = await storage.getUserByUsername(username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Create admin user
+      const adminUser = await storage.createUser({
+        email,
+        password,
+        username,
+        firstName,
+        lastName,
+        university: 'Admin',
+        city: 'Admin',
+        isAdmin: true,
+        isMerchant: false,
+      });
+
+      // Generate JWT token
+      const token = generateToken(adminUser.id);
+
+      res.json({
+        user: { ...adminUser, password: undefined },
+        token
+      });
+    } catch (error) {
+      console.error('Admin registration error:', error);
+      res.status(400).json({ message: "Failed to create admin account" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password, phoneNumber, otpCode } = req.body;
