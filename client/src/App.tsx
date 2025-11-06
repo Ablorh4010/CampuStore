@@ -16,6 +16,7 @@ import Product from "./pages/product";
 import Dashboard from "./pages/dashboard";
 import Auth from "./pages/auth";
 import AdminDashboard from "./pages/admin";
+import AdminRegister from "./pages/admin-register";
 import ForgotPassword from "./pages/forgot-password";
 import ResetPassword from "./pages/reset-password";
 import ModeSelection from "./pages/mode-selection";
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/checkout" component={Checkout} />
       <Route path="/payment-success" component={PaymentSuccess} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin-register/:token?" component={AdminRegister} />
       <Route path="/auth" component={Auth} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />

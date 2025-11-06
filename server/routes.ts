@@ -96,14 +96,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin Registration - Email/Password based
+  // Admin Registration - Token-protected, Email/Password based
   app.post("/api/auth/admin/register", async (req, res) => {
     try {
-      const { email, password, username, firstName, lastName } = req.body;
+      const { email, password, username, firstName, lastName, inviteToken } = req.body;
 
       // Validate required fields
-      if (!email || !password || !username || !firstName || !lastName) {
-        return res.status(400).json({ message: "All fields are required" });
+      if (!email || !password || !username || !firstName || !lastName || !inviteToken) {
+        return res.status(400).json({ message: "All fields including invite token are required" });
+      }
+
+      // Verify invite token (secure constant for admin access)
+      // Token: CSE_ADMIN_2025_SECURE_a9f4b7c2d8e1
+      const ADMIN_INVITE_TOKEN = 'CSE_ADMIN_2025_SECURE_a9f4b7c2d8e1';
+      if (inviteToken !== ADMIN_INVITE_TOKEN) {
+        return res.status(403).json({ message: "Invalid invite token. Admin registration requires a valid invitation." });
       }
 
       // Check if email already exists
