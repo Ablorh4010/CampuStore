@@ -23,6 +23,8 @@ import ModeSelection from "./pages/mode-selection";
 import SellerSettings from "./pages/seller-settings";
 import Checkout from "./pages/checkout";
 import PaymentSuccess from "./pages/payment-success";
+import About from "./pages/about";
+import Contact from "./pages/contact";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -40,6 +42,8 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin-register/:token?" component={AdminRegister} />
       <Route path="/auth" component={Auth} />
+      <Route path="/about" component={About} />
+      <Route path="/contact" component={Contact} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route component={NotFound} />

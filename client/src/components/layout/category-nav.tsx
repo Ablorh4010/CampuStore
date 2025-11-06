@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
+import { Info, Mail } from 'lucide-react';
 import type { Category } from '@shared/schema';
 
 export default function CategoryNav() {
@@ -77,6 +78,7 @@ export default function CategoryNav() {
                 animationDelay: `${index * 100}ms`,
                 animationDuration: '600ms'
               }}
+              data-testid={`category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}
             >
               <div className={`w-14 h-14 ${getColorClass(category.color)} rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm group-hover:shadow-xl group-hover:scale-110 group-hover:rotate-3`}>
                 {getCategoryIcon(category.icon)}
@@ -84,6 +86,39 @@ export default function CategoryNav() {
               <span className="text-xs font-medium font-body group-hover:font-semibold transition-all duration-300">{category.name}</span>
             </Button>
           ))}
+
+          {/* Separator */}
+          {categories.length > 0 && (
+            <div className="flex items-center justify-center">
+              <div className="h-12 w-px bg-gray-300/50"></div>
+            </div>
+          )}
+
+          {/* About Link */}
+          <Button
+            variant="ghost"
+            onClick={() => setLocation('/about')}
+            className="flex flex-col items-center space-y-2 text-gray-600 hover:text-primary flex-shrink-0 group h-auto p-3 rounded-xl hover:bg-white/60 backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:shadow-lg"
+            data-testid="nav-about"
+          >
+            <div className="w-14 h-14 bg-indigo-100/80 group-hover:bg-primary/90 backdrop-blur-sm rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm group-hover:shadow-xl group-hover:scale-110 group-hover:rotate-3">
+              <Info className="h-6 w-6 text-indigo-600 group-hover:text-white transition-colors" />
+            </div>
+            <span className="text-xs font-medium font-body group-hover:font-semibold transition-all duration-300">About</span>
+          </Button>
+
+          {/* Contact Link */}
+          <Button
+            variant="ghost"
+            onClick={() => setLocation('/contact')}
+            className="flex flex-col items-center space-y-2 text-gray-600 hover:text-primary flex-shrink-0 group h-auto p-3 rounded-xl hover:bg-white/60 backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:shadow-lg"
+            data-testid="nav-contact"
+          >
+            <div className="w-14 h-14 bg-green-100/80 group-hover:bg-primary/90 backdrop-blur-sm rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm group-hover:shadow-xl group-hover:scale-110 group-hover:rotate-3">
+              <Mail className="h-6 w-6 text-green-600 group-hover:text-white transition-colors" />
+            </div>
+            <span className="text-xs font-medium font-body group-hover:font-semibold transition-all duration-300">Contact</span>
+          </Button>
         </div>
       </div>
     </nav>
