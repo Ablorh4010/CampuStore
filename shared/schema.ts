@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  email: text("email").unique(),
+  email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   city: text("city").notNull(),
   password: text("password"),
   phoneNumber: text("phone_number").unique(),
+  isEmailVerified: boolean("is_email_verified").default(false),
   isPhoneVerified: boolean("is_phone_verified").default(false),
   isMerchant: boolean("is_merchant").default(false),
   isAdmin: boolean("is_admin").default(false),
@@ -108,7 +109,7 @@ export const cartItems = pgTable("cart_items", {
 
 export const otpCodes = pgTable("otp_codes", {
   id: serial("id").primaryKey(),
-  phoneNumber: text("phone_number").notNull(),
+  email: text("email").notNull(),
   code: text("code").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").default(false),
@@ -119,11 +120,12 @@ export const otpCodes = pgTable("otp_codes", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  isEmailVerified: true,
   isPhoneVerified: true,
   isAdmin: true,
 }).extend({
   campus: z.string().optional(),
-  email: z.string().email().optional(),
+  email: z.string().email(),
   password: z.string().min(6).optional(),
   phoneNumber: z.string().optional(),
 });

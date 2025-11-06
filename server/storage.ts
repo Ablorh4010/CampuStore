@@ -20,9 +20,9 @@ export interface IStorage {
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
   verifyPassword(email: string, password: string): Promise<User | null>;
   getUserByPhone(phoneNumber: string): Promise<User | undefined>;
-  generateOtp(phoneNumber: string): Promise<string>;
-  verifyOtp(phoneNumber: string, code: string): Promise<boolean>;
-  markPhoneAsVerified(phoneNumber: string): Promise<void>;
+  generateOtp(email: string): Promise<string>;
+  verifyOtp(email: string, code: string): Promise<boolean>;
+  markEmailAsVerified(email: string): Promise<void>;
 
   // Stores
   createStore(store: InsertStore): Promise<Store>;
@@ -98,12 +98,12 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async generateOtp(phoneNumber: string): Promise<string> {
+  async generateOtp(email: string): Promise<string> {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await db.insert(otpCodes).values({
-      phoneNumber,
+      email,
       code,
       expiresAt,
     });
@@ -111,13 +111,13 @@ export class DatabaseStorage implements IStorage {
     return code;
   }
 
-  async verifyOtp(phoneNumber: string, code: string): Promise<boolean> {
+  async verifyOtp(email: string, code: string): Promise<boolean> {
     const [otpRecord] = await db
       .select()
       .from(otpCodes)
       .where(
         and(
-          eq(otpCodes.phoneNumber, phoneNumber),
+          eq(otpCodes.email, email),
           eq(otpCodes.code, code),
           eq(otpCodes.used, false),
           gte(otpCodes.expiresAt, new Date())
@@ -130,8 +130,8 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
-  async markPhoneAsVerified(phoneNumber: string): Promise<void> {
-    await db.update(users).set({ isPhoneVerified: true }).where(eq(users.phoneNumber, phoneNumber));
+  async markEmailAsVerified(email: string): Promise<void> {
+    await db.update(users).set({ isEmailVerified: true }).where(eq(users.email, email));
   }
 
   async getUserById(id: number): Promise<User | undefined> {
