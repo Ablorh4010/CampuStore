@@ -1,7 +1,7 @@
 # Campus Exchange
 
 ## Overview
-Campus Exchange is a Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. It offers a native app-like experience on Android and iPhone, featuring buyer/seller mode selection, OTP authentication, store creation, product listings, student-to-student messaging, and a robust product upload system with image handling and special offers. The platform aims to provide a fast and efficient trading environment within university communities.
+Campus Exchange is a Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. It offers a native app-like experience on Android and iPhone, featuring buyer/seller mode selection, email verification authentication, store creation, product listings, student-to-student messaging, and a robust product upload system with image handling and special offers. The platform aims to provide a fast and efficient trading environment within university communities.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -23,12 +23,12 @@ Preferred communication style: Simple, everyday language.
 - **Language**: TypeScript with ES modules
 - **API Design**: RESTful API
 - **Error Handling**: Centralized middleware
-- **Authentication**: JWT-based for regular users (phone OTP) and admins (email/password). Includes secure token management, ownership verification, and admin-specific middleware.
+- **Authentication**: JWT-based for regular users (email verification) and admins (email/password). Includes secure token management, ownership verification, and admin-specific middleware. Resend integration for email delivery.
 - **Data Storage**: Replit PostgreSQL database with Drizzle ORM using node-postgres driver. Full persistence enabled.
 - **File Uploads**: Dedicated endpoint for image uploads with validation and storage.
 
 ### Core Features
-- **Authentication System**: Phone OTP for regular users, email/password for admin. Supports mode-based authentication.
+- **Authentication System**: Email verification with 6-digit codes for regular users, email/password for admin. Admin registration restricted to secure invitation links only.
 - **Store Management**: Multi-store support per user, creation, and university-based categorization. Includes rating and review system.
 - **Product Catalog**: Category-based organization, image gallery, product conditions, pricing, search, filtering, and featured products. Supports direct image uploads and special offers.
 - **Shopping Cart**: Persistent state, real-time updates, sidebar interface, quantity management.
@@ -62,6 +62,9 @@ Preferred communication style: Simple, everyday language.
 ### Payment Processing
 - **Stripe**: Complete payment integration for Card, PayPal, and Mobile Money.
 
+### Email Service
+- **Resend**: Transactional email service for sending verification codes to users.
+
 ### Development Tools
 - **TypeScript**: Type safety.
 - **ESBuild**: Production bundling.
@@ -70,7 +73,33 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-### Admin Signup System (November 5, 2025)
+### Email Verification & Secure Admin Access (November 6, 2025)
+- **Switched from Phone to Email Verification**: Regular users now authenticate using email verification instead of SMS OTP
+  - Cost optimization: Email verification via Resend is more affordable than SMS
+  - Database schema updated: otp_codes table now uses email field, phone_number column removed
+  - Frontend completely rewritten: auth page now uses email input instead of phone number
+  - Backend updated: /api/auth/send-otp sends verification emails via Resend
+  - Auth context updated: sendOtp now accepts email parameter
+- **Secure Admin Registration**: Admin access restricted to invitation-only system
+  - Admin registration route protected by secure token (CSE_ADMIN_2025_SECURE_a9f4b7c2d8e1)
+  - Dedicated admin registration page at /admin-register?token=...
+  - Admin tab completely removed from public auth page
+  - Token validation on backend before allowing admin account creation
+  - Pre-filled email field for invited admin (richard.jil@outlook.com)
+  - Admin invite link: https://uniexchangehub.com/admin-register?token=CSE_ADMIN_2025_SECURE_a9f4b7c2d8e1
+- **Navigation Menu Enhancement**: Added About and Contact pages
+  - About page at /about with mission, values, and platform features
+  - Contact page at /contact with contact form and FAQ section
+  - Both pages accessible from category navigation menu with icon buttons
+  - Separator added between product categories and static navigation links
+- **Testing**: End-to-end tests passed successfully
+  - Email verification flow working correctly
+  - OTP generation and validation functional
+  - About and Contact pages rendering properly
+  - Admin registration token protection verified
+- **Status**: ✅ Fully operational, production-ready
+
+### Admin Signup System (November 5, 2025) [DEPRECATED - See Email Verification section above]
 - **Removed Hardcoded Admin Credentials**: Deleted existing admin user from database
 - **Admin Registration Route**: Added POST /api/auth/admin/register endpoint
   - Accepts email, password, username, firstName, lastName
