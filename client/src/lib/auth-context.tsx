@@ -21,7 +21,7 @@ interface AuthContextType {
     firstName: string;
     lastName: string;
   }) => Promise<void>;
-  sendOtp: (phoneNumber: string) => Promise<void>;
+  sendOtp: (email: string) => Promise<void>;
   logout: () => void;
   countryCode: string;
 }
@@ -52,8 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const sendOtpMutation = useMutation({
-    mutationFn: async (phoneNumber: string) => {
-      const response = await apiRequest('POST', '/api/auth/send-otp', { phoneNumber });
+    mutationFn: async (email: string) => {
+      const response = await apiRequest('POST', '/api/auth/send-otp', { email });
       return response.json();
     },
   });
@@ -112,8 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await registerAdminMutation.mutateAsync(userData);
   };
 
-  const sendOtp = async (phoneNumber: string) => {
-    await sendOtpMutation.mutateAsync(phoneNumber);
+  const sendOtp = async (email: string) => {
+    await sendOtpMutation.mutateAsync(email);
   };
 
   const logout = () => {

@@ -57,31 +57,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { otpCode, ...userData } = req.body;
       const parsedUserData = insertUserSchema.parse(userData);
 
-      // Verify OTP for phone-based registration
-      if (parsedUserData.phoneNumber) {
-        if (!otpCode) {
-          return res.status(400).json({ message: "OTP code is required for phone registration" });
-        }
-
-        const isValidOtp = await storage.verifyOtp(parsedUserData.phoneNumber, otpCode);
-        if (!isValidOtp) {
-          return res.status(401).json({ message: "Invalid or expired OTP code" });
-        }
+      // Verify OTP for email-based registration
+      if (!otpCode) {
+        return res.status(400).json({ message: "Verification code is required" });
       }
 
-      // Check if email, username, or phone already exists
-      if (parsedUserData.email) {
-        const existingEmail = await storage.getUserByEmail(parsedUserData.email);
-        if (existingEmail) {
-          return res.status(400).json({ message: "Email already exists" });
-        }
+      const isValidOtp = await storage.verifyOtp(parsedUserData.email, otpCode);
+      if (!isValidOtp) {
+        return res.status(401).json({ message: "Invalid or expired verification code" });
       }
 
-      if (parsedUserData.phoneNumber) {
-        const existingPhone = await storage.getUserByPhone(parsedUserData.phoneNumber);
-        if (existingPhone) {
-          return res.status(400).json({ message: "Phone number already exists" });
-        }
+      // Check if email or username already exists
+      const existingEmail = await storage.getUserByEmail(parsedUserData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
       }
 
       const existingUsername = await storage.getUserByUsername(parsedUserData.username);
@@ -91,10 +80,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await storage.createUser(parsedUserData);
       
-      // Mark phone as verified since we just verified the OTP
-      if (parsedUserData.phoneNumber) {
-        await storage.markPhoneAsVerified(parsedUserData.phoneNumber);
-      }
+      // Mark email as verified since we just verified the OTP
+      await storage.markEmailAsVerified(parsedUserData.email);
       
       // Generate JWT token
       const token = generateToken(user.id);
@@ -209,21 +196,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/send-otp", async (req, res) => {
     try {
-      const { phoneNumber } = req.body;
+      const { email } = req.body;
 
-      if (!phoneNumber) {
-        return res.status(400).json({ message: "Phone number is required" });
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
       }
 
-      const otpCode = await storage.generateOtp(phoneNumber);
+      const otpCode = await storage.generateOtp(email);
+      
+      // Import email service
+      const { sendVerificationEmail } = await import('./email');
+      await sendVerificationEmail(email, otpCode);
 
-      // In a real application, you would send this OTP via SMS
-      // For demo purposes, we'll log it to console
-      console.log(`OTP for ${phoneNumber}: ${otpCode}`);
-
-      res.json({ message: "OTP sent successfully" });
+      res.json({ message: "Verification code sent to your email" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to send OTP" });
+      console.error('Send OTP error:', error);
+      res.status(500).json({ message: "Failed to send verification code" });
     }
   });
 
