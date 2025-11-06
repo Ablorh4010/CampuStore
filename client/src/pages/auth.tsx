@@ -3,12 +3,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from 'wouter';
-import { Eye, EyeOff, GraduationCap, Lock } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap, Lock, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
@@ -142,8 +143,9 @@ export default function Auth() {
     try {
       await login({ email: data.email, password: data.password });
       toast({
-        title: 'Welcome back, Admin!',
-        description: 'You have been successfully signed in.',
+        title: '✅ Welcome back, Admin!',
+        description: 'You have been successfully signed in. Redirecting...',
+        duration: 6000,
       });
       setLocation('/admin');
     } catch (error) {
@@ -159,8 +161,9 @@ export default function Auth() {
     try {
       await registerAdmin(data);
       toast({
-        title: 'Admin account created!',
-        description: 'Welcome to the admin portal.',
+        title: '✅ Admin account created successfully!',
+        description: 'Your admin account is now active. Redirecting to admin portal...',
+        duration: 8000,
       });
       setLocation('/admin');
     } catch (error: any) {
@@ -176,8 +179,9 @@ export default function Auth() {
     try {
       await login({ phoneNumber: data.phoneNumber, otpCode: data.otpCode });
       toast({
-        title: 'Welcome back!',
-        description: 'You have been successfully signed in.',
+        title: '✅ Welcome back!',
+        description: 'You have been successfully signed in. Redirecting...',
+        duration: 6000,
       });
       setLocation('/');
     } catch (error) {
@@ -211,8 +215,9 @@ export default function Auth() {
         isMerchant: false,
       });
       toast({
-        title: 'Account created!',
-        description: 'Welcome to StudentMarket.',
+        title: '✅ Account created successfully!',
+        description: 'Welcome to Campus Exchange! Redirecting to homepage...',
+        duration: 8000,
       });
       setLocation('/');
     } catch (error: any) {
@@ -246,8 +251,9 @@ export default function Auth() {
       setOtpSent(true);
       setShowOtpField(true);
       toast({
-        title: 'OTP sent!',
-        description: `Please check your phone (${cleanPhone}) for the verification code.`,
+        title: '✅ OTP sent successfully!',
+        description: `A 6-digit code has been sent to ${cleanPhone}. Please check your messages and enter it below.`,
+        duration: 10000,
       });
     } catch (error) {
       console.error('OTP send error:', error);
@@ -597,6 +603,15 @@ export default function Auth() {
                       )}
                     />
 
+                    {otpSent && (
+                      <Alert className="bg-green-50 border-green-200">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-800">
+                          <strong>OTP sent!</strong> Check your phone for the 6-digit code and enter it below.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     {showOtpField && (
                       <FormField
                         control={phoneAuthForm.control}
@@ -752,6 +767,15 @@ export default function Auth() {
                         </FormItem>
                       )}
                     />
+
+                    {otpSent && (
+                      <Alert className="bg-green-50 border-green-200">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-800">
+                          <strong>OTP sent!</strong> Check your phone for the 6-digit code and enter it below.
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
                     {showOtpField && (
                       <FormField
