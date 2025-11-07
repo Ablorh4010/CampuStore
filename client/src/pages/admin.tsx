@@ -6,13 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, Edit, Upload, Link as LinkIcon, Download } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Edit, Upload, Link as LinkIcon, Download, Plus, ImagePlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { insertProductSchema, type InsertProduct } from '@shared/schema';
 import type { ProductWithStore, Category, Store } from '@shared/schema';
 
 export default function AdminDashboard() {
@@ -25,6 +29,8 @@ export default function AdminDashboard() {
   const [importApiKey, setImportApiKey] = useState('');
   const [importPlatform, setImportPlatform] = useState('csv');
   const [selectedStore, setSelectedStore] = useState<string>('');
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   // Redirect if not admin (using useEffect to avoid render-time side effects)
   useEffect(() => {
@@ -48,6 +54,18 @@ export default function AdminDashboard() {
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
+  });
+
+  // Form for adding products
+  const addProductForm = useForm<InsertProduct>({
+    resolver: zodResolver(insertProductSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      price: '0',
+      condition: 'new',
+      images: [],
+    },
   });
 
   const updateStatusMutation = useMutation({
@@ -79,6 +97,102 @@ export default function AdminDashboard() {
 
   const handleReject = (productId: number) => {
     updateStatusMutation.mutate({ productId, status: 'rejected' });
+  };
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const uploadedUrls: string[] = [];
+      const token = localStorage.getItem('token');
+      
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        const response = await fetch('/api/upload/product', {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: formData,
+        });
+        
+        if (!response.ok) throw new Error('Image upload failed');
+        const data = await response.json();
+        uploadedUrls.push(data.url);
+      }
+      
+      return uploadedUrls;
+    },
+    onSuccess: (urls) => {
+      setUploadedImages(prev => [...prev, ...urls]);
+      toast({
+        title: 'Success',
+        description: `${urls.length} image(s) uploaded successfully`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to upload images',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const createProductMutation = useMutation({
+    mutationFn: async (data: InsertProduct) => {
+      return apiRequest('POST', '/api/admin/products', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      toast({
+        title: 'Success',
+        description: 'Product created and auto-approved successfully',
+      });
+      addProductForm.reset();
+      setUploadedImages([]);
+      setImageFiles([]);
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to create product',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + uploadedImages.length > 5) {
+      toast({
+        title: 'Too many images',
+        description: 'Maximum 5 images allowed per product',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setImageFiles(prev => [...prev, ...files]);
+    uploadImageMutation.mutate(files);
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCreateProduct = (data: InsertProduct) => {
+    if (uploadedImages.length === 0) {
+      toast({
+        title: 'Missing images',
+        description: 'Please upload at least one product image',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    createProductMutation.mutate({
+      ...data,
+      images: uploadedImages,
+    });
   };
 
   const importProductsMutation = useMutation({
@@ -273,7 +387,11 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8" data-testid="admin-tabs">
+          <TabsList className="grid w-full grid-cols-5 mb-8" data-testid="admin-tabs">
+            <TabsTrigger value="add-product" data-testid="tab-add-product">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </TabsTrigger>
             <TabsTrigger value="pending" className="relative" data-testid="tab-pending">
               Pending
               {pendingProducts.length > 0 && (
@@ -293,6 +411,270 @@ export default function AdminDashboard() {
               Import
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="add-product" data-testid="content-add-product">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plus className="h-5 w-5 text-primary" />
+                  Add New Product
+                </CardTitle>
+                <CardDescription>
+                  Create a new product listing that will be automatically approved
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...addProductForm}>
+                  <form onSubmit={addProductForm.handleSubmit(handleCreateProduct)} className="space-y-6">
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <FormField
+                        control={addProductForm.control}
+                        name="storeId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Store *</FormLabel>
+                            <Select 
+                              onValueChange={(value) => field.onChange(parseInt(value))} 
+                              value={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-product-store">
+                                  <SelectValue placeholder="Select a store" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {stores.map(store => (
+                                  <SelectItem key={store.id} value={store.id.toString()}>
+                                    {store.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={addProductForm.control}
+                        name="categoryId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Category *</FormLabel>
+                            <Select 
+                              onValueChange={(value) => field.onChange(parseInt(value))} 
+                              value={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-product-category">
+                                  <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {categories.map(category => (
+                                  <SelectItem key={category.id} value={category.id.toString()}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={addProductForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Product Title *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="E.g., iPhone 13 Pro Max - Like New" 
+                              {...field} 
+                              data-testid="input-product-title"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={addProductForm.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description *</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Detailed product description..." 
+                              rows={4}
+                              {...field} 
+                              data-testid="input-product-description"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid gap-6 md:grid-cols-3">
+                      <FormField
+                        control={addProductForm.control}
+                        name="price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Price *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                placeholder="29.99" 
+                                {...field} 
+                                data-testid="input-product-price"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={addProductForm.control}
+                        name="originalPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Original Price</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                placeholder="39.99" 
+                                {...field} 
+                                value={field.value || ''}
+                                data-testid="input-product-original-price"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={addProductForm.control}
+                        name="condition"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Condition *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-product-condition">
+                                  <SelectValue placeholder="Select condition" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="new">New</SelectItem>
+                                <SelectItem value="like-new">Like New</SelectItem>
+                                <SelectItem value="used">Used</SelectItem>
+                                <SelectItem value="fair">Fair</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={addProductForm.control}
+                      name="specialOffer"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Special Offer (Optional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="E.g., Free shipping, Buy 2 Get 1 Free" 
+                              {...field} 
+                              value={field.value || ''}
+                              data-testid="input-product-special-offer"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="space-y-4">
+                      <Label>Product Images *</Label>
+                      <div className="flex flex-wrap gap-4 mb-4">
+                        {uploadedImages.map((url, index) => (
+                          <div key={index} className="relative">
+                            <img 
+                              src={url} 
+                              alt={`Product ${index + 1}`}
+                              className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                              data-testid={`button-remove-image-${index}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageSelection}
+                          disabled={uploadedImages.length >= 5 || uploadImageMutation.isPending}
+                          data-testid="input-product-images"
+                        />
+                        {uploadImageMutation.isPending && (
+                          <span className="text-sm text-muted-foreground">Uploading...</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Upload up to 5 images. First image will be the main product photo.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <Button
+                        type="submit"
+                        disabled={createProductMutation.isPending || uploadImageMutation.isPending}
+                        className="flex-1"
+                        data-testid="button-create-product"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {createProductMutation.isPending ? 'Creating...' : 'Create Product'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          addProductForm.reset();
+                          setUploadedImages([]);
+                          setImageFiles([]);
+                        }}
+                        data-testid="button-reset-form"
+                      >
+                        Reset Form
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="pending" data-testid="content-pending">
             <Card className="mb-6">

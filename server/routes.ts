@@ -936,6 +936,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/products", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { storeId, categoryId, title, description, price, originalPrice, condition, images, specialOffer } = req.body;
+
+      // Validate required fields
+      if (!storeId || !categoryId || !title || !description || !price || !condition || !images || images.length === 0) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Verify store exists
+      const store = await storage.getStoreById(storeId);
+      if (!store) {
+        return res.status(404).json({ message: "Store not found" });
+      }
+
+      // Create product (will be created with 'pending' status by default)
+      const newProduct = await storage.createProduct({
+        storeId,
+        categoryId,
+        title,
+        description,
+        price: price.toString(),
+        originalPrice: originalPrice ? originalPrice.toString() : null,
+        condition,
+        images,
+        specialOffer: specialOffer || null,
+      });
+
+      // Immediately approve the product since admin created it
+      const product = await storage.updateProductApprovalStatus(newProduct.id, 'approved');
+
+      res.json(product);
+    } catch (error) {
+      console.error('Admin product creation error:', error);
+      res.status(500).json({ message: "Failed to create product" });
+    }
+  });
+
   app.post("/api/admin/products/import", authenticateToken, requireAdmin, upload.single('file'), async (req: AuthRequest, res) => {
     try {
       const storeId = parseInt(req.body.storeId);
