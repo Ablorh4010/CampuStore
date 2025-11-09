@@ -1,0 +1,51 @@
+name: Build and deploy client to gh-pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies (client)
+        working-directory: client
+        run: npm ci
+
+      - name: Build client (Vite)
+        working-directory: client
+        env:
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Prepare publish directory and SPA fallback
+        run: |
+          rm -rf publish || true
+          mkdir -p publish
+          cp -a client/dist/. publish/
+          # Ensure index is also available as 404 for SPA client-side routing
+          if [ -f publish/index.html ]; then cp publish/index.html publish/404.html; fi
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./publish
+          publish_branch: gh-pages
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          cname: uniexchangehub.com
+          keep_files: false
