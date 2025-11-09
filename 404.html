@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="robots" content="noindex" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'">
+  <title>Page not found — attempting to recover</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial; margin: 2rem; color:#333; }
+    .message { max-width:720px; margin:0 auto; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="message">
+    <h1>Page not found</h1>
+    <p>Attempting to load the site so the client router can handle this URL...</p>
+  </div>
+
+  <script>
+    (function(){
+      // If the path looks like a file (has an extension), don't try SPA fallback
+      if (/\.[^\/]+$/.test(location.pathname)) return;
+
+      // Try to fetch index.html and replace the document so the SPA can boot
+      fetch('/index.html', {cache: 'no-store'}).then(function(response){
+        if (!response.ok) { throw new Error('index not found'); }
+        return response.text();
+      }).then(function(html){
+        document.open();
+        document.write(html);
+        document.close();
+        // Keep the URL so the client-side router can read the requested path
+        history.replaceState({}, '', location.pathname + location.search + location.hash);
+      }).catch(function(){
+        // Fallback: redirect to root
+        location.replace('/');
+      });
+    })();
+  </script>
+</body>
+</html>
