@@ -12,8 +12,12 @@ export default function ModeSelection() {
     setSelectedMode(mode);
     // Store mode preference in localStorage
     localStorage.setItem('userMode', mode);
-    // Redirect to auth page with mode parameter
-    setLocation(`/auth?mode=${mode}`);
+    // Redirect based on mode
+    if (mode === 'seller') {
+      setLocation('/seller-auth');
+    } else {
+      setLocation(`/auth?mode=${mode}`);
+    }
   };
 
   return (

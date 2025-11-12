@@ -15,6 +15,7 @@ import Store from "./pages/store";
 import Product from "./pages/product";
 import Dashboard from "./pages/dashboard";
 import Auth from "./pages/auth";
+import SellerAuth from "./pages/seller-auth";
 import AdminDashboard from "./pages/admin";
 import AdminRegister from "./pages/admin-register";
 import ForgotPassword from "./pages/forgot-password";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin-register/:token?" component={AdminRegister} />
       <Route path="/auth" component={Auth} />
+      <Route path="/seller-auth" component={SellerAuth} />
       <Route path="/about" component={About} />
       <Route path="/contact" component={Contact} />
       <Route path="/forgot-password" component={ForgotPassword} />

@@ -1024,9 +1024,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Buyer confirmation error:', error);
       res.status(500).json({ message: "Failed to confirm order" });
     }
-  }); {
-      res.status(500).json({ message: "Failed to update order status" });
-    }
   });
 
   // Message routes
