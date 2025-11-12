@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide provides step-by-step instructions for deploying CampusStore to production.
+This guide provides step-by-step instructions for deploying CampusAffordHub to production.
 
 ## Pre-Deployment Checklist
 
