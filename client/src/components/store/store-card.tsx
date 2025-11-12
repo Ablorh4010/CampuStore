@@ -9,7 +9,7 @@ interface StoreCardProps {
 }
 
 export default function StoreCard({ store }: StoreCardProps) {
-  const rating = parseFloat(store.rating);
+  const rating = parseFloat(store.rating || "0");
   const ownerName = `${store.user.firstName} ${store.user.lastName}`;
 
   return (

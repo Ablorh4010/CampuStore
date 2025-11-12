@@ -81,7 +81,7 @@ export default function SellerSettings() {
       formData.append('idScan', idScanFile);
       formData.append('faceScan', faceScanFile);
 
-      const response = await apiRequest('POST', '/api/upload/verification', formData, true);
+      const response = await apiRequest('POST', '/api/upload/verification', formData);
       return response.json();
     },
     onSuccess: () => {

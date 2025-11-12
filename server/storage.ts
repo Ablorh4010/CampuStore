@@ -9,7 +9,6 @@ import {
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, gte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { MemStorage } from './storage-old';
 
 export interface IStorage {
   // Users
@@ -23,6 +22,9 @@ export interface IStorage {
   generateOtp(email: string): Promise<string>;
   verifyOtp(email: string, code: string): Promise<boolean>;
   markEmailAsVerified(email: string): Promise<void>;
+  setPasswordResetToken(email: string, token: string, expiry: Date): Promise<void>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  resetPassword(token: string, newPassword: string): Promise<boolean>;
 
   // Stores
   createStore(store: InsertStore): Promise<Store>;
@@ -53,6 +55,9 @@ export interface IStorage {
   getFeaturedProducts(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<ProductWithStore[]>;
   updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: number): Promise<boolean>;
+  getPendingProducts(): Promise<ProductWithStore[]>;
+  getAllProductsForAdmin(): Promise<ProductWithStore[]>;
+  updateProductApprovalStatus(id: number, status: string): Promise<Product | undefined>;
 
   // Orders
   createOrder(order: InsertOrder): Promise<Order>;
@@ -134,6 +139,40 @@ export class DatabaseStorage implements IStorage {
     await db.update(users).set({ isEmailVerified: true }).where(eq(users.email, email));
   }
 
+  async setPasswordResetToken(email: string, token: string, expiry: Date): Promise<void> {
+    await db.update(users)
+      .set({ resetToken: token, resetTokenExpiry: expiry })
+      .where(eq(users.email, email));
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select()
+      .from(users)
+      .where(
+        and(
+          eq(users.resetToken, token),
+          gte(users.resetTokenExpiry, new Date())
+        )
+      );
+    return user || undefined;
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<boolean> {
+    const user = await this.getUserByResetToken(token);
+    if (!user) return false;
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.update(users)
+      .set({ 
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null
+      })
+      .where(eq(users.id, user.id));
+    
+    return true;
+  }
+
   async getUserById(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -172,7 +211,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStoresWithUser(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]> {
-    let query = db
+    const conditions = [eq(stores.isActive, true)];
+    
+    if (filters?.userUniversity) {
+      conditions.push(eq(stores.university, filters.userUniversity));
+    }
+    if (filters?.userCity) {
+      conditions.push(eq(stores.city, filters.userCity));
+    }
+    if (filters?.userCampus) {
+      conditions.push(eq(stores.campus, filters.userCampus));
+    }
+
+    const results = await db
       .select({
         id: stores.id,
         userId: stores.userId,
@@ -195,27 +246,10 @@ export class DatabaseStorage implements IStorage {
       .from(stores)
       .leftJoin(users, eq(stores.userId, users.id))
       .leftJoin(products, eq(stores.id, products.storeId))
-      .where(eq(stores.isActive, true))
+      .where(and(...conditions))
       .groupBy(stores.id, users.id);
 
-    if (filters) {
-      const conditions = [eq(stores.isActive, true)];
-      if (filters.userUniversity) {
-        conditions.push(eq(stores.university, filters.userUniversity));
-      }
-      if (filters.userCity) {
-        conditions.push(eq(stores.city, filters.userCity));
-      }
-      if (filters.userCampus) {
-        conditions.push(eq(stores.campus, filters.userCampus));
-      }
-
-      if (conditions.length > 1) {
-        query = query.where(and(...conditions));
-      }
-    }
-
-    return await query as any[];
+    return results as any[];
   }
 
   async getFeaturedStores(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]> {
@@ -255,51 +289,27 @@ export class DatabaseStorage implements IStorage {
 
   async getProductWithStore(id: number): Promise<ProductWithStore | undefined> {
     const [result] = await db
-      .select({
-        id: products.id,
-        storeId: products.storeId,
-        categoryId: products.categoryId,
-        title: products.title,
-        description: products.description,
-        price: products.price,
-        originalPrice: products.originalPrice,
-        condition: products.condition,
-        images: products.images,
-        isAvailable: products.isAvailable,
-        viewCount: products.viewCount,
-        createdAt: products.createdAt,
-        store: {
-          id: stores.id,
-          userId: stores.userId,
-          name: stores.name,
-          description: stores.description,
-          university: stores.university,
-          campus: stores.campus,
-          city: stores.city,
-          rating: stores.rating,
-          reviewCount: stores.reviewCount,
-          isActive: stores.isActive,
-          createdAt: stores.createdAt,
-          user: {
-            firstName: users.firstName,
-            lastName: users.lastName,
-            avatar: users.avatar,
-          }
-        },
-        category: {
-          id: categories.id,
-          name: categories.name,
-          icon: categories.icon,
-          color: categories.color,
-        }
-      })
+      .select()
       .from(products)
       .leftJoin(stores, eq(products.storeId, stores.id))
       .leftJoin(users, eq(stores.userId, users.id))
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(products.id, id));
 
-    return result as any || undefined;
+    if (!result) return undefined;
+
+    return {
+      ...result.products,
+      store: {
+        ...result.stores!,
+        user: {
+          firstName: result.users!.firstName,
+          lastName: result.users!.lastName,
+          avatar: result.users!.avatar,
+        }
+      },
+      category: result.categories!
+    };
   }
 
   async getProductsByStoreId(storeId: number): Promise<Product[]> {
@@ -314,109 +324,82 @@ export class DatabaseStorage implements IStorage {
     userCity?: string; 
     userCampus?: string;
   }): Promise<ProductWithStore[]> {
-    let query = db
-      .select({
-        id: products.id,
-        storeId: products.storeId,
-        categoryId: products.categoryId,
-        title: products.title,
-        description: products.description,
-        price: products.price,
-        originalPrice: products.originalPrice,
-        condition: products.condition,
-        images: products.images,
-        isAvailable: products.isAvailable,
-        viewCount: products.viewCount,
-        createdAt: products.createdAt,
-        store: {
-          id: stores.id,
-          userId: stores.userId,
-          name: stores.name,
-          description: stores.description,
-          university: stores.university,
-          campus: stores.campus,
-          city: stores.city,
-          rating: stores.rating,
-          reviewCount: stores.reviewCount,
-          isActive: stores.isActive,
-          createdAt: stores.createdAt,
-          user: {
-            firstName: users.firstName,
-            lastName: users.lastName,
-            avatar: users.avatar,
-          }
-        },
-        category: {
-          id: categories.id,
-          name: categories.name,
-          icon: categories.icon,
-          color: categories.color,
-        }
-      })
-      .from(products)
-      .leftJoin(stores, eq(products.storeId, stores.id))
-      .leftJoin(users, eq(stores.userId, users.id))
-      .leftJoin(categories, eq(products.categoryId, categories.id));
-
     const conditions = [eq(products.isAvailable, true), eq(stores.isActive, true)];
 
-    if (filters) {
-      if (filters.categoryId) {
-        conditions.push(eq(products.categoryId, filters.categoryId));
+    if (filters?.categoryId) {
+      conditions.push(eq(products.categoryId, filters.categoryId));
+    }
+
+    if (filters?.search) {
+      conditions.push(
+        or(
+          like(products.title, `%${filters.search}%`),
+          like(products.description, `%${filters.search}%`)
+        )!
+      );
+    }
+
+    // Location-based filtering with priority
+    if (filters?.userUniversity || filters?.userCity || filters?.userCampus) {
+      const locationConditions = [];
+
+      if (filters.userCampus) {
+        locationConditions.push(eq(stores.campus, filters.userCampus));
       }
 
-      if (filters.search) {
-        conditions.push(
-          or(
-            like(products.title, `%${filters.search}%`),
-            like(products.description, `%${filters.search}%`)
-          )!
-        );
+      if (filters.userUniversity) {
+        locationConditions.push(eq(stores.university, filters.userUniversity));
       }
 
-      // Location-based filtering with priority
-      if (filters.userUniversity || filters.userCity || filters.userCampus) {
-        const locationConditions = [];
+      if (filters.userCity) {
+        locationConditions.push(eq(stores.city, filters.userCity));
+      }
 
-        if (filters.userCampus) {
-          locationConditions.push(eq(stores.campus, filters.userCampus));
-        }
-
-        if (filters.userUniversity) {
-          locationConditions.push(eq(stores.university, filters.userUniversity));
-        }
-
-        if (filters.userCity) {
-          locationConditions.push(eq(stores.city, filters.userCity));
-        }
-
-        if (locationConditions.length > 0) {
-          conditions.push(or(...locationConditions)!);
-        }
+      if (locationConditions.length > 0) {
+        conditions.push(or(...locationConditions)!);
       }
     }
 
-    query = query.where(and(...conditions));
+    let baseQuery = db
+      .select()
+      .from(products)
+      .leftJoin(stores, eq(products.storeId, stores.id))
+      .leftJoin(users, eq(stores.userId, users.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(and(...conditions));
 
     // Order by location proximity
     if (filters?.userUniversity || filters?.userCity || filters?.userCampus) {
-      query = query.orderBy(
+      baseQuery = baseQuery.orderBy(
         sql`CASE 
           WHEN ${stores.campus} = ${filters?.userCampus || ''} THEN 1
           WHEN ${stores.university} = ${filters?.userUniversity || ''} THEN 2
           WHEN ${stores.city} = ${filters?.userCity || ''} THEN 3
           ELSE 4
         END, ${desc(products.createdAt)}`
-      );
+      ) as any;
     } else {
-      query = query.orderBy(desc(products.createdAt));
+      baseQuery = baseQuery.orderBy(desc(products.createdAt)) as any;
     }
 
     if (filters?.limit) {
-      query = query.limit(filters.limit);
+      baseQuery = baseQuery.limit(filters.limit) as any;
     }
 
-    return await query as any[];
+    const results = await baseQuery;
+
+    return results.map(result => ({
+      ...result.products,
+      store: {
+        ...result.stores!,
+        user: {
+          firstName: result.users!.firstName,
+          lastName: result.users!.lastName,
+          avatar: result.users!.avatar,
+        }
+      },
+      category: result.categories!
+    }));
   }
 
   async getFeaturedProducts(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<ProductWithStore[]> {
@@ -431,6 +414,62 @@ export class DatabaseStorage implements IStorage {
   async deleteProduct(id: number): Promise<boolean> {
     const result = await db.delete(products).where(eq(products.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  async getPendingProducts(): Promise<ProductWithStore[]> {
+    const results = await db
+      .select()
+      .from(products)
+      .leftJoin(stores, eq(products.storeId, stores.id))
+      .leftJoin(users, eq(stores.userId, users.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(eq(products.approvalStatus, 'pending'))
+      .orderBy(desc(products.createdAt));
+
+    return results.map(result => ({
+      ...result.products,
+      store: {
+        ...result.stores!,
+        user: {
+          firstName: result.users!.firstName,
+          lastName: result.users!.lastName,
+          avatar: result.users!.avatar,
+        }
+      },
+      category: result.categories!
+    }));
+  }
+
+  async getAllProductsForAdmin(): Promise<ProductWithStore[]> {
+    const results = await db
+      .select()
+      .from(products)
+      .leftJoin(stores, eq(products.storeId, stores.id))
+      .leftJoin(users, eq(stores.userId, users.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .orderBy(desc(products.createdAt));
+
+    return results.map(result => ({
+      ...result.products,
+      store: {
+        ...result.stores!,
+        user: {
+          firstName: result.users!.firstName,
+          lastName: result.users!.lastName,
+          avatar: result.users!.avatar,
+        }
+      },
+      category: result.categories!
+    }));
+  }
+
+  async updateProductApprovalStatus(id: number, status: string): Promise<Product | undefined> {
+    const [product] = await db
+      .update(products)
+      .set({ approvalStatus: status })
+      .where(eq(products.id, id))
+      .returning();
+    return product || undefined;
   }
 
   async createOrder(insertOrder: InsertOrder): Promise<Order> {

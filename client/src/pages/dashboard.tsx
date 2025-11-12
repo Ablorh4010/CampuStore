@@ -300,7 +300,7 @@ export default function Dashboard() {
                               Quantity: {order.quantity} • Total: ${parseFloat(order.totalAmount).toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {new Date(order.createdAt).toLocaleDateString()}
+                              {order.createdAt && new Date(order.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                           {order.status === 'pending' && (

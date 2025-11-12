@@ -13,10 +13,10 @@ export const users = pgTable("users", {
   city: text("city").notNull(),
   password: text("password"),
   phoneNumber: text("phone_number").unique(),
-  isEmailVerified: boolean("is_email_verified").default(false),
-  isPhoneVerified: boolean("is_phone_verified").default(false),
-  isMerchant: boolean("is_merchant").default(false),
-  isAdmin: boolean("is_admin").default(false),
+  isEmailVerified: boolean("is_email_verified").notNull().default(false),
+  isPhoneVerified: boolean("is_phone_verified").notNull().default(false),
+  isMerchant: boolean("is_merchant").notNull().default(false),
+  isAdmin: boolean("is_admin").notNull().default(false),
   avatar: text("avatar"),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
@@ -31,13 +31,13 @@ export const users = pgTable("users", {
   mobileMoneyPhone: text("mobile_money_phone"),
   
   // Seller verification
-  verificationStatus: text("verification_status").default("unverified"), // unverified, pending, verified, rejected
+  verificationStatus: text("verification_status").notNull().default("unverified"), // unverified, pending, verified, rejected
   idScanUrl: text("id_scan_url"),
   faceScanUrl: text("face_scan_url"),
   verificationNotes: text("verification_notes"),
   verifiedAt: timestamp("verified_at"),
   
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const stores = pgTable("stores", {
@@ -48,10 +48,10 @@ export const stores = pgTable("stores", {
   university: text("university").notNull(),
   campus: text("campus"),
   city: text("city").notNull(),
-  rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
-  reviewCount: integer("review_count").default(0),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+  rating: decimal("rating", { precision: 3, scale: 2 }).notNull().default("0"),
+  reviewCount: integer("review_count").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const categories = pgTable("categories", {
@@ -72,10 +72,10 @@ export const products = pgTable("products", {
   condition: text("condition").notNull(),
   images: text("images").array().notNull(),
   specialOffer: text("special_offer"),
-  isAvailable: boolean("is_available").default(true),
+  isAvailable: boolean("is_available").notNull().default(true),
   approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
-  viewCount: integer("view_count").default(0),
-  createdAt: timestamp("created_at").defaultNow(),
+  viewCount: integer("view_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const orders = pgTable("orders", {
@@ -83,10 +83,10 @@ export const orders = pgTable("orders", {
   buyerId: integer("buyer_id").notNull().references(() => users.id),
   sellerId: integer("seller_id").notNull().references(() => users.id),
   productId: integer("product_id").notNull().references(() => products.id),
-  quantity: integer("quantity").default(1),
+  quantity: integer("quantity").notNull().default(1),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"), // pending, confirmed, completed, cancelled
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const messages = pgTable("messages", {
@@ -95,15 +95,15 @@ export const messages = pgTable("messages", {
   toId: integer("to_id").notNull().references(() => users.id),
   productId: integer("product_id").references(() => products.id),
   content: text("content").notNull(),
-  isRead: boolean("is_read").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const cartItems = pgTable("cart_items", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   productId: integer("product_id").notNull().references(() => products.id),
-  quantity: integer("quantity").default(1),
+  quantity: integer("quantity").notNull().default(1),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -112,8 +112,8 @@ export const otpCodes = pgTable("otp_codes", {
   email: text("email").notNull(),
   code: text("code").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
-  used: boolean("used").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  used: boolean("used").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Insert schemas

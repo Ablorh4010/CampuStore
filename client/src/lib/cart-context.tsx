@@ -74,8 +74,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cartItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
+  const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const cartTotal = cartItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * (item.quantity || 0)), 0);
 
   const addToCart = async (productId: number, quantity = 1) => {
     if (!user) return;

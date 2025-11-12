@@ -198,7 +198,7 @@ export default function ChatBox({ storeId, sellerId, sellerName, sellerAvatar, s
                             msg.fromId === user.id ? 'text-white/70' : 'text-gray-500'
                           }`}
                         >
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
+                          {msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}

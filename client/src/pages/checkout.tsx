@@ -98,7 +98,7 @@ function CheckoutForm() {
 
 export default function Checkout() {
   const { user } = useAuth();
-  const { items, total } = useCart();
+  const { cartItems, cartTotal } = useCart();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [clientSecret, setClientSecret] = useState("");
@@ -115,7 +115,7 @@ export default function Checkout() {
       return;
     }
 
-    if (items.length === 0) {
+    if (cartItems.length === 0) {
       toast({
         title: "Cart is Empty",
         description: "Add items to your cart before checking out",
@@ -126,8 +126,8 @@ export default function Checkout() {
     }
 
     apiRequest("POST", "/api/create-payment-intent", { 
-      amount: total,
-      cartItems: items.map(item => ({
+      amount: cartTotal,
+      cartItems: cartItems.map((item: any) => ({
         productId: item.product.id,
         quantity: item.quantity,
       }))
@@ -146,7 +146,7 @@ export default function Checkout() {
         console.error('Payment intent error:', error);
         setIsLoading(false);
       });
-  }, [user, items, total]);
+  }, [user, cartItems, cartTotal]);
 
   if (isLoading) {
     return (
@@ -223,7 +223,7 @@ export default function Checkout() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  {items.map((item) => (
+                  {cartItems.map((item: any) => (
                     <div key={item.product.id} className="flex justify-between text-sm">
                       <div className="flex-1">
                         <p className="font-medium truncate">{item.product.title}</p>
@@ -241,7 +241,7 @@ export default function Checkout() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>${cartTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
@@ -254,7 +254,7 @@ export default function Checkout() {
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold">Total</span>
                   <span className="text-2xl font-bold text-primary">
-                    ${total.toFixed(2)}
+                    ${cartTotal.toFixed(2)}
                   </span>
                 </div>
 
