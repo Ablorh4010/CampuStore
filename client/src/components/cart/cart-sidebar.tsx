@@ -21,7 +21,7 @@ export default function CartSidebar() {
   } = useCart();
 
   const total = cartItems.reduce((sum, item) => {
-    return sum + (calculatePriceWithFee(item.product.price) * item.quantity);
+    return sum + (calculatePriceWithFee(item.product.price) * (item.quantity || 0));
   }, 0);
 
   return (
@@ -102,16 +102,16 @@ export default function CartSidebar() {
                         variant="outline"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <Badge variant="outline">{item.quantity}</Badge>
+                      <Badge variant="outline">{item.quantity || 0}</Badge>
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>

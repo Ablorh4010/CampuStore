@@ -18,7 +18,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-10-29.clover",
 });
 
 const upload = multer({ dest: 'uploads/' });
@@ -157,7 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { email, password, phoneNumber, otpCode } = req.body;
+      const { email, password, otpCode } = req.body;
 
       let user = null;
 
@@ -167,22 +167,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user) {
           return res.status(401).json({ message: "Invalid email or password" });
         }
-      } else if (phoneNumber && otpCode) {
-        // Phone/OTP login (regular users)
-        const isValidOtp = await storage.verifyOtp(phoneNumber, otpCode);
+      } else if (email && otpCode) {
+        // Email/OTP login (regular users)
+        const isValidOtp = await storage.verifyOtp(email, otpCode);
         if (!isValidOtp) {
           return res.status(401).json({ message: "Invalid or expired OTP code" });
         }
 
-        user = await storage.getUserByPhone(phoneNumber);
+        user = await storage.getUserByEmail(email);
         if (!user) {
           return res.status(401).json({ message: "User not found" });
         }
 
-        await storage.markPhoneAsVerified(phoneNumber);
+        await storage.markEmailAsVerified(email);
       } else {
         // No valid credentials provided
-        return res.status(400).json({ message: "Email/password or phone/OTP required" });
+        return res.status(400).json({ message: "Email/password or email/OTP required" });
       }
 
       if (!user) {
@@ -836,8 +836,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const messageData = insertMessageSchema.parse(req.body);
       
-      // Ensure senderId matches authenticated user
-      if (messageData.senderId !== req.userId) {
+      // Ensure fromId matches authenticated user
+      if (messageData.fromId !== req.userId) {
         return res.status(403).json({ message: "Cannot send message as another user" });
       }
 
@@ -1004,7 +1004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           for (let i = 0; i < records.length; i++) {
-            const row = records[i];
+            const row = records[i] as any;
             
             try {
               // Validate required fields
