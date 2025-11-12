@@ -36,8 +36,13 @@ This implementation provides a comprehensive authentication and verification sys
 **File**: `server/whatsapp.ts`
 
 A comprehensive WhatsApp OTP service with:
+- **Meta for Developers WhatsApp Business API** (Primary - Official API)
+  - Automatic initialization if credentials are configured
+  - Template-based messaging for better delivery
+  - Fallback to plain text messages
+  - Detailed setup guide in `docs/META_WHATSAPP_SETUP.md`
 - Mock implementation for development (logs OTP to console)
-- Production-ready integration templates for:
+- Alternative providers commented out for reference:
   - Twilio WhatsApp API
   - Green API
 - Configurable service interface for easy provider switching
@@ -152,15 +157,20 @@ Admin Registration Link → Email/Password → Dashboard Access
 ### Environment Variables Required
 
 ```env
-# WhatsApp OTP (Production)
-# Option 1: Twilio
-TWILIO_ACCOUNT_SID=your_account_sid
-TWILIO_AUTH_TOKEN=your_auth_token
-TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+# Meta WhatsApp Business API (Primary - Recommended)
+META_WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
+META_WHATSAPP_ACCESS_TOKEN=your_permanent_access_token
+META_WHATSAPP_API_VERSION=v18.0
 
-# Option 2: Green API
-GREEN_API_INSTANCE_ID=your_instance_id
-GREEN_API_TOKEN=your_token
+# Alternative providers (optional, commented out by default)
+# Twilio
+# TWILIO_ACCOUNT_SID=your_account_sid
+# TWILIO_AUTH_TOKEN=your_auth_token
+# TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+
+# Green API
+# GREEN_API_INSTANCE_ID=your_instance_id
+# GREEN_API_TOKEN=your_token
 ```
 
 ### Database Migration
@@ -172,9 +182,12 @@ npm run db:push
 
 ## Production Deployment Checklist
 
-- [ ] Replace mock WhatsApp OTP service with actual provider
-  - Update `server/whatsapp.ts` to use production service
-  - Configure provider credentials in environment variables
+- [ ] Set up Meta WhatsApp Business API (see `docs/META_WHATSAPP_SETUP.md`)
+  - Create Meta app and add WhatsApp product
+  - Get Phone Number ID and permanent access token
+  - Configure credentials in environment variables
+  - (Optional) Create message template for better delivery
+  - Complete business verification for production use
 - [ ] Run database migrations
 - [ ] Test WhatsApp OTP delivery
 - [ ] Test buyer verification flow
