@@ -5,8 +5,9 @@ import { db } from "./db";
 import { 
   insertUserSchema, insertStoreSchema, insertProductSchema, 
   insertOrderSchema, insertMessageSchema, insertCartItemSchema,
-  users
+  users, orders
 } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import multer from "multer";
 import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
@@ -158,6 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         city: 'Admin',
         isAdmin: true,
         isMerchant: false,
+        userType: 'admin',
       }).returning();
 
       // Generate JWT token
@@ -173,9 +175,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seller Registration - WhatsApp OTP based
+  app.post("/api/auth/seller/register", authLimiter, async (req, res) => {
+    try {
+      const { whatsappOtpCode, ...userData } = req.body;
+      
+      // Validate WhatsApp OTP
+      if (!whatsappOtpCode || !userData.whatsappNumber) {
+        return res.status(400).json({ message: "WhatsApp verification code is required for seller registration" });
+      }
+
+      const isValidOtp = await storage.verifyWhatsappOtp(userData.whatsappNumber, whatsappOtpCode);
+      if (!isValidOtp) {
+        return res.status(401).json({ message: "Invalid or expired WhatsApp verification code" });
+      }
+
+      // Check if whatsapp number already exists
+      const existingWhatsapp = await storage.getUserByWhatsapp(userData.whatsappNumber);
+      if (existingWhatsapp) {
+        return res.status(400).json({ message: "WhatsApp number already registered" });
+      }
+
+      // Check if email or username already exists
+      const existingEmail = await storage.getUserByEmail(userData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+
+      const existingUsername = await storage.getUserByUsername(userData.username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // Create seller user with userType set to seller
+      const sellerData = {
+        ...userData,
+        userType: 'seller',
+        isMerchant: true,
+      };
+      
+      const parsedUserData = insertUserSchema.parse(sellerData);
+      const user = await storage.createUser(parsedUserData);
+      
+      // Mark WhatsApp as verified since we just verified the OTP
+      await storage.markWhatsappAsVerified(userData.whatsappNumber);
+      
+      // Generate JWT token
+      const token = generateToken(user.id);
+      
+      res.json({ 
+        user: { ...user, password: undefined },
+        token 
+      });
+    } catch (error) {
+      console.error('Seller registration error:', error);
+      res.status(400).json({ message: "Invalid seller data" });
+    }
+  });
+
   app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
-      const { email, password, otpCode } = req.body;
+      const { email, password, otpCode, whatsappNumber, whatsappOtpCode } = req.body;
 
       let user = null;
 
@@ -185,8 +245,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user) {
           return res.status(401).json({ message: "Invalid email or password" });
         }
+      } else if (whatsappNumber && whatsappOtpCode) {
+        // WhatsApp/OTP login (sellers)
+        const isValidOtp = await storage.verifyWhatsappOtp(whatsappNumber, whatsappOtpCode);
+        if (!isValidOtp) {
+          return res.status(401).json({ message: "Invalid or expired WhatsApp OTP code" });
+        }
+
+        user = await storage.getUserByWhatsapp(whatsappNumber);
+        if (!user) {
+          return res.status(401).json({ message: "User not found" });
+        }
+
+        await storage.markWhatsappAsVerified(whatsappNumber);
       } else if (email && otpCode) {
-        // Email/OTP login (regular users)
+        // Email/OTP login (buyers - optional)
         const isValidOtp = await storage.verifyOtp(email, otpCode);
         if (!isValidOtp) {
           return res.status(401).json({ message: "Invalid or expired OTP code" });
@@ -200,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.markEmailAsVerified(email);
       } else {
         // No valid credentials provided
-        return res.status(400).json({ message: "Email/password or email/OTP required" });
+        return res.status(400).json({ message: "Valid credentials required (email/password, email/OTP, or WhatsApp/OTP)" });
       }
 
       if (!user) {
@@ -236,6 +309,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Verification code sent to your email" });
     } catch (error) {
       console.error('Send OTP error:', error);
+      res.status(500).json({ message: "Failed to send verification code" });
+    }
+  });
+
+  // Send WhatsApp OTP for sellers
+  app.post("/api/auth/send-whatsapp-otp", authLimiter, async (req, res) => {
+    try {
+      const { phoneNumber } = req.body;
+
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required" });
+      }
+
+      const otpCode = await storage.generateWhatsappOtp(phoneNumber);
+      
+      // Import WhatsApp service
+      const { sendWhatsAppOtp } = await import('./whatsapp');
+      const sent = await sendWhatsAppOtp(phoneNumber, otpCode);
+
+      if (!sent) {
+        return res.status(500).json({ message: "Failed to send WhatsApp verification code" });
+      }
+
+      res.json({ message: "Verification code sent to your WhatsApp" });
+    } catch (error) {
+      console.error('Send WhatsApp OTP error:', error);
       res.status(500).json({ message: "Failed to send verification code" });
     }
   });
@@ -499,7 +598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const idScanUrl = files.idScan ? `/uploads/${files.idScan[0].filename}` : undefined;
       const faceScanUrl = files.faceScan ? `/uploads/${files.faceScan[0].filename}` : undefined;
 
-      // Update user verification status to pending
+      // Update user verification status to pending (for sellers)
       await storage.updateUser(req.userId!, {
         idScanUrl,
         faceScanUrl,
@@ -515,6 +614,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Verification upload error:', error);
       res.status(500).json({ 
         message: error instanceof Error ? error.message : 'Failed to upload verification documents'
+      });
+    }
+  });
+
+  // Upload buyer verification for checkout
+  app.post("/api/upload/buyer-verification", authenticateToken, imageUpload.fields([
+    { name: 'buyerIdScan', maxCount: 1 },
+    { name: 'buyerFaceScan', maxCount: 1 }
+  ]), async (req: AuthRequest, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
+      if (!files || (!files.buyerIdScan && !files.buyerFaceScan)) {
+        return res.status(400).json({ message: "No verification documents uploaded" });
+      }
+
+      const buyerIdScanUrl = files.buyerIdScan ? `/uploads/${files.buyerIdScan[0].filename}` : undefined;
+      const buyerFaceScanUrl = files.buyerFaceScan ? `/uploads/${files.buyerFaceScan[0].filename}` : undefined;
+
+      // Update buyer verification documents
+      await storage.updateUser(req.userId!, {
+        buyerIdScanUrl,
+        buyerFaceScanUrl,
+        buyerVerifiedAt: new Date()
+      });
+
+      res.json({ 
+        buyerIdScanUrl, 
+        buyerFaceScanUrl,
+        message: "Buyer verification documents uploaded successfully." 
+      });
+    } catch (error) {
+      console.error('Buyer verification upload error:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : 'Failed to upload buyer verification documents'
       });
     }
   });
@@ -845,6 +979,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedOrder = await storage.updateOrderStatus(id, status);
       res.json(updatedOrder);
     } catch (error) {
+      res.status(500).json({ message: "Failed to update order status" });
+    }
+  });
+
+  // Buyer confirms product received or rejected
+  app.put("/api/orders/:id/buyer-confirmation", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { confirmation } = req.body; // 'received' or 'rejected'
+      
+      if (!['received', 'rejected'].includes(confirmation)) {
+        return res.status(400).json({ message: "Invalid confirmation type. Must be 'received' or 'rejected'" });
+      }
+
+      // Verify user is the buyer
+      const order = await storage.getOrderById(id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      if (order.buyerId !== req.userId) {
+        return res.status(403).json({ message: "Only the buyer can confirm order delivery" });
+      }
+
+      // Update order with buyer confirmation
+      await db.update(orders).set({
+        buyerConfirmation: confirmation,
+        buyerConfirmationAt: new Date(),
+        deliveryStatus: confirmation === 'received' ? 'delivered' : 'rejected',
+        payoutStatus: confirmation === 'received' ? 'pending' : 'cancelled',
+        status: confirmation === 'received' ? 'completed' : 'rejected'
+      }).where(eq(orders.id, id));
+
+      const updatedOrder = await storage.getOrderById(id);
+      
+      res.json({ 
+        ...updatedOrder,
+        message: confirmation === 'received' 
+          ? "Product marked as received. Seller payout is now pending." 
+          : "Product marked as rejected. Order has been cancelled."
+      });
+    } catch (error) {
+      console.error('Buyer confirmation error:', error);
+      res.status(500).json({ message: "Failed to confirm order" });
+    }
+  }); {
       res.status(500).json({ message: "Failed to update order status" });
     }
   });
