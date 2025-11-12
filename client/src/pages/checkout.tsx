@@ -9,7 +9,8 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Lock, CreditCard } from "lucide-react";
+import { ArrowLeft, Lock, CreditCard, ShieldCheck } from "lucide-react";
+import { IdScanCapture, FacialCapture } from "@/components/verification";
 
 if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
   throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
@@ -103,6 +104,10 @@ export default function Checkout() {
   const { toast } = useToast();
   const [clientSecret, setClientSecret] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [verificationStep, setVerificationStep] = useState<'verify' | 'payment'>('verify');
+  const [buyerIdFile, setBuyerIdFile] = useState<File | null>(null);
+  const [buyerFaceFile, setBuyerFaceFile] = useState<File | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -125,6 +130,18 @@ export default function Checkout() {
       return;
     }
 
+    // Check if buyer already verified
+    if (user.buyerIdScanUrl && user.buyerFaceScanUrl) {
+      // Skip verification step
+      setVerificationStep('payment');
+      initializePayment();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user, cartItems]);
+
+  const initializePayment = () => {
+    setIsLoading(true);
     apiRequest("POST", "/api/create-payment-intent", { 
       amount: cartTotal,
       cartItems: cartItems.map((item: any) => ({
@@ -146,14 +163,170 @@ export default function Checkout() {
         console.error('Payment intent error:', error);
         setIsLoading(false);
       });
-  }, [user, cartItems, cartTotal]);
+  };
+
+  const handleVerificationSubmit = async () => {
+    if (!buyerIdFile || !buyerFaceFile) {
+      toast({
+        title: "Verification Required",
+        description: "Please upload both ID document and selfie to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('buyerIdScan', buyerIdFile);
+      formData.append('buyerFaceScan', buyerFaceFile);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/upload/buyer-verification', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Verification upload failed');
+      }
+
+      toast({
+        title: "Verification Complete",
+        description: "Your identity has been verified. Proceeding to payment...",
+      });
+
+      setVerificationStep('payment');
+      initializePayment();
+    } catch (error) {
+      toast({
+        title: "Verification Failed",
+        description: "Unable to verify your identity. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Verification error:', error);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">Setting up secure payment...</p>
+          <p className="text-gray-600">
+            {verificationStep === 'verify' ? 'Processing...' : 'Setting up secure payment...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show verification step first
+  if (verificationStep === 'verify') {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Button 
+            variant="ghost" 
+            onClick={() => setLocation('/browse')}
+            className="mb-6"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Shopping
+          </Button>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                      <ShieldCheck className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle>Buyer Verification Required</CardTitle>
+                      <CardDescription>
+                        For your security, please verify your identity before checkout
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      🔒 Your verification documents are encrypted and securely stored.
+                      This one-time verification helps protect both buyers and sellers.
+                    </p>
+                  </div>
+                  
+                  <IdScanCapture 
+                    onCapture={setBuyerIdFile}
+                    onRemove={() => setBuyerIdFile(null)}
+                  />
+                  
+                  <FacialCapture 
+                    onCapture={setBuyerFaceFile}
+                    onRemove={() => setBuyerFaceFile(null)}
+                  />
+
+                  <Button 
+                    onClick={handleVerificationSubmit}
+                    disabled={!buyerIdFile || !buyerFaceFile || isVerifying}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isVerifying ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4 mr-2" />
+                        Verify & Continue to Payment
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="md:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Order Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    {cartItems.map((item: any) => (
+                      <div key={item.product.id} className="flex justify-between text-sm">
+                        <div className="flex-1">
+                          <p className="font-medium truncate">{item.product.title}</p>
+                          <p className="text-gray-500">Qty: {item.quantity}</p>
+                        </div>
+                        <p className="font-medium">
+                          ${(item.product.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>${cartTotal.toFixed(2)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
     );
