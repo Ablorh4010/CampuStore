@@ -61,7 +61,7 @@ export default function ModeSelection() {
                   </li>
                   <li className="flex items-center">
                     <span className="mr-2">✓</span>
-                    Save money on campus essentials
+                    ID verification at checkout only
                   </li>
                   <li className="flex items-center">
                     <span className="mr-2">✓</span>
@@ -110,11 +110,11 @@ export default function ModeSelection() {
                   </li>
                   <li className="flex items-center">
                     <span className="mr-2">✓</span>
-                    List unlimited products
+                    WhatsApp OTP verification
                   </li>
                   <li className="flex items-center">
                     <span className="mr-2">✓</span>
-                    Manage orders easily
+                    Choose shipping options
                   </li>
                   <li className="flex items-center">
                     <span className="mr-2">✓</span>
