@@ -13,10 +13,13 @@ export const users = pgTable("users", {
   city: text("city").notNull(),
   password: text("password"),
   phoneNumber: text("phone_number").unique(),
+  whatsappNumber: text("whatsapp_number").unique(), // For WhatsApp OTP
   isEmailVerified: boolean("is_email_verified").notNull().default(false),
   isPhoneVerified: boolean("is_phone_verified").notNull().default(false),
+  isWhatsappVerified: boolean("is_whatsapp_verified").notNull().default(false),
   isMerchant: boolean("is_merchant").notNull().default(false),
   isAdmin: boolean("is_admin").notNull().default(false),
+  userType: text("user_type").notNull().default("buyer"), // buyer, seller, admin
   avatar: text("avatar"),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
@@ -37,6 +40,11 @@ export const users = pgTable("users", {
   verificationNotes: text("verification_notes"),
   verifiedAt: timestamp("verified_at"),
   
+  // Buyer verification (for checkout)
+  buyerIdScanUrl: text("buyer_id_scan_url"),
+  buyerFaceScanUrl: text("buyer_face_scan_url"),
+  buyerVerifiedAt: timestamp("buyer_verified_at"),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -51,6 +59,14 @@ export const stores = pgTable("stores", {
   rating: decimal("rating", { precision: 3, scale: 2 }).notNull().default("0"),
   reviewCount: integer("review_count").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  
+  // Shipping and location details
+  address: text("address"), // Full address
+  latitude: text("latitude"),
+  longitude: text("longitude"),
+  shippingModes: text("shipping_modes").array(), // ["seller_delivery", "affordcampus_pickup", "ems"]
+  deliveryRadius: integer("delivery_radius"), // in km for seller delivery
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -85,7 +101,13 @@ export const orders = pgTable("orders", {
   productId: integer("product_id").notNull().references(() => products.id),
   quantity: integer("quantity").notNull().default(1),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  status: text("status").notNull().default("pending"), // pending, confirmed, completed, cancelled
+  status: text("status").notNull().default("pending"), // pending, confirmed, completed, cancelled, rejected
+  shippingMode: text("shipping_mode"), // seller_delivery, affordcampus_pickup, ems
+  deliveryStatus: text("delivery_status").default("pending"), // pending, in_transit, delivered, rejected
+  buyerConfirmation: text("buyer_confirmation"), // received, rejected
+  buyerConfirmationAt: timestamp("buyer_confirmation_at"),
+  payoutStatus: text("payout_status").default("pending"), // pending, processed, cancelled
+  payoutProcessedAt: timestamp("payout_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -109,10 +131,12 @@ export const cartItems = pgTable("cart_items", {
 
 export const otpCodes = pgTable("otp_codes", {
   id: serial("id").primaryKey(),
-  email: text("email").notNull(),
+  email: text("email"),
+  phoneNumber: text("phone_number"), // For WhatsApp OTP
   code: text("code").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").notNull().default(false),
+  otpType: text("otp_type").notNull().default("email"), // email or whatsapp
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -122,12 +146,15 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   isEmailVerified: true,
   isPhoneVerified: true,
+  isWhatsappVerified: true,
   isAdmin: true,
 }).extend({
   campus: z.string().optional(),
   email: z.string().email(),
   password: z.string().min(6).optional(),
   phoneNumber: z.string().optional(),
+  whatsappNumber: z.string().optional(),
+  userType: z.enum(['buyer', 'seller', 'admin']).optional(),
 });
 
 export const insertStoreSchema = createInsertSchema(stores).omit({
@@ -137,6 +164,11 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   createdAt: true,
 }).extend({
   campus: z.string().optional(),
+  address: z.string().optional(),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  shippingModes: z.array(z.enum(['seller_delivery', 'affordcampus_pickup', 'ems'])).optional(),
+  deliveryRadius: z.number().optional(),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({
