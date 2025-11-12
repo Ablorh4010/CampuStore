@@ -619,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload buyer verification for checkout
-  app.post("/api/upload/buyer-verification", authenticateToken, imageUpload.fields([
+  app.post("/api/upload/buyer-verification", apiLimiter, authenticateToken, imageUpload.fields([
     { name: 'buyerIdScan', maxCount: 1 },
     { name: 'buyerFaceScan', maxCount: 1 }
   ]), async (req: AuthRequest, res) => {
@@ -984,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Buyer confirms product received or rejected
-  app.put("/api/orders/:id/buyer-confirmation", authenticateToken, async (req: AuthRequest, res) => {
+  app.put("/api/orders/:id/buyer-confirmation", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       const { confirmation } = req.body; // 'received' or 'rejected'
