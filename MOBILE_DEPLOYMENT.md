@@ -1,6 +1,6 @@
-# CampusStore Mobile App Deployment Guide
+# CampusAffordHub Mobile App Deployment Guide
 
-This guide will help you deploy CampusStore to the Apple App Store and Google Play Store using Capacitor.
+This guide will help you deploy CampusAffordHub to the Apple App Store and Google Play Store using Capacitor.
 
 ## Prerequisites
 
@@ -49,8 +49,8 @@ This opens your app in Xcode.
 
 1. **Select your project** in the left sidebar (the blue "App" icon)
 2. **General tab**:
-   - Display Name: `CampusStore`
-   - Bundle Identifier: `com.campusstore.app` (must be unique)
+   - Display Name: `CampusAffordHub`
+   - Bundle Identifier: `com.campusaffordhub.app` (must be unique)
    - Version: `1.0.0`
    - Build: `1`
    - Team: Select your Apple Developer team

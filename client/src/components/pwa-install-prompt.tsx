@@ -66,7 +66,7 @@ export default function PWAInstallPrompt() {
                 <Download className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Install CampusStore</h3>
+                <h3 className="font-semibold text-gray-900">Install CampusAffordHub</h3>
                 <p className="text-sm text-gray-600">Get the app experience!</p>
               </div>
             </div>

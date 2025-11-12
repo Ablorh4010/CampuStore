@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.campusstore.app',
-  appName: 'CampusStore',
+  appId: 'com.campusaffordhub.app',
+  appName: 'CampusAffordHub',
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',

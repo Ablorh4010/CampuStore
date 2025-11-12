@@ -1,7 +1,7 @@
-# Campus Exchange
+# CampusAffordHub
 
 ## Overview
-Campus Exchange is a Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. It offers a native app-like experience on Android and iPhone, featuring buyer/seller mode selection, email verification authentication, store creation, product listings, student-to-student messaging, and a robust product upload system with image handling and special offers. The platform aims to provide a fast and efficient trading environment within university communities.
+CampusAffordHub is a Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. It offers a native app-like experience on Android and iPhone, featuring buyer/seller mode selection, email verification authentication, store creation, product listings, student-to-student messaging, and a robust product upload system with image handling and special offers. The platform aims to provide a fast and efficient trading environment within university communities.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -44,7 +44,7 @@ Preferred communication style: Simple, everyday language.
 - **Native Experience**: Standalone display mode.
 - **Service Worker Strategy**: Cache-first for GET requests, network fallback.
 - **Install Prompt**: Smart timing for compatible browsers.
-- **Capacitor Setup**: Configured for native iOS and Android app deployment (com.campusstore.app).
+- **Capacitor Setup**: Configured for native iOS and Android app deployment (com.campusaffordhub.app).
 
 ## External Dependencies
 
@@ -158,7 +158,7 @@ Preferred communication style: Simple, everyday language.
 - **Testing Status**: LSP clean, production-ready, supports test mode with pk_test/sk_test keys
 
 ### Logo Integration (November 2025)
-- **CampusStore Logo**: Added generated logo to header and browser tab
+- **CampusAffordHub Logo**: Added generated logo to header and browser tab
 - **Favicon**: Set app icon for browser tab and mobile bookmarks
 - **Apple Touch Icon**: Configured for iOS home screen installation
 - **Branding**: Logo appears in header with hover animations and transitions

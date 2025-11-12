@@ -6,9 +6,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-xl font-bold mb-4">StudentMarket</h3>
+            <h3 className="text-xl font-bold mb-4">CampusAffordHub</h3>
             <p className="text-gray-300 mb-4">
-              The trusted marketplace connecting students across campuses.
+              the student market place - connecting students across campuses.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-300 hover:text-white transition-colors">
@@ -106,7 +106,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-700 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-300 text-sm">© 2024 StudentMarket. All rights reserved.</p>
+          <p className="text-gray-300 text-sm">© 2024 CampusAffordHub. All rights reserved.</p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a href="#" className="text-gray-300 hover:text-white text-sm transition-colors">
               Privacy Policy

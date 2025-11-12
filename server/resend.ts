@@ -53,11 +53,11 @@ export async function sendPasswordResetEmail(email: string, resetToken: string, 
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: 'CampusStore - Password Reset Request',
+      subject: 'CampusAffordHub - Password Reset Request',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #6366f1;">Password Reset Request</h2>
-          <p>You requested to reset your password for your CampusStore admin account.</p>
+          <p>You requested to reset your password for your CampusAffordHub admin account.</p>
           <p>Click the link below to reset your password:</p>
           <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">Reset Password</a>
           <p>Or copy and paste this link into your browser:</p>

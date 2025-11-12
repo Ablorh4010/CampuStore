@@ -45,7 +45,7 @@ export async function sendVerificationEmail(email: string, code: string) {
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: 'Campus Exchange - Your Verification Code',
+      subject: 'CampusAffordHub - Your Verification Code',
       html: `
         <!DOCTYPE html>
         <html>
@@ -55,12 +55,12 @@ export async function sendVerificationEmail(email: string, code: string) {
           </head>
           <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">Campus Exchange</h1>
+              <h1 style="color: white; margin: 0; font-size: 28px;">CampusAffordHub</h1>
             </div>
             
             <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
               <h2 style="color: #1f2937; margin-top: 0;">Verify Your Email</h2>
-              <p style="color: #4b5563; font-size: 16px;">Welcome to Campus Exchange! To complete your registration, please use the verification code below:</p>
+              <p style="color: #4b5563; font-size: 16px;">Welcome to CampusAffordHub - the student market place! To complete your registration, please use the verification code below:</p>
               
               <div style="background-color: white; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 25px 0;">
                 <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 14px;">Your Verification Code</p>
@@ -74,7 +74,7 @@ export async function sendVerificationEmail(email: string, code: string) {
               <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
               
               <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-                Campus Exchange - Your University Marketplace<br>
+                CampusAffordHub - the student market place<br>
                 This is an automated email. Please do not reply.
               </p>
             </div>
@@ -98,7 +98,7 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
     await client.emails.send({
       from: fromEmail,
       to: email,
-      subject: 'Campus Exchange - Admin Invitation',
+      subject: 'CampusAffordHub - Admin Invitation',
       html: `
         <!DOCTYPE html>
         <html>
@@ -113,7 +113,7 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
             
             <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
               <h2 style="color: #1f2937; margin-top: 0;">You've Been Invited!</h2>
-              <p style="color: #4b5563; font-size: 16px;">You have been invited to join Campus Exchange as an administrator. Click the button below to create your admin account:</p>
+              <p style="color: #4b5563; font-size: 16px;">You have been invited to join CampusAffordHub as an administrator. Click the button below to create your admin account:</p>
               
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${inviteUrl}" style="background-color: #f59e0b; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
@@ -133,7 +133,7 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
               <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
               
               <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-                Campus Exchange - Admin Portal<br>
+                CampusAffordHub - Admin Portal<br>
                 This is an automated email. Please do not reply.
               </p>
             </div>

@@ -1,4 +1,4 @@
-# CampusStore - Campus Exchange Marketplace
+# CampusAffordHub - the student market place
 
 A Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. Built with React, TypeScript, Express, and PostgreSQL.
 

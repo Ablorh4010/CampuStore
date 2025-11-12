@@ -22,10 +22,10 @@ export default function ModeSelection() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold font-heading text-primary mb-3">
-            Welcome to CampusStore
+            Welcome to CampusAffordHub
           </h1>
           <p className="text-xl text-gray-600">
-            Choose how you'd like to get started
+            the student market place
           </p>
         </div>
 
