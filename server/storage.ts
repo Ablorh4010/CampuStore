@@ -19,9 +19,13 @@ export interface IStorage {
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
   verifyPassword(email: string, password: string): Promise<User | null>;
   getUserByPhone(phoneNumber: string): Promise<User | undefined>;
+  getUserByWhatsapp(whatsappNumber: string): Promise<User | undefined>;
   generateOtp(email: string): Promise<string>;
+  generateWhatsappOtp(phoneNumber: string): Promise<string>;
   verifyOtp(email: string, code: string): Promise<boolean>;
+  verifyWhatsappOtp(phoneNumber: string, code: string): Promise<boolean>;
   markEmailAsVerified(email: string): Promise<void>;
+  markWhatsappAsVerified(phoneNumber: string): Promise<void>;
   setPasswordResetToken(email: string, token: string, expiry: Date): Promise<void>;
   getUserByResetToken(token: string): Promise<User | undefined>;
   resetPassword(token: string, newPassword: string): Promise<boolean>;
@@ -103,6 +107,11 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getUserByWhatsapp(whatsappNumber: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.whatsappNumber, whatsappNumber));
+    return user || undefined;
+  }
+
   async generateOtp(email: string): Promise<string> {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -111,6 +120,21 @@ export class DatabaseStorage implements IStorage {
       email,
       code,
       expiresAt,
+      otpType: 'email',
+    });
+
+    return code;
+  }
+
+  async generateWhatsappOtp(phoneNumber: string): Promise<string> {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await db.insert(otpCodes).values({
+      phoneNumber,
+      code,
+      expiresAt,
+      otpType: 'whatsapp',
     });
 
     return code;
@@ -125,6 +149,27 @@ export class DatabaseStorage implements IStorage {
           eq(otpCodes.email, email),
           eq(otpCodes.code, code),
           eq(otpCodes.used, false),
+          eq(otpCodes.otpType, 'email'),
+          gte(otpCodes.expiresAt, new Date())
+        )
+      );
+
+    if (!otpRecord) return false;
+
+    await db.update(otpCodes).set({ used: true }).where(eq(otpCodes.id, otpRecord.id));
+    return true;
+  }
+
+  async verifyWhatsappOtp(phoneNumber: string, code: string): Promise<boolean> {
+    const [otpRecord] = await db
+      .select()
+      .from(otpCodes)
+      .where(
+        and(
+          eq(otpCodes.phoneNumber, phoneNumber),
+          eq(otpCodes.code, code),
+          eq(otpCodes.used, false),
+          eq(otpCodes.otpType, 'whatsapp'),
           gte(otpCodes.expiresAt, new Date())
         )
       );
@@ -137,6 +182,10 @@ export class DatabaseStorage implements IStorage {
 
   async markEmailAsVerified(email: string): Promise<void> {
     await db.update(users).set({ isEmailVerified: true }).where(eq(users.email, email));
+  }
+
+  async markWhatsappAsVerified(phoneNumber: string): Promise<void> {
+    await db.update(users).set({ isWhatsappVerified: true }).where(eq(users.whatsappNumber, phoneNumber));
   }
 
   async setPasswordResetToken(email: string, token: string, expiry: Date): Promise<void> {
