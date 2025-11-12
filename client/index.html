@@ -8,18 +8,18 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="CampusStore" />
+    <meta name="apple-mobile-web-app-title" content="CampusAffordHub" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-512.png" />
     <link rel="manifest" href="/manifest.json" />
-    <title>CampusStore - StudentMarket</title>
+    <title>CampusAffordHub - the student market place</title>
     <script>
       // Update title with country code once detected
       window.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
           const countryMatch = window.location.pathname.match(/^\/([a-z]{2})\/?/i);
           if (countryMatch) {
-            document.title = `CampusStore ${countryMatch[1].toUpperCase()} - StudentMarket`;
+            document.title = `CampusAffordHub ${countryMatch[1].toUpperCase()} - the student market place`;
           }
         }, 1000);
       });

@@ -63,21 +63,21 @@ export default function Header() {
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
                   <img 
                     src={logoImage} 
-                    alt="Campus Exchange Logo" 
+                    alt="CampusAffordHub Logo" 
                     className="relative h-12 w-12 rounded-full border-2 border-transparent bg-white group-hover:border-primary/30 transition-all duration-300 group-hover:scale-110"
                   />
                 </div>
                 <div className="group-hover:translate-x-1 transition-transform duration-300">
                   <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold font-heading text-primary group-hover:text-accent transition-colors duration-300">
-                      Campus Exchange
+                      CampusAffordHub
                     </h1>
                     <span className="text-xs font-bold text-white bg-primary px-2 py-0.5 rounded-md">
                       {countryCode}
                     </span>
                   </div>
                   <p className="text-xs text-gray-600 -mt-1 font-body group-hover:text-gray-700 transition-colors duration-300">
-                    Campus Exchange
+                    the student market place
                   </p>
                 </div>
               </div>

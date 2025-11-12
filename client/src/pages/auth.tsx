@@ -120,7 +120,7 @@ export default function Auth() {
       });
       toast({
         title: '✅ Account created successfully!',
-        description: 'Welcome to Campus Exchange! Redirecting to homepage...',
+        description: 'Welcome to CampusAffordHub! Redirecting to homepage...',
         duration: 8000,
       });
       setLocation('/');
@@ -177,8 +177,8 @@ export default function Auth() {
               <GraduationCap className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Campus Exchange</h1>
-          <p className="text-gray-600">Your university marketplace</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">CampusAffordHub</h1>
+          <p className="text-gray-600">the student market place</p>
         </div>
 
         <Card className="shadow-xl">
@@ -441,7 +441,7 @@ export default function Auth() {
         </Card>
 
         <p className="text-center text-sm text-gray-600 mt-6">
-          By continuing, you agree to Campus Exchange's Terms of Service and Privacy Policy
+          By continuing, you agree to CampusAffordHub's Terms of Service and Privacy Policy
         </p>
       </div>
     </div>

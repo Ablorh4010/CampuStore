@@ -1,7 +1,7 @@
 {
-  "name": "CampusStore - StudentMarket",
-  "short_name": "CampusStore",
-  "description": "Your campus marketplace where students buy, sell, and connect",
+  "name": "CampusAffordHub - the student market place",
+  "short_name": "CampusAffordHub",
+  "description": "the student market place - where students buy, sell, and connect",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
