@@ -13,12 +13,30 @@ import { parse } from "csv-parse/sync";
 import { generateToken, authenticateToken, requireAdmin, type AuthRequest } from "./auth";
 import path from "path";
 import Stripe from "stripe";
+import rateLimit from "express-rate-limit";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
+});
+
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: 'Too many authentication attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const upload = multer({ dest: 'uploads/' });
@@ -51,8 +69,8 @@ const imageUpload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-  // Auth routes
-  app.post("/api/auth/register", async (req, res) => {
+  // Auth routes with rate limiting
+  app.post("/api/auth/register", authLimiter, async (req, res) => {
     try {
       const { otpCode, ...userData } = req.body;
       const parsedUserData = insertUserSchema.parse(userData);
@@ -97,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Registration - Token-protected, Email/Password based
-  app.post("/api/auth/admin/register", async (req, res) => {
+  app.post("/api/auth/admin/register", authLimiter, async (req, res) => {
     try {
       const { email, password, username, firstName, lastName, inviteToken } = req.body;
 
@@ -155,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const { email, password, otpCode } = req.body;
 
@@ -201,7 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/send-otp", async (req, res) => {
+  app.post("/api/auth/send-otp", authLimiter, async (req, res) => {
     try {
       const { email } = req.body;
 
@@ -223,7 +241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Password Reset routes
-  app.post("/api/auth/request-password-reset", async (req, res) => {
+  app.post("/api/auth/request-password-reset", authLimiter, async (req, res) => {
     try {
       const { email } = req.body;
 
@@ -266,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/reset-password", async (req, res) => {
+  app.post("/api/auth/reset-password", authLimiter, async (req, res) => {
     try {
       const { token, newPassword } = req.body;
 
