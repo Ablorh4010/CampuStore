@@ -1357,6 +1357,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Push notification routes
+  
+  // Get VAPID public key for client
+  app.get("/api/push/vapid-key", async (req, res) => {
+    try {
+      const { getVapidPublicKey } = await import('./push-notifications');
+      const publicKey = getVapidPublicKey();
+      
+      if (!publicKey) {
+        return res.status(503).json({ message: "Push notifications not configured" });
+      }
+      
+      res.json({ publicKey });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get VAPID key" });
+    }
+  });
+
+  // Subscribe to push notifications
+  app.post("/api/push/subscribe", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { subscription } = req.body;
+      
+      if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ message: "Invalid subscription" });
+      }
+
+      const { saveSubscription } = await import('./push-notifications');
+      const saved = await saveSubscription(req.userId!, subscription);
+      
+      if (saved) {
+        res.json({ message: "Subscription saved successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to save subscription" });
+      }
+    } catch (error) {
+      console.error('Push subscribe error:', error);
+      res.status(500).json({ message: "Failed to subscribe to push notifications" });
+    }
+  });
+
+  // Unsubscribe from push notifications
+  app.post("/api/push/unsubscribe", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { removeSubscription } = await import('./push-notifications');
+      const removed = await removeSubscription(req.userId!);
+      
+      if (removed) {
+        res.json({ message: "Unsubscribed successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to unsubscribe" });
+      }
+    } catch (error) {
+      console.error('Push unsubscribe error:', error);
+      res.status(500).json({ message: "Failed to unsubscribe" });
+    }
+  });
+
+  // Test push notification (for development/debugging)
+  app.post("/api/push/test", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { sendPushNotification, NotificationTypes } = await import('./push-notifications');
+      
+      const success = await sendPushNotification(
+        req.userId!,
+        NotificationTypes.promotion(
+          'Test Notification 🔔',
+          'Push notifications are working! You will receive updates for orders, messages, and more.'
+        )
+      );
+      
+      if (success) {
+        res.json({ message: "Test notification sent" });
+      } else {
+        res.status(500).json({ message: "Failed to send test notification. Make sure you're subscribed." });
+      }
+    } catch (error) {
+      console.error('Test push error:', error);
+      res.status(500).json({ message: "Failed to send test notification" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
