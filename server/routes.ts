@@ -1380,7 +1380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Subscribe to push notifications
-  app.post("/api/push/subscribe", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/push/subscribe", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { subscription } = req.body;
       
@@ -1403,7 +1403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Unsubscribe from push notifications
-  app.post("/api/push/unsubscribe", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/push/unsubscribe", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { removeSubscription } = await import('./push-notifications');
       const removed = await removeSubscription(req.userId!);
@@ -1420,7 +1420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test push notification (for development/debugging)
-  app.post("/api/push/test", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/push/test", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { sendPushNotification, NotificationTypes } = await import('./push-notifications');
       

@@ -16,6 +16,7 @@ import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
 import { authenticateToken, type AuthRequest } from "./auth";
 import rateLimit from "express-rate-limit";
 
+// Rate limiter for feature routes
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -23,6 +24,16 @@ const apiLimiter = rateLimit({
 });
 
 export function registerFeatureRoutes(app: Express) {
+  
+  // Apply rate limiter to all feature routes
+  app.use('/api/events', apiLimiter);
+  app.use('/api/clubs', apiLimiter);
+  app.use('/api/auctions', apiLimiter);
+  app.use('/api/study-groups', apiLimiter);
+  app.use('/api/badges', apiLimiter);
+  app.use('/api/leaderboard', apiLimiter);
+  app.use('/api/users', apiLimiter);
+  app.use('/api/sellers', apiLimiter);
   
   // ============================================
   // EVENT CALENDAR ROUTES
@@ -83,7 +94,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Create event
-  app.post("/api/events", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/events", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const eventData = insertEventSchema.parse({
         ...req.body,
@@ -99,7 +110,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // RSVP to event
-  app.post("/api/events/:id/rsvp", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/events/:id/rsvp", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const eventId = parseInt(req.params.id);
       const { status } = req.body;
@@ -181,7 +192,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Create club
-  app.post("/api/clubs", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/clubs", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const clubData = insertClubSchema.parse({
         ...req.body,
@@ -205,7 +216,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Join club
-  app.post("/api/clubs/:id/join", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/clubs/:id/join", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const clubId = parseInt(req.params.id);
       
@@ -274,7 +285,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Create auction
-  app.post("/api/auctions", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/auctions", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const auctionData = insertAuctionSchema.parse({
         ...req.body,
@@ -290,7 +301,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Place bid
-  app.post("/api/auctions/:id/bid", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/auctions/:id/bid", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const auctionId = parseInt(req.params.id);
       const { amount } = req.body;
@@ -366,7 +377,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Create study group
-  app.post("/api/study-groups", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/study-groups", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const groupData = insertStudyGroupSchema.parse({
         ...req.body,
@@ -390,7 +401,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Request to join study group
-  app.post("/api/study-groups/:id/join", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/study-groups/:id/join", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const groupId = parseInt(req.params.id);
       
@@ -436,7 +447,7 @@ export function registerFeatureRoutes(app: Express) {
   // ============================================
 
   // Follow user
-  app.post("/api/users/:id/follow", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/users/:id/follow", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const followingId = parseInt(req.params.id);
       
@@ -466,7 +477,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Unfollow user
-  app.delete("/api/users/:id/follow", authenticateToken, async (req: AuthRequest, res) => {
+  app.delete("/api/users/:id/follow", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const followingId = parseInt(req.params.id);
       
@@ -529,7 +540,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Add review
-  app.post("/api/sellers/:id/reviews", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/sellers/:id/reviews", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const sellerId = parseInt(req.params.id);
       const reviewData = insertSellerReviewSchema.parse({
@@ -613,7 +624,7 @@ export function registerFeatureRoutes(app: Express) {
   });
 
   // Get points history
-  app.get("/api/users/:id/points/history", authenticateToken, async (req: AuthRequest, res) => {
+  app.get("/api/users/:id/points/history", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
     try {
       const userId = parseInt(req.params.id);
       
