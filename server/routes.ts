@@ -70,6 +70,10 @@ const imageUpload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
+  // Register extended feature routes (Events, Clubs, Auctions, Study Groups, etc.)
+  const { registerFeatureRoutes } = await import('./feature-routes');
+  registerFeatureRoutes(app);
+
   // Auth routes with rate limiting
   app.post("/api/auth/register", authLimiter, async (req, res) => {
     try {

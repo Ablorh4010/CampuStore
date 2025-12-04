@@ -4,6 +4,7 @@ A Progressive Web App (PWA) designed as a mobile-installable marketplace connect
 
 ## 🚀 Features
 
+### Core Marketplace
 - **Email Verification Authentication** - Secure OTP-based login system
 - **Admin Dashboard** - Product approval and management system
 - **Store Management** - Multi-store support per user
@@ -14,12 +15,23 @@ A Progressive Web App (PWA) designed as a mobile-installable marketplace connect
 - **Seller Verification** - ID and face scan verification system
 - **PWA Support** - Installable on mobile devices with offline capabilities
 
+### Interactive Features (New!)
+- **Live Chat Support** - Real-time WebSocket chat using Socket.IO for instant communication
+- **Push Notifications** - Web push notifications for order updates, messages, and promotions
+- **Event Calendar** - Club and organization event management with RSVP functionality
+- **Social Profiles** - Follow users, view connections, and leave seller reviews
+- **Club/Organization Pages** - Create and manage clubs with events and announcements
+- **Bidding/Auction System** - List items for auction with real-time bidding
+- **Study Group Finder** - Find and join study groups by course
+- **Gamification** - Badges, points, leaderboards, and rewards system
+
 ## 📋 Prerequisites
 
 - Node.js 18+ and npm
 - PostgreSQL database
 - Stripe account (for payments)
 - Resend account (for email verification)
+- Optional: VAPID keys for push notifications
 
 ## 🛠️ Installation
 
@@ -38,7 +50,7 @@ npm install
 
 ### 3. Environment Setup
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (see `.env.example`):
 
 ```env
 # Database Configuration
@@ -47,14 +59,21 @@ DATABASE_URL=postgresql://username:password@host:port/database_name
 # Stripe Configuration (get from https://dashboard.stripe.com/test/apikeys)
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
 STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
-
-# Vite Environment Variables (used by client)
 VITE_STRIPE_PUBLIC_KEY=pk_test_your_stripe_publishable_key_here
 
-# Session Secret (generate a random string)
+# Push Notifications (generate with: npx web-push generate-vapid-keys)
+VAPID_PUBLIC_KEY=your_vapid_public_key_here
+VAPID_PRIVATE_KEY=your_vapid_private_key_here
+VAPID_EMAIL=support@theuniversityhub.com
+
+# WhatsApp OTP (optional)
+META_WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
+META_WHATSAPP_ACCESS_TOKEN=your_access_token_here
+
+# Session Secret
 SESSION_SECRET=your_random_session_secret_here
 
-# Resend API Key for Email (get from https://resend.com)
+# Resend API Key for Email
 RESEND_API_KEY=re_your_resend_api_key_here
 ```
 
@@ -75,10 +94,14 @@ This will create the following tables:
 - messages
 - cart_items
 - otp_codes
+- events, event_rsvps (Calendar)
+- clubs, club_memberships (Organizations)
+- auctions, auction_bids (Bidding)
+- study_groups, study_group_memberships (Study Groups)
+- user_follows, seller_reviews (Social)
+- badges, user_badges, user_points, points_history (Gamification)
 
 ### 5. Seed Categories (Optional)
-
-You may want to manually insert some categories into the database:
 
 ```sql
 INSERT INTO categories (name, icon, color) VALUES
@@ -206,10 +229,11 @@ Update `DATABASE_URL` in `.env` with your database connection string.
 ### Authentication Endpoints
 
 - `POST /api/auth/send-otp` - Send OTP to email
-- `POST /api/auth/verify-otp` - Verify OTP code
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login with email/OTP or email/password
 - `POST /api/auth/admin/register` - Register admin (requires token)
+- `POST /api/auth/send-whatsapp-otp` - Send WhatsApp OTP (sellers)
+- `POST /api/auth/seller/register` - Register seller
 
 ### Product Endpoints
 
@@ -228,19 +252,89 @@ Update `DATABASE_URL` in `.env` with your database connection string.
 
 ### Cart Endpoints
 
-- `GET /api/cart` - Get user's cart
+- `GET /api/cart/:userId` - Get user's cart
 - `POST /api/cart` - Add item to cart
 - `PUT /api/cart/:id` - Update cart item quantity
 - `DELETE /api/cart/:id` - Remove item from cart
 
+### Event Calendar Endpoints (New!)
+
+- `GET /api/events` - Get all events (with filters)
+- `GET /api/events/:id` - Get event details with RSVP counts
+- `POST /api/events` - Create new event
+- `POST /api/events/:id/rsvp` - RSVP to event
+
+### Club/Organization Endpoints (New!)
+
+- `GET /api/clubs` - Get all clubs
+- `GET /api/clubs/:id` - Get club with upcoming events
+- `POST /api/clubs` - Create new club
+- `POST /api/clubs/:id/join` - Join a club
+
+### Auction/Bidding Endpoints (New!)
+
+- `GET /api/auctions` - Get active auctions
+- `GET /api/auctions/:id` - Get auction with bid history
+- `POST /api/auctions` - Create new auction
+- `POST /api/auctions/:id/bid` - Place a bid
+
+### Study Group Endpoints (New!)
+
+- `GET /api/study-groups` - Get study groups (by course/university)
+- `POST /api/study-groups` - Create study group
+- `POST /api/study-groups/:id/join` - Request to join
+
+### Social Endpoints (New!)
+
+- `POST /api/users/:id/follow` - Follow a user
+- `DELETE /api/users/:id/follow` - Unfollow a user
+- `GET /api/users/:id/followers` - Get user's followers
+- `GET /api/users/:id/following` - Get user's following
+- `GET /api/sellers/:id/reviews` - Get seller reviews
+- `POST /api/sellers/:id/reviews` - Add seller review
+
+### Gamification Endpoints (New!)
+
+- `GET /api/badges` - Get all available badges
+- `GET /api/users/:id/badges` - Get user's earned badges
+- `GET /api/users/:id/points` - Get user's points and level
+- `GET /api/users/:id/points/history` - Get points transaction history
+- `GET /api/leaderboard` - Get top users leaderboard
+
+### Push Notification Endpoints (New!)
+
+- `GET /api/push/vapid-key` - Get VAPID public key
+- `POST /api/push/subscribe` - Subscribe to push notifications
+- `POST /api/push/unsubscribe` - Unsubscribe from notifications
+- `POST /api/push/test` - Send test notification
+
 ## 🔒 Security
 
-- JWT-based authentication
+- JWT-based authentication with secure token management
 - Password hashing with bcrypt
 - SQL injection protection via Drizzle ORM
+- Rate limiting on sensitive endpoints
 - XSS protection
 - CORS configuration
 - Secure session management
+- Socket.IO authentication middleware
+
+## 🌐 Google Cloud Hosting
+
+For deploying to Google Cloud:
+
+### App Engine
+1. Create `app.yaml` configuration
+2. Set environment variables in Cloud Console
+3. Run `gcloud app deploy`
+
+### Cloud Run
+1. Build Docker container
+2. Push to Container Registry
+3. Deploy to Cloud Run with environment variables
+
+### Required Environment Variables
+All variables from `.env.example` must be configured in your hosting environment.
 
 ## 🧪 Testing
 
