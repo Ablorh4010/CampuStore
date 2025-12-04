@@ -204,7 +204,7 @@ export default function SellerAuth() {
 
       toast({
         title: '✅ Seller account created!',
-        description: 'Welcome to CampusAffordHub! Your documents are under review.',
+        description: 'Welcome to The University Hub! Your documents are under review.',
         duration: 8000,
       });
       setLocation('/dashboard');

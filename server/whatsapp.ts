@@ -159,7 +159,7 @@ class MetaWhatsAppOtpService implements WhatsAppOtpService {
           to: formattedNumber,
           type: 'text',
           text: {
-            body: `Your CampusAffordHub verification code is: ${otpCode}\n\nThis code is valid for 10 minutes.\n\nDo not share this code with anyone.`
+            body: `Your The University Hub verification code is: ${otpCode}\n\nThis code is valid for 10 minutes.\n\nDo not share this code with anyone.`
           }
         }),
       });
@@ -210,7 +210,7 @@ class TwilioWhatsAppOtpService implements WhatsAppOtpService {
         : `whatsapp:${phoneNumber}`;
       
       const message = await this.client.messages.create({
-        body: `Your CampusAffordHub verification code is: ${otpCode}. Valid for 10 minutes.`,
+        body: `Your The University Hub verification code is: ${otpCode}. Valid for 10 minutes.`,
         from: this.fromNumber,
         to: formattedTo,
       });
@@ -257,7 +257,7 @@ class GreenApiWhatsAppOtpService implements WhatsAppOtpService {
           },
           body: JSON.stringify({
             chatId: `${cleanNumber}@c.us`,
-            message: `Your CampusAffordHub verification code is: ${otpCode}. Valid for 10 minutes.`,
+            message: `Your The University Hub verification code is: ${otpCode}. Valid for 10 minutes.`,
           }),
         }
       );

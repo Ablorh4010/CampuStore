@@ -1,4 +1,4 @@
-# CampusAffordHub - the student market place
+# The University Hub - the student market place
 
 A Progressive Web App (PWA) designed as a mobile-installable marketplace connecting university students for buying and selling items. Built with React, TypeScript, Express, and PostgreSQL.
 
@@ -26,8 +26,8 @@ A Progressive Web App (PWA) designed as a mobile-installable marketplace connect
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Ablorh4010/CampuStore.git
-cd CampuStore
+git clone https://github.com/Ablorh4010/TheUniversityHub.git
+cd TheUniversityHub
 ```
 
 ### 2. Install Dependencies
@@ -315,7 +315,7 @@ MIT
 
 For issues or questions:
 - Open an issue on GitHub
-- Contact: support@campusstore.com
+- Contact: support@theuniversityhub.com
 
 ## 🙏 Acknowledgments
 
