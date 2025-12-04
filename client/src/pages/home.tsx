@@ -74,7 +74,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-5xl md:text-6xl font-bold font-heading mb-6 leading-tight">
-                CampusAffordHub
+                The University Hub
                 <span className="text-yellow-300 ml-3 text-2xl md:text-3xl font-bold bg-white/20 px-3 py-1 rounded-lg">
                   {countryCode}
                 </span>
@@ -180,7 +180,7 @@ export default function Home() {
         <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-12">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Ready to Start Selling?</h2>
-            <p className="text-gray-600">Join thousands of students already earning money on CampusAffordHub</p>
+            <p className="text-gray-600">Join thousands of students already earning money on The University Hub</p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-6">
@@ -225,7 +225,7 @@ export default function Home() {
                 <Store className="h-12 w-12 text-gray-400" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Welcome to CampusAffordHub!
+                Welcome to The University Hub!
               </h3>
               <p className="text-gray-600 mb-6">
                 Be the first to start buying and selling in your student community.

@@ -1,6 +1,6 @@
 {
-  "name": "CampusAffordHub - the student market place",
-  "short_name": "CampusAffordHub",
+  "name": "The University Hub - the student market place",
+  "short_name": "University Hub",
   "description": "the student market place - where students buy, sell, and connect",
   "start_url": "/",
   "display": "standalone",

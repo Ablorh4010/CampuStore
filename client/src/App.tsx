@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./lib/auth-context";
 import { CartProvider } from "./lib/cart-context";
+import { SocketProvider } from "./lib/socket-context";
 import Header from "./components/layout/header";
 import Footer from "./components/layout/footer";
 import CartSidebar from "./components/cart/cart-sidebar";
@@ -58,18 +59,20 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <CartProvider>
-            <div className="min-h-screen bg-gray-50">
-              <Header />
-              <main>
-                <Router />
-              </main>
-              <Footer />
-              <CartSidebar />
-              <PWAInstallPrompt />
-            </div>
-            <Toaster />
-          </CartProvider>
+          <SocketProvider>
+            <CartProvider>
+              <div className="min-h-screen bg-gray-50">
+                <Header />
+                <main>
+                  <Router />
+                </main>
+                <Footer />
+                <CartSidebar />
+                <PWAInstallPrompt />
+              </div>
+              <Toaster />
+            </CartProvider>
+          </SocketProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

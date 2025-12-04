@@ -1,4 +1,4 @@
-const CACHE_NAME = 'campusstore-v1';
+const CACHE_NAME = 'theuniversityhub-v2';
 
 // Install service worker
 self.addEventListener('install', (event) => {
@@ -56,4 +56,78 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+});
+
+// Push notification event handler
+self.addEventListener('push', (event) => {
+  console.log('[Service Worker] Push received');
+  
+  if (!event.data) {
+    console.log('[Service Worker] No data in push event');
+    return;
+  }
+
+  try {
+    const data = event.data.json();
+    
+    const options = {
+      body: data.body || 'You have a new notification',
+      icon: data.icon || '/icon-192.png',
+      badge: data.badge || '/icon-192.png',
+      image: data.image,
+      tag: data.tag || 'default',
+      data: data.data || {},
+      requireInteraction: data.requireInteraction || false,
+      actions: data.actions || [
+        { action: 'open', title: 'Open' },
+        { action: 'dismiss', title: 'Dismiss' }
+      ],
+      vibrate: [100, 50, 100],
+      timestamp: Date.now()
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'The University Hub', options)
+    );
+  } catch (error) {
+    console.error('[Service Worker] Error parsing push data:', error);
+  }
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', (event) => {
+  console.log('[Service Worker] Notification clicked:', event.action);
+  
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  // Get the URL to open from notification data
+  const urlToOpen = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there's already a window open with our app
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.focus();
+          if (urlToOpen && client.url !== self.location.origin + urlToOpen) {
+            client.navigate(urlToOpen);
+          }
+          return;
+        }
+      }
+      // If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});
+
+// Notification close handler
+self.addEventListener('notificationclose', (event) => {
+  console.log('[Service Worker] Notification closed');
 });

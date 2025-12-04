@@ -1,6 +1,6 @@
-# CampusAffordHub Mobile App Deployment Guide
+# The University Hub Mobile App Deployment Guide
 
-This guide will help you deploy CampusAffordHub to the Apple App Store and Google Play Store using Capacitor.
+This guide will help you deploy The University Hub to the Apple App Store and Google Play Store using Capacitor.
 
 ## Prerequisites
 
@@ -49,8 +49,8 @@ This opens your app in Xcode.
 
 1. **Select your project** in the left sidebar (the blue "App" icon)
 2. **General tab**:
-   - Display Name: `CampusAffordHub`
-   - Bundle Identifier: `com.campusaffordhub.app` (must be unique)
+   - Display Name: `The University Hub`
+   - Bundle Identifier: `com.theuniversityhub.app` (must be unique)
    - Version: `1.0.0`
    - Build: `1`
    - Team: Select your Apple Developer team
@@ -130,7 +130,7 @@ This opens your app in Android Studio.
 
 1. **Create keystore** (first time only):
    ```bash
-   keytool -genkey -v -keystore campusstore-release.keystore -alias campusstore -keyalg RSA -keysize 2048 -validity 10000
+   keytool -genkey -v -keystore universityhub-release.keystore -alias universityhub -keyalg RSA -keysize 2048 -validity 10000
    ```
    - Save the keystore file safely
    - Remember the password!

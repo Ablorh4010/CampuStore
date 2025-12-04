@@ -1,6 +1,6 @@
 # Meta WhatsApp Business API Setup Guide
 
-This guide will help you set up Meta for Developers WhatsApp Business API for OTP verification in CampusAffordHub.
+This guide will help you set up Meta for Developers WhatsApp Business API for OTP verification in The University Hub.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ This guide will help you set up Meta for Developers WhatsApp Business API for OT
 2. Click **"Create App"**
 3. Select **"Business"** as the app type
 4. Fill in your app details:
-   - App name: e.g., "CampusAffordHub"
+   - App name: e.g., "The University Hub"
    - Contact email: your email
    - Business account: select your business account
 5. Click **"Create App"**
@@ -47,7 +47,7 @@ This guide will help you set up Meta for Developers WhatsApp Business API for OT
 1. Go to **Business Settings** (https://business.facebook.com/settings)
 2. Navigate to **"Users" > "System Users"**
 3. Click **"Add"** to create a new system user
-4. Give it a name like "CampusAffordHub WhatsApp Service"
+4. Give it a name like "The University Hub WhatsApp Service"
 5. Assign the system user to your app with **"Admin"** access
 6. Click **"Generate New Token"**
 7. Select your app and check the following permissions:
@@ -78,7 +78,7 @@ For better delivery rates, create a pre-approved message template:
    - **Languages**: English
    - **Body**: 
      ```
-     Your CampusAffordHub verification code is {{1}}. This code is valid for 10 minutes. Do not share this code with anyone.
+     Your The University Hub verification code is {{1}}. This code is valid for 10 minutes. Do not share this code with anyone.
      ```
    - **Button**: Add a copy code button with the code {{1}}
 

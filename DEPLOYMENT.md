@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide provides step-by-step instructions for deploying CampusAffordHub to production.
+This guide provides step-by-step instructions for deploying The University Hub to production.
 
 ## Pre-Deployment Checklist
 
@@ -17,7 +17,7 @@ This guide provides step-by-step instructions for deploying CampusAffordHub to p
 ### Step 1: Import Project
 1. Go to https://replit.com
 2. Click "Create Repl"
-3. Import from GitHub: `https://github.com/Ablorh4010/CampuStore`
+3. Import from GitHub: `https://github.com/Ablorh4010/TheUniversityHub`
 
 ### Step 2: Configure Environment
 1. Open the "Secrets" tab (Tools > Secrets)
@@ -146,7 +146,7 @@ railway up
 1. Click "New +" → "Web Service"
 2. Connect your GitHub repository
 3. Configure:
-   - Name: `campusstore`
+   - Name: `theuniversityhub`
    - Environment: `Node`
    - Build Command: `npm install && npm run build`
    - Start Command: `npm start`

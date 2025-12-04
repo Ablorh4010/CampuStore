@@ -77,3 +77,34 @@ export async function requireAdmin(
 
   next();
 }
+
+// Socket.IO authentication helper
+export async function authenticateTokenForSocket(token: string): Promise<{
+  id: number;
+  firstName: string;
+  lastName: string;
+  avatar: string | null;
+} | null> {
+  try {
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return null;
+    }
+
+    const { storage } = await import('./storage');
+    const user = await storage.getUserById(decoded.userId);
+    
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatar: user.avatar
+    };
+  } catch (error) {
+    return null;
+  }
+}

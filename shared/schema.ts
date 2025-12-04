@@ -140,6 +140,172 @@ export const otpCodes = pgTable("otp_codes", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Events calendar for clubs and organizations
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
+  organizerId: integer("organizer_id").notNull().references(() => users.id),
+  clubId: integer("club_id").references(() => clubs.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  location: text("location"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  image: text("image"),
+  eventType: text("event_type").notNull().default("general"), // general, sale, meetup, workshop
+  isPublic: boolean("is_public").notNull().default(true),
+  maxAttendees: integer("max_attendees"),
+  university: text("university"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Event RSVPs/registrations
+export const eventRsvps = pgTable("event_rsvps", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("attending"), // attending, interested, declined
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Clubs and organizations
+export const clubs = pgTable("clubs", {
+  id: serial("id").primaryKey(),
+  ownerId: integer("owner_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  logo: text("logo"),
+  coverImage: text("cover_image"),
+  university: text("university").notNull(),
+  category: text("category").notNull(), // academic, social, sports, arts, tech
+  isVerified: boolean("is_verified").notNull().default(false),
+  memberCount: integer("member_count").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Club memberships
+export const clubMemberships = pgTable("club_memberships", {
+  id: serial("id").primaryKey(),
+  clubId: integer("club_id").notNull().references(() => clubs.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("member"), // owner, admin, member
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
+// Auctions/Bidding system
+export const auctions = pgTable("auctions", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
+  startingPrice: decimal("starting_price", { precision: 10, scale: 2 }).notNull(),
+  currentBid: decimal("current_bid", { precision: 10, scale: 2 }),
+  reservePrice: decimal("reserve_price", { precision: 10, scale: 2 }),
+  buyNowPrice: decimal("buy_now_price", { precision: 10, scale: 2 }),
+  highestBidderId: integer("highest_bidder_id").references(() => users.id),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  status: text("status").notNull().default("active"), // active, ended, sold, cancelled
+  bidCount: integer("bid_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Auction bids
+export const auctionBids = pgTable("auction_bids", {
+  id: serial("id").primaryKey(),
+  auctionId: integer("auction_id").notNull().references(() => auctions.id),
+  bidderId: integer("bidder_id").notNull().references(() => users.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  isWinning: boolean("is_winning").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Study groups
+export const studyGroups = pgTable("study_groups", {
+  id: serial("id").primaryKey(),
+  creatorId: integer("creator_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  course: text("course").notNull(), // Course code or name
+  university: text("university").notNull(),
+  maxMembers: integer("max_members").notNull().default(10),
+  memberCount: integer("member_count").notNull().default(1),
+  meetingSchedule: text("meeting_schedule"),
+  meetingLocation: text("meeting_location"),
+  isOpen: boolean("is_open").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Study group memberships
+export const studyGroupMemberships = pgTable("study_group_memberships", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull().references(() => studyGroups.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("member"), // creator, member
+  status: text("status").notNull().default("active"), // active, pending, removed
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
+// User follows (social connections)
+export const userFollows = pgTable("user_follows", {
+  id: serial("id").primaryKey(),
+  followerId: integer("follower_id").notNull().references(() => users.id),
+  followingId: integer("following_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Seller reviews
+export const sellerReviews = pgTable("seller_reviews", {
+  id: serial("id").primaryKey(),
+  reviewerId: integer("reviewer_id").notNull().references(() => users.id),
+  sellerId: integer("seller_id").notNull().references(() => users.id),
+  orderId: integer("order_id").references(() => orders.id),
+  rating: integer("rating").notNull(), // 1-5
+  comment: text("comment"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Gamification - Badges
+export const badges = pgTable("badges", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(),
+  category: text("category").notNull(), // buyer, seller, community
+  requirement: text("requirement").notNull(), // Description of how to earn
+  points: integer("points").notNull().default(10),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// User badges
+export const userBadges = pgTable("user_badges", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  badgeId: integer("badge_id").notNull().references(() => badges.id),
+  earnedAt: timestamp("earned_at").notNull().defaultNow(),
+});
+
+// Gamification points/rewards
+export const userPoints = pgTable("user_points", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  points: integer("points").notNull().default(0),
+  lifetimePoints: integer("lifetime_points").notNull().default(0),
+  level: integer("level").notNull().default(1),
+  streak: integer("streak").notNull().default(0), // Daily activity streak
+  lastActivityAt: timestamp("last_activity_at"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Points history/transactions
+export const pointsHistory = pgTable("points_history", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  points: integer("points").notNull(),
+  reason: text("reason").notNull(), // purchase, sale, review, referral, etc.
+  referenceId: integer("reference_id"), // ID of related entity
+  referenceType: text("reference_type"), // order, review, badge, etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -200,6 +366,85 @@ export const insertOtpSchema = createInsertSchema(otpCodes).omit({
   createdAt: true,
 });
 
+// Event schemas
+export const insertEventSchema = createInsertSchema(events).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Club schemas
+export const insertClubSchema = createInsertSchema(clubs).omit({
+  id: true,
+  isVerified: true,
+  memberCount: true,
+  createdAt: true,
+});
+
+export const insertClubMembershipSchema = createInsertSchema(clubMemberships).omit({
+  id: true,
+  joinedAt: true,
+});
+
+// Auction schemas
+export const insertAuctionSchema = createInsertSchema(auctions).omit({
+  id: true,
+  currentBid: true,
+  highestBidderId: true,
+  bidCount: true,
+  status: true,
+  createdAt: true,
+});
+
+export const insertAuctionBidSchema = createInsertSchema(auctionBids).omit({
+  id: true,
+  isWinning: true,
+  createdAt: true,
+});
+
+// Study group schemas
+export const insertStudyGroupSchema = createInsertSchema(studyGroups).omit({
+  id: true,
+  memberCount: true,
+  createdAt: true,
+});
+
+export const insertStudyGroupMembershipSchema = createInsertSchema(studyGroupMemberships).omit({
+  id: true,
+  joinedAt: true,
+});
+
+// Social schemas
+export const insertUserFollowSchema = createInsertSchema(userFollows).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSellerReviewSchema = createInsertSchema(sellerReviews).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Gamification schemas
+export const insertBadgeSchema = createInsertSchema(badges).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
+  id: true,
+  earnedAt: true,
+});
+
+export const insertPointsHistorySchema = createInsertSchema(pointsHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -216,6 +461,40 @@ export type CartItem = typeof cartItems.$inferSelect;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type OtpCode = typeof otpCodes.$inferSelect;
 export type InsertOtp = z.infer<typeof insertOtpSchema>;
+
+// New feature types
+export type Event = typeof events.$inferSelect;
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type EventRsvp = typeof eventRsvps.$inferSelect;
+export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
+
+export type Club = typeof clubs.$inferSelect;
+export type InsertClub = z.infer<typeof insertClubSchema>;
+export type ClubMembership = typeof clubMemberships.$inferSelect;
+export type InsertClubMembership = z.infer<typeof insertClubMembershipSchema>;
+
+export type Auction = typeof auctions.$inferSelect;
+export type InsertAuction = z.infer<typeof insertAuctionSchema>;
+export type AuctionBid = typeof auctionBids.$inferSelect;
+export type InsertAuctionBid = z.infer<typeof insertAuctionBidSchema>;
+
+export type StudyGroup = typeof studyGroups.$inferSelect;
+export type InsertStudyGroup = z.infer<typeof insertStudyGroupSchema>;
+export type StudyGroupMembership = typeof studyGroupMemberships.$inferSelect;
+export type InsertStudyGroupMembership = z.infer<typeof insertStudyGroupMembershipSchema>;
+
+export type UserFollow = typeof userFollows.$inferSelect;
+export type InsertUserFollow = z.infer<typeof insertUserFollowSchema>;
+export type SellerReview = typeof sellerReviews.$inferSelect;
+export type InsertSellerReview = z.infer<typeof insertSellerReviewSchema>;
+
+export type Badge = typeof badges.$inferSelect;
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+export type UserBadge = typeof userBadges.$inferSelect;
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+export type UserPoints = typeof userPoints.$inferSelect;
+export type PointsHistory = typeof pointsHistory.$inferSelect;
+export type InsertPointsHistory = z.infer<typeof insertPointsHistorySchema>;
 
 // Extended types for API responses
 export type ProductWithStore = Product & {

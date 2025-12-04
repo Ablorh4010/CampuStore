@@ -5,6 +5,7 @@ import type { User } from '@shared/schema';
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isLoading: boolean;
   login: (credentials: {
     email?: string;
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [countryCode, setCountryCode] = useState<string>('US');
   const queryClient = useQueryClient();
 
@@ -46,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       setUser(data.user);
+      setToken(data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
     },
@@ -65,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       setUser(data.user);
+      setToken(data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
     },
@@ -83,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       setUser(data.user);
+      setToken(data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);
     },
@@ -118,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    setToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     queryClient.clear();
@@ -138,13 +144,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (stored) {
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
+    if (storedUser) {
       try {
-        setUser(JSON.parse(stored));
+        setUser(JSON.parse(storedUser));
       } catch (error) {
         localStorage.removeItem('user');
       }
+    }
+    if (storedToken) {
+      setToken(storedToken);
     }
     detectCountry();
   }, []);
@@ -153,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        token,
         isLoading: loginMutation.isPending || registerMutation.isPending || registerAdminMutation.isPending || sendOtpMutation.isPending,
         login,
         register,

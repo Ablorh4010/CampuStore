@@ -11,7 +11,7 @@ export default function About() {
               <GraduationCap className="h-10 w-10 text-white" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">About CampusAffordHub</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">About The University Hub</h1>
           <p className="text-xl text-gray-600">the student market place</p>
         </div>
 
@@ -25,7 +25,7 @@ export default function About() {
             </CardHeader>
             <CardContent>
               <p className="text-gray-700 leading-relaxed">
-                CampusAffordHub is dedicated to creating a safe, convenient, and student-friendly marketplace
+                The University Hub is dedicated to creating a safe, convenient, and student-friendly marketplace
                 that connects university students for buying and selling items. We believe in fostering a sustainable
                 campus community where students can easily trade textbooks, electronics, furniture, and more—all
                 while staying within their campus ecosystem.
@@ -37,7 +37,7 @@ export default function About() {
             <CardHeader>
               <div className="flex items-center mb-2">
                 <Users className="h-6 w-6 text-purple-600 mr-2" />
-                <CardTitle>Why CampusAffordHub?</CardTitle>
+                <CardTitle>Why The University Hub?</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
@@ -98,7 +98,7 @@ export default function About() {
 
         <div className="text-center">
           <p className="text-gray-600 mb-4">
-            Join thousands of students already using CampusAffordHub to buy and sell on campus.
+            Join thousands of students already using The University Hub to buy and sell on campus.
           </p>
           <a
             href="/auth"

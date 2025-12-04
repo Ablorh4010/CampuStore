@@ -1,7 +1,7 @@
 # Registration and Authentication System Implementation
 
 ## Overview
-This implementation provides a comprehensive authentication and verification system for CampusAffordHub with clear separation between buyers, sellers, and administrators.
+This implementation provides a comprehensive authentication and verification system for The University Hub with clear separation between buyers, sellers, and administrators.
 
 ## Key Features Implemented
 
