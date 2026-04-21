@@ -332,12 +332,12 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   approvalStatus: true,
   createdAt: true,
 }).extend({
-  campus: z.string().optional(),
-  address: z.string().optional(),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
-  shippingModes: z.array(z.enum(['seller_delivery', 'affordcampus_pickup', 'ems'])).optional(),
-  deliveryRadius: z.number().optional(),
+  campus: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  latitude: z.string().nullable().optional(),
+  longitude: z.string().nullable().optional(),
+  shippingModes: z.array(z.enum(['seller_delivery', 'affordcampus_pickup', 'ems'])).nullable().optional(),
+  deliveryRadius: z.number().nullable().optional(),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({

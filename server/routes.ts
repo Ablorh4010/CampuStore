@@ -504,7 +504,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const store = await storage.createStore(storeData);
       res.json(store);
     } catch (error) {
-      res.status(400).json({ message: "Invalid store data" });
+      console.error("Store creation validation error:", error);
+      res.status(400).json({ message: "Invalid store data", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -744,7 +745,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const product = await storage.createProduct(productData);
       res.json(product);
     } catch (error) {
-      res.status(400).json({ message: "Invalid product data" });
+      console.error("Product creation validation error:", error);
+      res.status(400).json({ message: "Invalid product data", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
