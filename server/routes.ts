@@ -16,12 +16,14 @@ import path from "path";
 import Stripe from "stripe";
 import rateLimit from "express-rate-limit";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-10-29.clover",
+  });
+} else {
+  console.warn('Warning: STRIPE_SECRET_KEY is missing. Payment features will be disabled.');
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-10-29.clover",
-});
 
 // Rate limiters
 const authLimiter = rateLimit({
