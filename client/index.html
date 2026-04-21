@@ -24,10 +24,10 @@
         }, 1000);
       });
       
-      // Register service worker for PWA (use relative path so it works when hosted from a subpath)
+      // Register service worker for PWA (use absolute path so it works on subpages)
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
+          navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered:', registration);
             })
