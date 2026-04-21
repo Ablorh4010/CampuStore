@@ -17,9 +17,11 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -213,6 +215,11 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Product</DialogTitle>
+          <VisuallyHidden>
+            <DialogDescription>
+              Add a new product to your student store.
+            </DialogDescription>
+          </VisuallyHidden>
         </DialogHeader>
 
         <Form {...form}>

@@ -8,9 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -83,6 +85,11 @@ export default function StoreForm({ isOpen, onClose }: StoreFormProps) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Create Your Store</DialogTitle>
+          <VisuallyHidden>
+            <DialogDescription>
+              Create your student store and start selling.
+            </DialogDescription>
+          </VisuallyHidden>
         </DialogHeader>
 
         <Form {...form}>
