@@ -327,6 +327,7 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   id: true,
   rating: true,
   reviewCount: true,
+  isActive: true,
   createdAt: true,
 }).extend({
   campus: z.string().optional(),
