@@ -1,41 +1,42 @@
-const CACHE_NAME = 'theuniversityhub-v2';
+const CACHE_NAME = 'theuniversityhub-v3';
 
 // Install service worker
 self.addEventListener('install', (event) => {
   console.log('[Service Worker] Installing...');
-  // Skip waiting to activate immediately
   self.skipWaiting();
 });
 
-// Cache and return requests - stale-while-revalidate strategy
+// Cache and return requests
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
-  if (event.request.method !== 'GET') {
+  if (event.request.method !== 'GET') return;
+  if (!event.request.url.startsWith('http')) return;
+
+  const url = new URL(event.request.url);
+
+  // Network-first for HTML pages to prevent stale asset links
+  if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
 
-  // Skip chrome extensions and non-http(s) requests
-  if (!event.request.url.startsWith('http')) {
-    return;
-  }
-
+  // Stale-while-revalidate for assets
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.match(event.request).then((cachedResponse) => {
-        const fetchPromise = fetch(event.request)
-          .then((networkResponse) => {
-            // Only cache successful responses
-            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-              cache.put(event.request, networkResponse.clone());
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Return cached response if network fails
-            return cachedResponse;
-          });
-
-        // Return cached response immediately, update cache in background
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        });
         return cachedResponse || fetchPromise;
       });
     })
