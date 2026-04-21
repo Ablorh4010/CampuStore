@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
-import CategoryNav from './category-nav';
+import { useQuery } from '@tanstack/react-query';
+import type { Category, Store as StoreType } from '@shared/schema';
 import logoImage from '@assets/generated_images/CampusStore_app_icon_7f47d6f5.png';
 
 export default function Header() {
@@ -25,6 +26,14 @@ export default function Header() {
   const { cartCount, openCart } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+  });
+
+  const { data: stores = [] } = useQuery<StoreType[]>({
+    queryKey: ['/api/stores'],
+  });
   
   // Show Sign In button only on My Store (dashboard) page
   const shouldShowSignIn = !user && location === '/dashboard';
@@ -99,100 +108,131 @@ export default function Header() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* Mode Toggle */}
-            <div className="flex bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-1 shadow-sm border">
-              <Link href="/browse">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="bg-white text-primary shadow-md rounded-lg border border-primary/20 font-medium"
-                >
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Browse
-                </Button>
-              </Link>
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="text-gray-600 hover:text-primary font-medium ml-1">
-                  <Store className="h-4 w-4 mr-2" />
-                  My Store
-                </Button>
-              </Link>
-            </div>
-
-            {/* Cart */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={openCart}
-              className="relative"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs"
-                >
-                  {cartCount}
-                </Badge>
-              )}
-            </Button>
-
-            {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs"
-              >
-                2
-              </Badge>
-            </Button>
-
-            {/* Profile */}
-            {user ? (
+          <div className="hidden md:flex items-center space-x-6">
+            <nav className="flex items-center space-x-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar || ''} alt={user.firstName} />
-                      <AvatarFallback>
-                        {user.firstName[0]}{user.lastName[0]}
-                      </AvatarFallback>
-                    </Avatar>
+                  <Button variant="ghost" size="sm" className="font-medium flex items-center">
+                    Categories <ChevronDown className="ml-1 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleProfileAction('dashboard')}>
-                    Dashboard
-                  </DropdownMenuItem>
-                  {user.isAdmin && (
-                    <DropdownMenuItem onClick={() => handleProfileAction('admin')}>
-                      <Shield className="mr-2 h-4 w-4" />
-                      Admin Portal
+                <DropdownMenuContent className="w-56 max-h-[70vh] overflow-y-auto">
+                  {categories.map((category) => (
+                    <DropdownMenuItem 
+                      key={category.id}
+                      onClick={() => setLocation(`/browse?categoryId=${category.id}`)}
+                    >
+                      {category.name}
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => handleProfileAction('logout')}>
-                    Log out
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLocation('/browse')}>
+                    View All Categories
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : shouldShowSignIn ? (
-              <Link href="/auth">
-                <Button data-testid="button-sign-in">Sign In</Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="font-medium flex items-center">
+                    Stores <ChevronDown className="ml-1 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 max-h-[70vh] overflow-y-auto">
+                  {stores.slice(0, 10).map((store) => (
+                    <DropdownMenuItem 
+                      key={store.id}
+                      onClick={() => setLocation(`/store/${store.id}`)}
+                    >
+                      {store.name}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLocation('/browse')}>
+                    View All Stores
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Link href="/browse">
+                <Button variant="ghost" size="sm" className="font-medium">
+                  Latest Deals
+                </Button>
               </Link>
-            ) : null}
+            </nav>
+
+            <div className="h-6 w-px bg-gray-200"></div>
+
+            <div className="flex items-center space-x-3">
+              <Link href="/dashboard">
+                <Button variant="outline" size="sm" className="font-medium flex items-center border-primary/20 hover:border-primary/50 text-primary">
+                  <Store className="h-4 w-4 mr-2" />
+                  Sell Items
+                </Button>
+              </Link>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={openCart}
+                className="relative"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs"
+                  >
+                    {cartCount}
+                  </Badge>
+                )}
+              </Button>
+
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={user.avatar || ''} alt={user.firstName} />
+                        <AvatarFallback className="bg-primary/5 text-primary">
+                          {user.firstName[0]}{user.lastName[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleProfileAction('dashboard')}>
+                      Seller Dashboard
+                    </DropdownMenuItem>
+                    {user.isAdmin && (
+                      <DropdownMenuItem onClick={() => handleProfileAction('admin')}>
+                        <Shield className="mr-2 h-4 w-4" />
+                        Admin Portal
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleProfileAction('logout')} className="text-red-600 focus:text-red-600">
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link href="/auth">
+                  <Button size="sm">Sign In</Button>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
@@ -257,8 +297,6 @@ export default function Header() {
           </form>
         </div>
       </div>
-      
-      <CategoryNav />
     </header>
   );
 }

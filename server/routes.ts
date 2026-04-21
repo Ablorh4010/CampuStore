@@ -807,8 +807,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const store = await storage.getStoreById(existingProduct.storeId);
-      if (!store || store.userId !== req.userId) {
-        return res.status(403).json({ message: "Cannot update another user's product" });
+      if (!store || (store.userId !== req.userId && !req.user?.isAdmin)) {
+        return res.status(403).json({ message: "You do not have permission to update this product" });
       }
 
       const productData = req.body;
