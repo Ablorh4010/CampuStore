@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield } from 'lucide-react';
+import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
