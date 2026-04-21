@@ -59,6 +59,7 @@ export const stores = pgTable("stores", {
   rating: decimal("rating", { precision: 3, scale: 2 }).notNull().default("0"),
   reviewCount: integer("review_count").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
   
   // Shipping and location details
   address: text("address"), // Full address
@@ -328,6 +329,7 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   rating: true,
   reviewCount: true,
   isActive: true,
+  approvalStatus: true,
   createdAt: true,
 }).extend({
   campus: z.string().optional(),

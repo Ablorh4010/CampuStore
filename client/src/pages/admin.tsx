@@ -6,926 +6,301 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, Edit, Upload, Link as LinkIcon, Download, Plus, ImagePlus } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { insertProductSchema, type InsertProduct } from '@shared/schema';
-import type { ProductWithStore, Category, Store } from '@shared/schema';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { ProductWithStore, StoreWithUser } from '@shared/schema';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState('pending');
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [importUrl, setImportUrl] = useState('');
-  const [importApiKey, setImportApiKey] = useState('');
-  const [importPlatform, setImportPlatform] = useState('csv');
-  const [selectedStore, setSelectedStore] = useState<string>('');
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [activeTab, setActiveTab] = useState('pending-products');
 
-  // Redirect if not admin (using useEffect to avoid render-time side effects)
+  // Deletion feedback state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; type: 'product' | 'store'; title: string } | null>(null);
+  const [adminFeedback, setAdminFeedback] = useState('');
+
+  // Redirect if not admin
   useEffect(() => {
     if (!user || !user.isAdmin) {
       setLocation('/');
     }
   }, [user, setLocation]);
 
-  // Show loading while redirecting
-  if (!user || !user.isAdmin) {
-    return null;
-  }
-
-  const { data: allProducts = [], isLoading } = useQuery<ProductWithStore[]>({
+  const { data: allProducts = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/admin/products'],
+    enabled: !!user?.isAdmin
   });
 
-  const { data: stores = [] } = useQuery<Store[]>({
-    queryKey: ['/api/stores'],
+  const { data: pendingStores = [], isLoading: storesLoading } = useQuery<StoreWithUser[]>({
+    queryKey: ['/api/admin/stores/pending'],
+    enabled: !!user?.isAdmin
   });
 
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
-  });
+  if (!user || !user.isAdmin) return null;
 
-  // Form for adding products
-  const addProductForm = useForm<InsertProduct>({
-    resolver: zodResolver(insertProductSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      price: '0',
-      condition: 'new',
-      images: [],
-    },
-  });
-
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ productId, status }: { productId: number; status: string }) =>
-      apiRequest('PUT', `/api/admin/products/${productId}/approval`, { status }),
-    onSuccess: () => {
-      // Invalidate admin products list
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
-      // Invalidate public product listings (featured, browse, etc.)
-      queryClient.invalidateQueries({ queryKey: ['/api/products/featured'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
-      toast({
-        title: 'Success',
-        description: 'Product status updated successfully',
-      });
-    },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to update product status',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleApprove = (productId: number) => {
-    updateStatusMutation.mutate({ productId, status: 'approved' });
-  };
-
-  const handleReject = (productId: number) => {
-    updateStatusMutation.mutate({ productId, status: 'rejected' });
-  };
-
-  const uploadImageMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      const uploadedUrls: string[] = [];
-      const token = localStorage.getItem('token');
-      
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append('image', file);
-        
-        const response = await fetch('/api/upload/product', {
-          method: 'POST',
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-          body: formData,
-        });
-        
-        if (!response.ok) throw new Error('Image upload failed');
-        const data = await response.json();
-        uploadedUrls.push(data.url);
-      }
-      
-      return uploadedUrls;
-    },
-    onSuccess: (urls) => {
-      setUploadedImages(prev => [...prev, ...urls]);
-      toast({
-        title: 'Success',
-        description: `${urls.length} image(s) uploaded successfully`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to upload images',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const createProductMutation = useMutation({
-    mutationFn: async (data: InsertProduct) => {
-      return apiRequest('POST', '/api/admin/products', data);
-    },
+  const updateProductStatusMutation = useMutation({
+    mutationFn: ({ productId, status, feedback }: { productId: number; status: string; feedback?: string }) =>
+      apiRequest('PUT', `/api/admin/products/${productId}/approval`, { status, feedback }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
-      toast({
-        title: 'Success',
-        description: 'Product created and auto-approved successfully',
-      });
-      addProductForm.reset();
-      setUploadedImages([]);
-      setImageFiles([]);
-    },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to create product',
-        variant: 'destructive',
-      });
+      toast({ title: 'Success', description: 'Product status updated' });
     },
   });
 
-  const handleImageSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + uploadedImages.length > 5) {
-      toast({
-        title: 'Too many images',
-        description: 'Maximum 5 images allowed per product',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setImageFiles(prev => [...prev, ...files]);
-    uploadImageMutation.mutate(files);
-  };
+  const updateStoreStatusMutation = useMutation({
+    mutationFn: ({ storeId, status, feedback }: { storeId: number; status: string; feedback?: string }) =>
+      apiRequest('PUT', `/api/admin/stores/${storeId}/approval`, { status, feedback }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+      toast({ title: 'Success', description: 'Store status updated' });
+    },
+  });
 
-  const removeImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
-  };
+  const deleteItemMutation = useMutation({
+    mutationFn: async ({ id, type, feedback }: { id: number; type: 'product' | 'store'; feedback: string }) => {
+      return apiRequest('DELETE', `/api/admin/${type}s/${id}`, { feedback });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+      toast({ title: 'Item Deleted', description: 'The owner has been notified via email.' });
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
+      setAdminFeedback('');
+    },
+  });
 
-  const handleCreateProduct = (data: InsertProduct) => {
-    if (uploadedImages.length === 0) {
-      toast({
-        title: 'Missing images',
-        description: 'Please upload at least one product image',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    createProductMutation.mutate({
-      ...data,
-      images: uploadedImages,
+  const confirmDelete = () => {
+    if (!itemToDelete) return;
+    deleteItemMutation.mutate({ 
+      id: itemToDelete.id, 
+      type: itemToDelete.type, 
+      feedback: adminFeedback 
     });
   };
 
-  const importProductsMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const token = localStorage.getItem('token');
-      const headers: Record<string, string> = {};
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch('/api/admin/products/import', {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
-      if (!response.ok) throw new Error('Import failed');
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
-      
-      const hasErrors = data.errors && data.errors.length > 0;
-      toast({
-        title: hasErrors ? 'Import Completed with Warnings' : 'Success',
-        description: data.message || `Imported ${data.count} products successfully`,
-        variant: hasErrors ? 'default' : 'default',
-      });
-
-      if (hasErrors) {
-        console.warn('Import errors:', data.errors);
-      }
-
-      setCsvFile(null);
-      setImportUrl('');
-      setImportApiKey('');
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Import Failed',
-        description: error.message || 'Failed to import products',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleCsvImport = () => {
-    if (!csvFile || !selectedStore) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please select a CSV file and choose a store',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', csvFile);
-    formData.append('storeId', selectedStore);
-
-    importProductsMutation.mutate(formData);
-  };
-
-  const handleUrlImport = () => {
-    if (!importUrl || !selectedStore) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please enter a URL and choose a store',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('url', importUrl);
-    formData.append('platform', importPlatform);
-    formData.append('apiKey', importApiKey);
-    formData.append('storeId', selectedStore);
-
-    importProductsMutation.mutate(formData);
-  };
-
-  const downloadTemplate = () => {
-    const csvContent = 'title,description,price,originalPrice,condition,categoryId,images\n' +
-      '"Example Product","Product description here",29.99,39.99,new,1,https://example.com/image1.jpg|https://example.com/image2.jpg\n' +
-      '"Used Textbook, Biology","Biology textbook, good condition",15.00,50.00,used,1,https://example.com/book.jpg';
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'product-import-template.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const pendingProducts = allProducts.filter(p => p.approvalStatus === 'pending');
-  const approvedProducts = allProducts.filter(p => p.approvalStatus === 'approved');
-  const rejectedProducts = allProducts.filter(p => p.approvalStatus === 'rejected');
-
-  const renderProductCard = (product: ProductWithStore, showActions = true) => (
-    <Card key={product.id} className="mb-4" data-testid={`product-card-${product.id}`}>
-      <CardHeader>
+  const renderProductCard = (product: ProductWithStore) => (
+    <Card key={product.id} className="mb-4 overflow-hidden border-l-4 border-l-primary/20">
+      <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div className="flex-1">
-            <CardTitle className="text-lg" data-testid={`product-title-${product.id}`}>{product.title}</CardTitle>
-            <CardDescription>
-              Store: {product.store.name} | Category: {product.category.name}
-            </CardDescription>
-            <div className="mt-2 flex gap-2 items-center">
-              <span className="text-xl font-bold text-primary">${product.price}</span>
-              <Badge 
-                variant={product.approvalStatus === 'approved' ? 'default' : 
-                        product.approvalStatus === 'rejected' ? 'destructive' : 'secondary'}
-                data-testid={`status-badge-${product.id}`}
-              >
-                {product.approvalStatus}
+            <div className="flex items-center gap-2 mb-1">
+              <Badge variant={product.approvalStatus === 'approved' ? 'default' : product.approvalStatus === 'rejected' ? 'destructive' : 'secondary'}>
+                {product.approvalStatus.toUpperCase()}
               </Badge>
+              <span className="text-xs text-gray-500">ID: #{product.id}</span>
             </div>
+            <CardTitle className="text-lg font-bold">{product.title}</CardTitle>
+            <CardDescription className="flex items-center gap-1 mt-1">
+              <StoreIcon className="w-3 h-3" /> {product.store.name} 
+              <span className="mx-1">•</span>
+              <UserIcon className="w-3 h-3" /> {product.store.user.firstName}
+            </CardDescription>
           </div>
-          {product.images && product.images.length > 0 && (
-            <img 
-              src={product.images[0]} 
-              alt={product.title}
-              className="w-24 h-24 object-cover rounded ml-4"
-              data-testid={`product-image-${product.id}`}
-            />
+          {product.images?.[0] && (
+            <img src={product.images[0]} className="w-20 h-20 object-cover rounded-lg shadow-sm" alt="" />
           )}
         </div>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground mb-4" data-testid={`product-description-${product.id}`}>
-          {product.description}
-        </p>
-        <div className="flex gap-2 text-sm text-muted-foreground mb-4">
-          <span>Condition: {product.condition}</span>
-          <span>•</span>
-          <span>Seller: {product.store.user.firstName} {product.store.user.lastName}</span>
+        <div className="bg-gray-50 p-3 rounded-lg mb-4 text-sm italic border border-gray-100">
+          {product.description.substring(0, 150)}{product.description.length > 150 ? '...' : ''}
         </div>
-        {showActions && (
-          <div className="flex gap-2">
-            {product.approvalStatus !== 'approved' && (
-              <Button 
-                onClick={() => handleApprove(product.id)}
-                disabled={updateStatusMutation.isPending}
-                className="bg-green-600 hover:bg-green-700"
-                data-testid={`button-approve-${product.id}`}
-              >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Approve
-              </Button>
-            )}
-            {product.approvalStatus !== 'rejected' && (
-              <Button 
-                onClick={() => handleReject(product.id)}
-                disabled={updateStatusMutation.isPending}
-                variant="destructive"
-                data-testid={`button-reject-${product.id}`}
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                Reject
-              </Button>
-            )}
-            <Button 
-              onClick={() => setLocation(`/product/${product.id}`)}
-              variant="outline"
-              data-testid={`button-view-${product.id}`}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              View Details
+        <div className="flex flex-wrap gap-2">
+          {product.approvalStatus === 'pending' && (
+            <Button size="sm" className="bg-green-600 hover:bg-green-700 shadow-sm" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}>
+              <CheckCircle className="w-4 h-4 mr-1" /> Approve
             </Button>
-          </div>
-        )}
+          )}
+          <Button size="sm" variant="outline" onClick={() => setLocation(`/product/${product.id}`)}>View Listing</Button>
+          <Button size="sm" variant="destructive" className="ml-auto shadow-sm" onClick={() => {
+            setItemToDelete({ id: product.id, type: 'product', title: product.title });
+            setDeleteModalOpen(true);
+          }}>
+            <Trash2 className="w-4 h-4 mr-1" /> Remove
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
 
-  if (isLoading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <p data-testid="loading-text">Loading admin dashboard...</p>
-      </div>
-    );
-  }
+  const renderStoreCard = (store: StoreWithUser) => (
+    <Card key={store.id} className="mb-4 overflow-hidden border-l-4 border-l-yellow-400">
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">PENDING REVIEW</Badge>
+              <span className="text-xs text-gray-500">Store ID: #{store.id}</span>
+            </div>
+            <CardTitle className="text-xl font-black flex items-center gap-2">
+              <StoreIcon className="w-5 h-5 text-primary" />
+              {store.name}
+            </CardTitle>
+            <CardDescription className="font-medium text-gray-700 mt-1">
+              Owner: {store.user.firstName} {store.user.lastName} 
+              <span className="mx-2">|</span>
+              University: {store.university}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 shadow-inner">
+          <p className="text-sm text-blue-900 leading-relaxed">{store.description}</p>
+        </div>
+        <div className="flex gap-3">
+          <Button size="lg" className="bg-green-600 hover:bg-green-700 px-8 font-bold shadow-lg shadow-green-200" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
+            <CheckCircle className="w-5 h-5 mr-2" /> Approve Store
+          </Button>
+          <Button size="lg" variant="destructive" className="font-bold shadow-lg shadow-red-100" onClick={() => {
+            setItemToDelete({ id: store.id, type: 'store', title: store.name });
+            setDeleteModalOpen(true);
+          }}>
+            <Trash2 className="w-5 h-5 mr-2" /> Reject & Delete
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2" data-testid="admin-title">Admin Dashboard</h1>
-          <p className="text-gray-600" data-testid="admin-subtitle">Manage and approve seller product listings</p>
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+          <div>
+            <h1 className="text-5xl font-black text-gray-900 tracking-tighter">Admin Portal</h1>
+            <p className="text-xl text-gray-500 font-medium">Marketplace Moderation Engine</p>
+          </div>
+          <div className="flex gap-2">
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-4">
+               <div className="bg-primary/10 p-2 rounded-full"><Package className="w-6 h-6 text-primary" /></div>
+               <div>
+                 <p className="text-xs text-gray-400 font-bold uppercase">Total Products</p>
+                 <p className="text-xl font-black">{allProducts.length}</p>
+               </div>
+            </div>
+            <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-4">
+               <div className="bg-yellow-100 p-2 rounded-full"><StoreIcon className="w-6 h-6 text-yellow-600" /></div>
+               <div>
+                 <p className="text-xs text-gray-400 font-bold uppercase">Pending Stores</p>
+                 <p className="text-xl font-black">{pendingStores.length}</p>
+               </div>
+            </div>
+          </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-8" data-testid="admin-tabs">
-            <TabsTrigger value="add-product" data-testid="tab-add-product">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="relative" data-testid="tab-pending">
-              Pending
-              {pendingProducts.length > 0 && (
-                <Badge className="ml-2 bg-yellow-500" data-testid="pending-count">
-                  {pendingProducts.length}
-                </Badge>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <TabsList className="inline-flex h-14 items-center justify-center rounded-2xl bg-white p-2 shadow-sm border">
+            <TabsTrigger value="pending-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+              Pending Products
+              {allProducts.filter(p => p.approvalStatus === 'pending').length > 0 && (
+                <Badge className="ml-2 bg-red-500 border-none">{allProducts.filter(p => p.approvalStatus === 'pending').length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approved" data-testid="tab-approved">
-              Approved ({approvedProducts.length})
+            <TabsTrigger value="pending-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+              Pending Stores
+              {pendingStores.length > 0 && (
+                <Badge className="ml-2 bg-yellow-500 border-none">{pendingStores.length}</Badge>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="rejected" data-testid="tab-rejected">
-              Rejected ({rejectedProducts.length})
-            </TabsTrigger>
-            <TabsTrigger value="import" data-testid="tab-import">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
+            <TabsTrigger value="all-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+              Inventory
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="add-product" data-testid="content-add-product">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plus className="h-5 w-5 text-primary" />
-                  Add New Product
-                </CardTitle>
-                <CardDescription>
-                  Create a new product listing that will be automatically approved
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...addProductForm}>
-                  <form onSubmit={addProductForm.handleSubmit(handleCreateProduct)} className="space-y-6">
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <FormField
-                        control={addProductForm.control}
-                        name="storeId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Store *</FormLabel>
-                            <Select 
-                              onValueChange={(value) => field.onChange(parseInt(value))} 
-                              value={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger data-testid="select-product-store">
-                                  <SelectValue placeholder="Select a store" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {stores.map(store => (
-                                  <SelectItem key={store.id} value={store.id.toString()}>
-                                    {store.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={addProductForm.control}
-                        name="categoryId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Category *</FormLabel>
-                            <Select 
-                              onValueChange={(value) => field.onChange(parseInt(value))} 
-                              value={field.value?.toString()}
-                            >
-                              <FormControl>
-                                <SelectTrigger data-testid="select-product-category">
-                                  <SelectValue placeholder="Select a category" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {categories.map(category => (
-                                  <SelectItem key={category.id} value={category.id.toString()}>
-                                    {category.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={addProductForm.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Product Title *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="E.g., iPhone 13 Pro Max - Like New" 
-                              {...field} 
-                              data-testid="input-product-title"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={addProductForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description *</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Detailed product description..." 
-                              rows={4}
-                              {...field} 
-                              data-testid="input-product-description"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid gap-6 md:grid-cols-3">
-                      <FormField
-                        control={addProductForm.control}
-                        name="price"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Price *</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                step="0.01"
-                                placeholder="29.99" 
-                                {...field} 
-                                data-testid="input-product-price"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={addProductForm.control}
-                        name="originalPrice"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Original Price</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                step="0.01"
-                                placeholder="39.99" 
-                                {...field} 
-                                value={field.value || ''}
-                                data-testid="input-product-original-price"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={addProductForm.control}
-                        name="condition"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Condition *</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-product-condition">
-                                  <SelectValue placeholder="Select condition" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="new">New</SelectItem>
-                                <SelectItem value="like-new">Like New</SelectItem>
-                                <SelectItem value="used">Used</SelectItem>
-                                <SelectItem value="fair">Fair</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={addProductForm.control}
-                      name="specialOffer"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Special Offer (Optional)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="E.g., Free shipping, Buy 2 Get 1 Free" 
-                              {...field} 
-                              value={field.value || ''}
-                              data-testid="input-product-special-offer"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="space-y-4">
-                      <Label>Product Images *</Label>
-                      <div className="flex flex-wrap gap-4 mb-4">
-                        {uploadedImages.map((url, index) => (
-                          <div key={index} className="relative">
-                            <img 
-                              src={url} 
-                              alt={`Product ${index + 1}`}
-                              className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(index)}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                              data-testid={`button-remove-image-${index}`}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleImageSelection}
-                          disabled={uploadedImages.length >= 5 || uploadImageMutation.isPending}
-                          data-testid="input-product-images"
-                        />
-                        {uploadImageMutation.isPending && (
-                          <span className="text-sm text-muted-foreground">Uploading...</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Upload up to 5 images. First image will be the main product photo.
-                      </p>
-                    </div>
-
-                    <div className="flex gap-4">
-                      <Button
-                        type="submit"
-                        disabled={createProductMutation.isPending || uploadImageMutation.isPending}
-                        className="flex-1"
-                        data-testid="button-create-product"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        {createProductMutation.isPending ? 'Creating...' : 'Create Product'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          addProductForm.reset();
-                          setUploadedImages([]);
-                          setImageFiles([]);
-                        }}
-                        data-testid="button-reset-form"
-                      >
-                        Reset Form
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="pending" data-testid="content-pending">
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-600" />
-                  Pending Approval
-                </CardTitle>
-                <CardDescription>
-                  Review and approve or reject new product listings from sellers
-                </CardDescription>
-              </CardHeader>
-            </Card>
-            
-            {pendingProducts.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground" data-testid="no-pending">
-                    No pending products to review
-                  </p>
-                </CardContent>
-              </Card>
+          <TabsContent value="pending-products" className="mt-0">
+            {allProducts.filter(p => p.approvalStatus === 'pending').length === 0 ? (
+              <div className="text-center py-32 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200">
+                <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900">All Products Reviewed</h3>
+                <p className="text-gray-500 mt-2 max-w-sm mx-auto">The product queue is empty. You've approved all current submissions.</p>
+              </div>
             ) : (
-              pendingProducts.map(product => renderProductCard(product))
+              <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-500">
+                {allProducts.filter(p => p.approvalStatus === 'pending').map(renderProductCard)}
+              </div>
             )}
           </TabsContent>
 
-          <TabsContent value="approved" data-testid="content-approved">
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  Approved Products
-                </CardTitle>
-                <CardDescription>
-                  Products that are currently live on the marketplace
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            {approvedProducts.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground" data-testid="no-approved">
-                    No approved products
-                  </p>
-                </CardContent>
-              </Card>
+          <TabsContent value="pending-stores" className="mt-0">
+            {pendingStores.length === 0 ? (
+              <div className="text-center py-32 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200">
+                <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <StoreIcon className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900">No Pending Stores</h3>
+                <p className="text-gray-500 mt-2 max-w-sm mx-auto">There are no new student stores waiting for verification right now.</p>
+              </div>
             ) : (
-              approvedProducts.map(product => renderProductCard(product))
+              <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                {pendingStores.map(renderStoreCard)}
+              </div>
             )}
           </TabsContent>
 
-          <TabsContent value="rejected" data-testid="content-rejected">
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-red-600" />
-                  Rejected Products
-                </CardTitle>
-                <CardDescription>
-                  Products that did not meet marketplace guidelines
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            {rejectedProducts.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground" data-testid="no-rejected">
-                    No rejected products
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              rejectedProducts.map(product => renderProductCard(product))
-            )}
-          </TabsContent>
-
-          <TabsContent value="import" data-testid="content-import">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="h-5 w-5 text-primary" />
-                    CSV Import
-                  </CardTitle>
-                  <CardDescription>
-                    Upload a CSV file to import products in bulk
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="store-select">Select Store</Label>
-                    <Select value={selectedStore} onValueChange={setSelectedStore}>
-                      <SelectTrigger id="store-select" data-testid="select-store">
-                        <SelectValue placeholder="Choose a store" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stores.map(store => (
-                          <SelectItem key={store.id} value={store.id.toString()}>
-                            {store.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="csv-file">CSV File</Label>
-                    <Input
-                      id="csv-file"
-                      type="file"
-                      accept=".csv"
-                      onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                      data-testid="input-csv-file"
-                    />
-                    {csvFile && (
-                      <p className="text-sm text-muted-foreground">
-                        Selected: {csvFile.name}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={downloadTemplate}
-                      variant="outline"
-                      className="flex-1"
-                      data-testid="button-download-template"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Template
-                    </Button>
-                    <Button
-                      onClick={handleCsvImport}
-                      disabled={!csvFile || !selectedStore || importProductsMutation.isPending}
-                      className="flex-1"
-                      data-testid="button-import-csv"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {importProductsMutation.isPending ? 'Importing...' : 'Import CSV'}
-                    </Button>
-                  </div>
-
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 className="font-semibold text-sm mb-2">CSV Format:</h4>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Required columns: title, description, price, originalPrice, condition, categoryId, images
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      <strong>Multiple images:</strong> Separate with pipe (|): image1.jpg|image2.jpg
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Category IDs:</strong> {categories.map(c => `${c.name} (${c.id})`).join(', ')}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <LinkIcon className="h-5 w-5 text-primary" />
-                    Import from Store URL
-                  </CardTitle>
-                  <CardDescription>
-                    Sync products from Shopify, WooCommerce, or other ecommerce platforms
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="store-select-url">Select Store</Label>
-                    <Select value={selectedStore} onValueChange={setSelectedStore}>
-                      <SelectTrigger id="store-select-url" data-testid="select-store-url">
-                        <SelectValue placeholder="Choose a store" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stores.map(store => (
-                          <SelectItem key={store.id} value={store.id.toString()}>
-                            {store.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="platform">Platform</Label>
-                    <Select value={importPlatform} onValueChange={setImportPlatform}>
-                      <SelectTrigger id="platform" data-testid="select-platform">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="shopify">Shopify</SelectItem>
-                        <SelectItem value="woocommerce">WooCommerce</SelectItem>
-                        <SelectItem value="generic">Generic URL</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="store-url">Store URL</Label>
-                    <Input
-                      id="store-url"
-                      type="url"
-                      placeholder="https://your-store.myshopify.com"
-                      value={importUrl}
-                      onChange={(e) => setImportUrl(e.target.value)}
-                      data-testid="input-store-url"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="api-key">API Key / Access Token (Optional)</Label>
-                    <Input
-                      id="api-key"
-                      type="password"
-                      placeholder="Enter your API key"
-                      value={importApiKey}
-                      onChange={(e) => setImportApiKey(e.target.value)}
-                      data-testid="input-api-key"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Required for private stores or API access
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={handleUrlImport}
-                    disabled={!importUrl || !selectedStore || importProductsMutation.isPending}
-                    className="w-full"
-                    data-testid="button-import-url"
-                  >
-                    <LinkIcon className="h-4 w-4 mr-2" />
-                    {importProductsMutation.isPending ? 'Importing...' : 'Import from URL'}
-                  </Button>
-
-                  <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <h4 className="font-semibold text-sm mb-2">Platform Setup:</h4>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li><strong>Shopify:</strong> Use Admin API and create a private app</li>
-                      <li><strong>WooCommerce:</strong> Generate API keys in WooCommerce settings</li>
-                      <li><strong>Generic:</strong> Provide a public product feed URL</li>
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="all-products" className="mt-0">
+             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allProducts.map(renderProductCard)}
+              </div>
           </TabsContent>
         </Tabs>
+
+        {/* Delete with Feedback Modal */}
+        <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+          <DialogContent className="max-w-lg rounded-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-black text-red-600 flex items-center gap-2">
+                <Trash2 className="w-6 h-6" />
+                Confirm Removal
+              </DialogTitle>
+              <DialogDescription className="text-gray-600 font-medium">
+                You are about to remove <strong>{itemToDelete?.title}</strong> from the platform. 
+                Please provide feedback for the {itemToDelete?.type} owner.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-6">
+              <Label htmlFor="feedback" className="text-sm font-black uppercase text-gray-400 mb-2 block">
+                Feedback for Owner (Will be emailed)
+              </Label>
+              <Textarea 
+                id="feedback" 
+                placeholder="Ex: This product violates our safety guidelines regarding prohibited items. / This store name contains inappropriate language..."
+                value={adminFeedback}
+                onChange={(e) => setAdminFeedback(e.target.value)}
+                className="rounded-2xl border-2 focus:ring-red-500 focus:border-red-500 min-h-[150px] p-4 text-base"
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="ghost" className="rounded-xl font-bold h-12" onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
+              <Button 
+                variant="destructive" 
+                className="rounded-xl font-bold h-12 px-8"
+                onClick={confirmDelete}
+                disabled={!adminFeedback || deleteItemMutation.isPending}
+              >
+                {deleteItemMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                    Sending Email...
+                  </span>
+                ) : `Delete ${itemToDelete?.type === 'product' ? 'Listing' : 'Store'}`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

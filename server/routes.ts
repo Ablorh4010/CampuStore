@@ -15,6 +15,26 @@ import { generateToken, authenticateToken, requireAdmin, type AuthRequest } from
 import path from "path";
 import Stripe from "stripe";
 import rateLimit from "express-rate-limit";
+import { Resend } from 'resend';
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+async function sendEmail(to: string, subject: string, html: string) {
+  if (!resend) {
+    console.warn('Warning: RESEND_API_KEY is missing. Email skipped:', { to, subject });
+    return;
+  }
+  try {
+    await resend.emails.send({
+      from: 'The University Hub <notifications@theuniversityhub.com>',
+      to,
+      subject,
+      html,
+    });
+  } catch (error) {
+    console.error('Failed to send email:', error);
+  }
+}
 
 let stripe: Stripe | null = null;
 if (process.env.STRIPE_SECRET_KEY) {
@@ -1098,13 +1118,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin routes for product approval
+  // Admin routes for product and store approval
   app.get("/api/admin/products/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const pendingProducts = await storage.getPendingProducts();
       res.json(pendingProducts);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch pending products" });
+    }
+  });
+
+  app.get("/api/admin/stores/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const pendingStores = await storage.getPendingStores();
+      res.json(pendingStores);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending stores" });
+    }
+  });
+
+  app.put("/api/admin/products/:id/approval", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, feedback } = req.body;
+      
+      const product = await storage.updateProductApprovalStatus(id, status);
+      if (!product) return res.status(404).json({ message: "Product not found" });
+
+      // Notify seller
+      const store = await storage.getStoreById(product.storeId);
+      if (store) {
+        const seller = await storage.getUserById(store.userId);
+        if (seller && seller.email) {
+          const subject = status === 'approved' ? 'Product Approved!' : 'Update on your Product Listing';
+          const html = `
+            <h1>Product ${status === 'approved' ? 'Approved' : 'Status Update'}</h1>
+            <p>Your product "${product.title}" has been ${status}.</p>
+            ${feedback ? `<p><strong>Admin Feedback:</strong> ${feedback}</p>` : ''}
+            <p>Thank you for using The University Hub.</p>
+          `;
+          await sendEmail(seller.email, subject, html);
+        }
+      }
+
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update product status" });
+    }
+  });
+
+  app.put("/api/admin/stores/:id/approval", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, feedback } = req.body;
+      
+      const store = await storage.updateStoreApprovalStatus(id, status);
+      if (!store) return res.status(404).json({ message: "Store not found" });
+
+      // Notify seller
+      const seller = await storage.getUserById(store.userId);
+      if (seller && seller.email) {
+        const subject = status === 'approved' ? 'Store Approved!' : 'Update on your Store Status';
+        const html = `
+          <h1>Store ${status === 'approved' ? 'Approved' : 'Status Update'}</h1>
+          <p>Your store "${store.name}" has been ${status}.</p>
+          ${feedback ? `<p><strong>Admin Feedback:</strong> ${feedback}</p>` : ''}
+          <p>Thank you for using The University Hub.</p>
+        `;
+        await sendEmail(seller.email, subject, html);
+      }
+
+      res.json(store);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update store status" });
+    }
+  });
+
+  app.delete("/api/admin/stores/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { feedback } = req.body;
+      
+      const store = await storage.getStoreById(id);
+      if (!store) return res.status(404).json({ message: "Store not found" });
+
+      const seller = await storage.getUserById(store.userId);
+      const storeName = store.name;
+      
+      const deleted = await storage.deleteStore(id);
+      
+      if (deleted && seller && seller.email) {
+        const subject = 'Your Store has been Removed';
+        const html = `
+          <h1>Store Removed</h1>
+          <p>Your store "${storeName}" has been removed from the platform.</p>
+          ${feedback ? `<p><strong>Reason/Feedback:</strong> ${feedback}</p>` : ''}
+          <p>If you have questions, please contact support.</p>
+        `;
+        await sendEmail(seller.email, subject, html);
+      }
+
+      res.json({ success: deleted });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete store" });
+    }
+  });
+
+  app.delete("/api/admin/products/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { feedback } = req.body;
+      
+      const product = await storage.getProductById(id);
+      if (!product) return res.status(404).json({ message: "Product not found" });
+
+      const store = await storage.getStoreById(product.storeId);
+      const productTitle = product.title;
+      
+      const deleted = await storage.deleteProduct(id);
+      
+      if (deleted && store) {
+        const seller = await storage.getUserById(store.userId);
+        if (seller && seller.email) {
+          const subject = 'Product Listing Removed';
+          const html = `
+            <h1>Product Removed</h1>
+            <p>Your product listing "${productTitle}" has been removed from the platform.</p>
+            ${feedback ? `<p><strong>Reason/Feedback:</strong> ${feedback}</p>` : ''}
+            <p>If you have questions, please contact support.</p>
+          `;
+          await sendEmail(seller.email, subject, html);
+        }
+      }
+
+      res.json({ success: deleted });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete product" });
     }
   });
 

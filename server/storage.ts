@@ -36,7 +36,11 @@ export interface IStorage {
   getStoresByUserId(userId: number): Promise<Store[]>;
   getStoresWithUser(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]>;
   getFeaturedStores(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]>;
+  getPendingStores(): Promise<StoreWithUser[]>;
+  getAllStoresForAdmin(): Promise<StoreWithUser[]>;
   updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined>;
+  updateStoreApprovalStatus(id: number, status: string): Promise<Store | undefined>;
+  deleteStore(id: number): Promise<boolean>;
 
   // Categories
   getAllCategories(): Promise<Category[]>;
@@ -245,7 +249,8 @@ export class DatabaseStorage implements IStorage {
   async createStore(insertStore: InsertStore): Promise<Store> {
     const [store] = await db.insert(stores).values({
       ...insertStore,
-      campus: insertStore.campus || null
+      campus: insertStore.campus || null,
+      approvalStatus: 'pending'
     }).returning();
     return store;
   }
@@ -260,7 +265,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStoresWithUser(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]> {
-    const conditions = [eq(stores.isActive, true)];
+    const conditions = [eq(stores.isActive, true), eq(stores.approvalStatus, 'approved')];
     
     if (filters?.userUniversity) {
       conditions.push(eq(stores.university, filters.userUniversity));
@@ -284,6 +289,7 @@ export class DatabaseStorage implements IStorage {
         rating: stores.rating,
         reviewCount: stores.reviewCount,
         isActive: stores.isActive,
+        approvalStatus: stores.approvalStatus,
         createdAt: stores.createdAt,
         user: {
           firstName: users.firstName,
@@ -306,9 +312,89 @@ export class DatabaseStorage implements IStorage {
     return allStores.slice(0, 6);
   }
 
+  async getPendingStores(): Promise<StoreWithUser[]> {
+    const conditions = [eq(stores.approvalStatus, 'pending')];
+
+    const results = await db
+      .select({
+        id: stores.id,
+        userId: stores.userId,
+        name: stores.name,
+        description: stores.description,
+        university: stores.university,
+        campus: stores.campus,
+        city: stores.city,
+        rating: stores.rating,
+        reviewCount: stores.reviewCount,
+        isActive: stores.isActive,
+        approvalStatus: stores.approvalStatus,
+        createdAt: stores.createdAt,
+        user: {
+          firstName: users.firstName,
+          lastName: users.lastName,
+          avatar: users.avatar,
+        },
+        productCount: sql<number>`COUNT(${products.id})::int`
+      })
+      .from(stores)
+      .leftJoin(users, eq(stores.userId, users.id))
+      .leftJoin(products, eq(stores.id, products.storeId))
+      .where(and(...conditions))
+      .groupBy(stores.id, users.id);
+
+    return results as any[];
+  }
+
+  async getAllStoresForAdmin(): Promise<StoreWithUser[]> {
+    const results = await db
+      .select({
+        id: stores.id,
+        userId: stores.userId,
+        name: stores.name,
+        description: stores.description,
+        university: stores.university,
+        campus: stores.campus,
+        city: stores.city,
+        rating: stores.rating,
+        reviewCount: stores.reviewCount,
+        isActive: stores.isActive,
+        approvalStatus: stores.approvalStatus,
+        createdAt: stores.createdAt,
+        user: {
+          firstName: users.firstName,
+          lastName: users.lastName,
+          avatar: users.avatar,
+        },
+        productCount: sql<number>`COUNT(${products.id})::int`
+      })
+      .from(stores)
+      .leftJoin(users, eq(stores.userId, users.id))
+      .leftJoin(products, eq(stores.id, products.storeId))
+      .orderBy(desc(stores.createdAt))
+      .groupBy(stores.id, users.id);
+
+    return results as any[];
+  }
+
   async updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined> {
     const [store] = await db.update(stores).set(data).where(eq(stores.id, id)).returning();
     return store || undefined;
+  }
+
+  async updateStoreApprovalStatus(id: number, status: string): Promise<Store | undefined> {
+    const [store] = await db
+      .update(stores)
+      .set({ approvalStatus: status })
+      .where(eq(stores.id, id))
+      .returning();
+    return store || undefined;
+  }
+
+  async deleteStore(id: number): Promise<boolean> {
+    // Also delete products in store
+    await db.delete(products).where(eq(products.storeId, id));
+    const result = await db.delete(stores).where(eq(stores.id, id));
+    return (result.rowCount || 0) > 0;
   }
 
   async getAllCategories(): Promise<Category[]> {
@@ -373,7 +459,12 @@ export class DatabaseStorage implements IStorage {
     userCity?: string; 
     userCampus?: string;
   }): Promise<ProductWithStore[]> {
-    const conditions = [eq(products.isAvailable, true), eq(stores.isActive, true)];
+    const conditions = [
+      eq(products.isAvailable, true), 
+      eq(stores.isActive, true),
+      eq(products.approvalStatus, 'approved'),
+      eq(stores.approvalStatus, 'approved')
+    ];
 
     if (filters?.categoryId) {
       conditions.push(eq(products.categoryId, filters.categoryId));
