@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useStripe, Elements, PaymentElement, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useLocation } from 'wouter';
@@ -9,13 +9,15 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Lock, CreditCard, ShieldCheck } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Lock, CreditCard, ShieldCheck, Info, Wallet } from "lucide-react";
 import { IdScanCapture, FacialCapture } from "@/components/verification";
 
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_dummy';
 const stripePromise = loadStripe(stripePublicKey);
 
-function CheckoutForm() {
+function CheckoutForm({ isBokoo, originalTotal }: { isBokoo: boolean, originalTotal: number }) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -59,18 +61,21 @@ function CheckoutForm() {
         <div className="flex-1">
           <h3 className="font-semibold text-blue-900 text-sm">Secure Payment</h3>
           <p className="text-blue-700 text-xs mt-1">
-            All payment methods (Card, PayPal, Mobile Money) are processed securely through Stripe.
+            {isBokoo 
+              ? `Bɔkɔɔ Active: You are paying the first installment of $${(originalTotal / 4).toFixed(2)}.`
+              : "All payment methods (Card, Apple Pay, MTN MoMo, Telecel Cash) are processed securely through Stripe."
+            }
           </p>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border p-4">
+      <div className="bg-white rounded-lg border p-4 shadow-inner">
         <PaymentElement />
       </div>
 
       <Button 
         type="submit" 
-        className="w-full" 
+        className="w-full h-12 text-lg font-bold" 
         size="lg"
         disabled={!stripe || isProcessing}
         data-testid="button-complete-payment"
@@ -83,10 +88,17 @@ function CheckoutForm() {
         ) : (
           <span className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
-            Complete Payment
+            {isBokoo ? `Pay Installment 1 ($${(originalTotal / 4).toFixed(2)})` : "Complete Payment"}
           </span>
         )}
       </Button>
+
+      <div className="flex justify-center items-center gap-4 opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+         {/* Simulated payment provider logos */}
+         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Apple_Pay_logo.svg/512px-Apple_Pay_logo.svg.png" alt="Apple Pay" className="h-6" />
+         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/MTN_Logo.svg/1024px-MTN_Logo.svg.png" alt="MTN MoMo" className="h-6" />
+         <img src="https://seeklogo.com/images/V/vodafone-cash-logo-9759DB60F4-seeklogo.com.png" alt="Telecel" className="h-6" />
+      </div>
 
       <p className="text-xs text-gray-500 text-center">
         By completing this payment, you agree to our Terms of Service and Privacy Policy.
@@ -102,10 +114,39 @@ export default function Checkout() {
   const { toast } = useToast();
   const [clientSecret, setClientSecret] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isBokoo, setIsBokoo] = useState(false);
   const [verificationStep, setVerificationStep] = useState<'verify' | 'payment'>('verify');
   const [buyerIdFile, setBuyerIdFile] = useState<File | null>(null);
   const [buyerFaceFile, setBuyerFaceFile] = useState<File | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const initializePayment = useCallback((useBokoo: boolean = false) => {
+    setIsLoading(true);
+    const amount = useBokoo ? cartTotal / 4 : cartTotal;
+    
+    apiRequest("POST", "/api/create-payment-intent", { 
+      amount,
+      cartItems: cartItems.map((item: any) => ({
+        productId: item.product.id,
+        quantity: item.quantity,
+      })),
+      isBokoo: useBokoo
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setClientSecret(data.clientSecret);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        toast({
+          title: "Payment Setup Failed",
+          description: "Unable to initialize payment. Please try again.",
+          variant: "destructive",
+        });
+        console.error('Payment intent error:', error);
+        setIsLoading(false);
+      });
+  }, [cartTotal, cartItems, toast]);
 
   useEffect(() => {
     if (!user) {
@@ -132,35 +173,15 @@ export default function Checkout() {
     if (user.buyerIdScanUrl && user.buyerFaceScanUrl) {
       // Skip verification step
       setVerificationStep('payment');
-      initializePayment();
+      initializePayment(isBokoo);
     } else {
       setIsLoading(false);
     }
-  }, [user, cartItems]);
+  }, [user, cartItems, initializePayment, isBokoo, setLocation, toast]);
 
-  const initializePayment = () => {
-    setIsLoading(true);
-    apiRequest("POST", "/api/create-payment-intent", { 
-      amount: cartTotal,
-      cartItems: cartItems.map((item: any) => ({
-        productId: item.product.id,
-        quantity: item.quantity,
-      }))
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setClientSecret(data.clientSecret);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        toast({
-          title: "Payment Setup Failed",
-          description: "Unable to initialize payment. Please try again.",
-          variant: "destructive",
-        });
-        console.error('Payment intent error:', error);
-        setIsLoading(false);
-      });
+  const handleBokooToggle = (checked: boolean) => {
+    setIsBokoo(checked);
+    initializePayment(checked);
   };
 
   const handleVerificationSubmit = async () => {
@@ -199,7 +220,7 @@ export default function Checkout() {
       });
 
       setVerificationStep('payment');
-      initializePayment();
+      initializePayment(isBokoo);
     } catch (error) {
       toast({
         title: "Verification Failed",
@@ -212,7 +233,7 @@ export default function Checkout() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !clientSecret) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -330,7 +351,7 @@ export default function Checkout() {
     );
   }
 
-  if (!clientSecret) {
+  if (!clientSecret && !isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="max-w-md w-full">
@@ -364,8 +385,53 @@ export default function Checkout() {
         </Button>
 
         <div className="grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <Card>
+          <div className="md:col-span-2 space-y-6">
+            {/* Bɔkɔɔ Installment Toggle */}
+            <Card className="border-2 border-primary/20 shadow-md">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-primary/10 rounded-xl">
+                    <Wallet className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">Bɔkɔɔ (Pay in 4)</h3>
+                        <p className="text-sm text-gray-600">Split your purchase into four equal interest-free installments.</p>
+                      </div>
+                      <Checkbox 
+                        id="bokoo-toggle" 
+                        checked={isBokoo}
+                        onCheckedChange={(checked) => handleBokooToggle(checked as boolean)}
+                        className="h-6 w-6"
+                      />
+                    </div>
+                    {isBokoo && (
+                      <div className="mt-4 grid grid-cols-4 gap-2">
+                        <div className="bg-primary text-white p-2 rounded-lg text-center text-xs">
+                          <p className="font-bold">Today</p>
+                          <p>${(cartTotal / 4).toFixed(2)}</p>
+                        </div>
+                        <div className="bg-gray-100 text-gray-400 p-2 rounded-lg text-center text-xs border border-dashed">
+                          <p className="font-bold">2 Weeks</p>
+                          <p>${(cartTotal / 4).toFixed(2)}</p>
+                        </div>
+                        <div className="bg-gray-100 text-gray-400 p-2 rounded-lg text-center text-xs border border-dashed">
+                          <p className="font-bold">4 Weeks</p>
+                          <p>${(cartTotal / 4).toFixed(2)}</p>
+                        </div>
+                        <div className="bg-gray-100 text-gray-400 p-2 rounded-lg text-center text-xs border border-dashed">
+                          <p className="font-bold">6 Weeks</p>
+                          <p>${(cartTotal / 4).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg">
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-full">
@@ -380,15 +446,22 @@ export default function Checkout() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <CheckoutForm />
-                </Elements>
+                {isLoading ? (
+                   <div className="py-20 text-center">
+                      <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+                      <p className="text-sm text-gray-500">Updating amount...</p>
+                   </div>
+                ) : (
+                  <Elements stripe={stripePromise} options={{ clientSecret }} key={clientSecret}>
+                    <CheckoutForm isBokoo={isBokoo} originalTotal={cartTotal} />
+                  </Elements>
+                )}
               </CardContent>
             </Card>
           </div>
 
           <div className="md:col-span-1">
-            <Card>
+            <Card className="sticky top-24">
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
@@ -416,21 +489,41 @@ export default function Checkout() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
-                    <span className="text-green-600">FREE</span>
+                    <span className="text-green-600 font-medium">FREE</span>
                   </div>
                 </div>
 
                 <Separator />
 
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold">Total</span>
-                  <span className="text-2xl font-bold text-primary">
-                    ${cartTotal.toFixed(2)}
-                  </span>
-                </div>
+                {isBokoo ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center text-primary font-bold">
+                      <div className="flex items-center gap-1">
+                        <span>Due Today</span>
+                        <Info className="h-3 w-3" />
+                      </div>
+                      <span className="text-2xl">${(cartTotal / 4).toFixed(2)}</span>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-2">
+                      <div className="flex justify-between text-gray-500">
+                        <span>3 installments of</span>
+                        <span>${(cartTotal / 4).toFixed(2)}</span>
+                      </div>
+                      <p className="text-[10px] text-gray-400 italic">Remaining balance will be charged automatically every 2 weeks.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold">Total</span>
+                    <span className="text-2xl font-bold text-primary">
+                      ${cartTotal.toFixed(2)}
+                    </span>
+                  </div>
+                )}
 
-                <div className="bg-gray-50 rounded-lg p-3 mt-4">
-                  <p className="text-xs text-gray-600 text-center">
+                <div className="bg-gray-50 rounded-lg p-3 mt-4 border border-dashed border-gray-200">
+                  <p className="text-xs text-gray-600 text-center flex items-center justify-center gap-1">
+                    <ShieldCheck className="h-3 w-3 text-green-500" />
                     Secure payment powered by Stripe
                   </p>
                 </div>
