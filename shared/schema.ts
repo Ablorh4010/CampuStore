@@ -506,7 +506,7 @@ export type ProductWithStore = Product & {
 };
 
 export type StoreWithUser = Store & {
-  user: Pick<User, 'firstName' | 'lastName' | 'avatar'>;
+  user: Pick<User, 'firstName' | 'lastName' | 'avatar' | 'email' | 'phoneNumber' | 'idScanUrl' | 'faceScanUrl'>;
   productCount: number;
 };
 

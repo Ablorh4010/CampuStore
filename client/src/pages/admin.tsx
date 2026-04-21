@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { Label } from '@/components/ui/label';
@@ -135,39 +135,92 @@ export default function AdminDashboard() {
   );
 
   const renderStoreCard = (store: StoreWithUser) => (
-    <Card key={store.id} className="mb-4 overflow-hidden border-l-4 border-l-yellow-400">
-      <CardHeader className="pb-2">
+    <Card key={store.id} className="mb-6 overflow-hidden border-l-4 border-l-yellow-400 shadow-lg">
+      <CardHeader className="pb-4">
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">PENDING REVIEW</Badge>
-              <span className="text-xs text-gray-500">Store ID: #{store.id}</span>
+              <span className="text-xs text-gray-500 font-mono">Store ID: #{store.id}</span>
             </div>
-            <CardTitle className="text-xl font-black flex items-center gap-2">
-              <StoreIcon className="w-5 h-5 text-primary" />
+            <CardTitle className="text-2xl font-black flex items-center gap-2 text-gray-900">
+              <StoreIcon className="w-6 h-6 text-primary" />
               {store.name}
             </CardTitle>
-            <CardDescription className="font-medium text-gray-700 mt-1">
-              Owner: {store.user.firstName} {store.user.lastName} 
-              <span className="mx-2">|</span>
-              University: {store.university}
+            <CardDescription className="font-bold text-gray-700 mt-1 flex items-center gap-2">
+              <UserIcon className="w-4 h-4" />
+              {store.user.firstName} {store.user.lastName} 
+              <span className="text-gray-300 mx-1">|</span>
+              {store.university}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 shadow-inner">
-          <p className="text-sm text-blue-900 leading-relaxed">{store.description}</p>
+        <div className="bg-gray-50 p-5 rounded-2xl mb-6 border border-gray-100">
+          <Label className="text-xs font-black uppercase text-gray-400 mb-2 block tracking-widest">Store Description</Label>
+          <p className="text-gray-800 leading-relaxed font-medium">{store.description}</p>
         </div>
-        <div className="flex gap-3">
-          <Button size="lg" className="bg-green-600 hover:bg-green-700 px-8 font-bold shadow-lg shadow-green-200" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
+
+        {/* Verification Evidence */}
+        <div className="space-y-6">
+           <div>
+              <Label className="text-xs font-black uppercase text-gray-400 mb-3 block tracking-widest">Identity & Live Evidence</Label>
+              <div className="grid md:grid-cols-2 gap-4">
+                 <div className="group relative">
+                    <img 
+                      src={store.user.idScanUrl || ''} 
+                      className="w-full h-56 object-cover rounded-2xl border-4 border-white shadow-md transition-transform group-hover:scale-[1.02]" 
+                      alt="ID Document"
+                    />
+                    <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase backdrop-blur-sm">Student ID / National ID</div>
+                    <a href={store.user.idScanUrl || '#'} target="_blank" className="absolute bottom-3 right-3 bg-white/90 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                       <ExternalLink className="w-4 h-4 text-gray-900" />
+                    </a>
+                 </div>
+                 <div className="group relative">
+                    <img 
+                      src={store.user.faceScanUrl || ''} 
+                      className="w-full h-56 object-cover rounded-2xl border-4 border-white shadow-md transition-transform group-hover:scale-[1.02]" 
+                      alt="Face Capture"
+                    />
+                    <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase backdrop-blur-sm">Live Face Capture</div>
+                    <a href={store.user.faceScanUrl || '#'} target="_blank" className="absolute bottom-3 right-3 bg-white/90 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                       <ExternalLink className="w-4 h-4 text-gray-900" />
+                    </a>
+                 </div>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-2 gap-4">
+              <div className="bg-primary/5 p-4 rounded-2xl flex items-center gap-3 border border-primary/10">
+                 <div className="bg-primary/10 p-2 rounded-xl text-primary"><Phone className="w-5 h-5" /></div>
+                 <div>
+                    <p className="text-[10px] font-black uppercase text-gray-400">Mobile Money / Phone</p>
+                    <p className="font-bold text-gray-900">{store.user.phoneNumber || 'Not Provided'}</p>
+                 </div>
+              </div>
+              <div className="bg-accent/5 p-4 rounded-2xl flex items-center gap-3 border border-accent/10">
+                 <div className="bg-accent/10 p-2 rounded-xl text-accent"><MapPin className="w-5 h-5" /></div>
+                 <div>
+                    <p className="text-[10px] font-black uppercase text-gray-400">Live Location Pin</p>
+                    <p className="font-bold text-gray-900">
+                       {store.latitude ? `${parseFloat(store.latitude).toFixed(4)}, ${parseFloat(store.longitude || '0').toFixed(4)}` : 'No Pin'}
+                    </p>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        <div className="flex gap-3 mt-10">
+          <Button size="lg" className="flex-1 bg-green-600 hover:bg-green-700 h-14 rounded-2xl font-black shadow-xl shadow-green-100" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
             <CheckCircle className="w-5 h-5 mr-2" /> Approve Store
           </Button>
-          <Button size="lg" variant="destructive" className="font-bold shadow-lg shadow-red-100" onClick={() => {
+          <Button size="lg" variant="destructive" className="flex-1 h-14 rounded-2xl font-black shadow-xl shadow-red-100" onClick={() => {
             setItemToDelete({ id: store.id, type: 'store', title: store.name });
             setDeleteModalOpen(true);
           }}>
-            <Trash2 className="w-5 h-5 mr-2" /> Reject & Delete
+            <Trash2 className="w-5 h-5 mr-2" /> Reject Submission
           </Button>
         </div>
       </CardContent>
@@ -245,7 +298,7 @@ export default function AdminDashboard() {
                 <p className="text-gray-500 mt-2 max-w-sm mx-auto">There are no new student stores waiting for verification right now.</p>
               </div>
             ) : (
-              <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
                 {pendingStores.map(renderStoreCard)}
               </div>
             )}

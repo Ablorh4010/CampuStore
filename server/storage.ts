@@ -250,7 +250,7 @@ export class DatabaseStorage implements IStorage {
     const [store] = await db.insert(stores).values({
       ...insertStore,
       campus: insertStore.campus || null,
-      approvalStatus: 'pending'
+      approvalStatus: 'waiting_verification'
     }).returning();
     return store;
   }
@@ -295,6 +295,10 @@ export class DatabaseStorage implements IStorage {
           firstName: users.firstName,
           lastName: users.lastName,
           avatar: users.avatar,
+          email: users.email,
+          phoneNumber: users.phoneNumber,
+          idScanUrl: users.idScanUrl,
+          faceScanUrl: users.faceScanUrl,
         },
         productCount: sql<number>`COUNT(${products.id})::int`
       })
@@ -333,6 +337,10 @@ export class DatabaseStorage implements IStorage {
           firstName: users.firstName,
           lastName: users.lastName,
           avatar: users.avatar,
+          email: users.email,
+          phoneNumber: users.phoneNumber,
+          idScanUrl: users.idScanUrl,
+          faceScanUrl: users.faceScanUrl,
         },
         productCount: sql<number>`COUNT(${products.id})::int`
       })
@@ -364,6 +372,10 @@ export class DatabaseStorage implements IStorage {
           firstName: users.firstName,
           lastName: users.lastName,
           avatar: users.avatar,
+          email: users.email,
+          phoneNumber: users.phoneNumber,
+          idScanUrl: users.idScanUrl,
+          faceScanUrl: users.faceScanUrl,
         },
         productCount: sql<number>`COUNT(${products.id})::int`
       })

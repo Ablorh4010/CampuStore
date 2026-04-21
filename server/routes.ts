@@ -495,20 +495,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/stores", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const storeData = insertStoreSchema.parse(req.body);
-      
+
       // Ensure userId in store data matches authenticated user
       if (storeData.userId !== req.userId) {
         return res.status(403).json({ message: "Cannot create store for another user" });
       }
 
+      // storage.createStore already sets approvalStatus to 'waiting_verification'
       const store = await storage.createStore(storeData);
       res.json(store);
     } catch (error) {
       console.error("Store creation validation error:", error);
-      res.status(400).json({ message: "Invalid store data", error: error instanceof Error ? error.message : String(error) });
+      res.status(400).json({ 
+        message: "Invalid store data", 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
-
   app.get("/api/stores", async (req, res) => {
     try {
       const { userUniversity, userCity, userCampus } = req.query;
@@ -677,6 +680,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: error instanceof Error ? error.message : 'Failed to upload buyer verification documents'
       });
+    }
+  });
+
+  // Upload seller verification for store approval
+  app.post("/api/upload/seller-verification", apiLimiter, authenticateToken, imageUpload.fields([
+    { name: 'idScan', maxCount: 1 },
+    { name: 'faceScan', maxCount: 1 }
+  ]), async (req: AuthRequest, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const { phoneNumber, latitude, longitude, address } = req.body;
+
+      if (!files || !files.idScan || !files.faceScan) {
+        return res.status(400).json({ message: "ID scan and facial capture are required" });
+      }
+
+      const idScanUrl = `/uploads/${files.idScan[0].filename}`;
+      const faceScanUrl = `/uploads/${files.faceScan[0].filename}`;
+
+      // Update user verification details
+      await storage.updateUser(req.userId!, {
+        verificationStatus: 'pending',
+        idScanUrl,
+        faceScanUrl,
+        phoneNumber: phoneNumber || undefined
+      });
+
+      // Update user's stores to pending status (so admin can see them)
+      const userStores = await storage.getStoresByUserId(req.userId!);
+      for (const store of userStores) {
+        if (store.approvalStatus === 'waiting_verification' || store.approvalStatus === 'rejected') {
+          await storage.updateStore(store.id, {
+            approvalStatus: 'pending',
+            latitude: latitude || store.latitude,
+            longitude: longitude || store.longitude,
+            address: address || store.address
+          });
+        }
+      }
+
+      res.json({ message: "Verification submitted successfully. Waiting for admin approval." });
+    } catch (error) {
+      console.error("Seller verification error:", error);
+      res.status(500).json({ message: "Failed to submit verification" });
     }
   });
 
@@ -1176,6 +1223,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const store = await storage.updateStoreApprovalStatus(id, status);
       if (!store) return res.status(404).json({ message: "Store not found" });
+
+      // If store is approved, also mark user as verified
+      if (status === 'approved') {
+        await storage.updateUser(store.userId, {
+          verificationStatus: 'verified',
+          verifiedAt: new Date()
+        });
+      } else if (status === 'rejected') {
+        await storage.updateUser(store.userId, {
+          verificationStatus: 'rejected',
+          verificationNotes: feedback
+        });
+      }
 
       // Notify seller
       const seller = await storage.getUserById(store.userId);
