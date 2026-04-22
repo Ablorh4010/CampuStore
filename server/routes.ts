@@ -1300,6 +1300,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/admin/stores/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isActive, feedback } = req.body;
+      
+      const store = await storage.updateStore(id, { isActive });
+      if (!store) return res.status(404).json({ message: "Store not found" });
+
+      // Notify seller about suspension
+      if (isActive === false) {
+        const seller = await storage.getUserById(store.userId);
+        if (seller && seller.email) {
+          const subject = 'Your Store has been Suspended';
+          const html = `
+            <h1 style="color: #F62E28;">Store Suspended</h1>
+            <p>Your store "${store.name}" has been suspended by an administrator.</p>
+            ${feedback ? `<p><strong>Reason for Suspension:</strong> ${feedback}</p>` : ''}
+            <p>Please contact support or resolve the issues mentioned above to reactivate your store.</p>
+          `;
+          await sendEmail(seller.email, subject, html);
+        }
+      }
+
+      res.json(store);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update store" });
+    }
+  });
+
   app.delete("/api/admin/stores/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
