@@ -321,12 +321,15 @@ Update `DATABASE_URL` in `.env` with your database connection string.
 
 ## 🌐 Google Cloud Hosting
 
+This project is connected to Google Cloud Project: **chromatic-force-480509-j5**
+
 For deploying to Google Cloud:
 
 ### App Engine
-1. Create `app.yaml` configuration
-2. Set environment variables in Cloud Console
-3. Run `gcloud app deploy`
+1. Use the provided `app.yaml` configuration
+2. Set environment variables in Cloud Console or Secret Manager
+3. Run `gcloud config set project chromatic-force-480509-j5`
+4. Run `gcloud app deploy`
 
 ### Cloud Run
 1. Build Docker container

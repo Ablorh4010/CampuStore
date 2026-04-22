@@ -1,0 +1,13 @@
+runtime: nodejs20
+instance_class: F1
+env_variables:
+  NODE_ENV: "production"
+  # Note: Sensitive variables should be set in the Cloud Console or Secret Manager
+  # GOOGLE_CLOUD_PROJECT: "chromatic-force-480509-j5"
+
+handlers:
+  - url: /assets
+    static_dir: dist/public/assets
+  - url: /.*
+    secure: always
+    script: auto
