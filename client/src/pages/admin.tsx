@@ -6,19 +6,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink, Settings, Plus, Tag, Mail, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { ProductWithStore, StoreWithUser } from '@shared/schema';
+import type { ProductWithStore, StoreWithUser, Category } from '@shared/schema';
 
 export default function AdminDashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('pending-products');
+
+  // Category management state
+  const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1' });
+
+  // Deletion feedback state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; type: 'product' | 'store'; title: string } | null>(null);
+  const [adminFeedback, setAdminFeedback] = useState('');
 
   // Redirect if not admin (ensuring session is loaded first)
   useEffect(() => {
@@ -27,12 +36,13 @@ export default function AdminDashboard() {
     }
   }, [user, authLoading, setLocation]);
 
-  const { data: allProducts = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
+  // Queries - moved to top level
+  const { data: allProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/admin/products'],
     enabled: !!user?.isAdmin
   });
 
-  const { data: pendingStores = [], isLoading: storesLoading } = useQuery<StoreWithUser[]>({
+  const { data: pendingStores = [] } = useQuery<StoreWithUser[]>({
     queryKey: ['/api/admin/stores/pending'],
     enabled: !!user?.isAdmin
   });
@@ -42,20 +52,12 @@ export default function AdminDashboard() {
     enabled: !!user?.isAdmin
   });
 
-  if (authLoading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-       <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-    </div>
-  );
-  
-  if (!user || !user.isAdmin) return null;
-
   const { data: categories = [], refetch: refetchCategories } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
+    enabled: !!user?.isAdmin
   });
 
-  const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1' });
-
+  // Mutations - moved to top level
   const createCategoryMutation = useMutation({
     mutationFn: async (data: any) => apiRequest('POST', '/api/categories', data),
     onSuccess: () => {
@@ -89,6 +91,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
       toast({ title: 'Success', description: 'Store status updated' });
     },
   });
@@ -100,6 +103,7 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores'] });
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
       toast({ title: 'Item Deleted', description: 'The owner has been notified via email.' });
@@ -118,8 +122,17 @@ export default function AdminDashboard() {
     });
   };
 
+  // Conditional rendering after hooks
+  if (authLoading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+       <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+    </div>
+  );
+  
+  if (!user || !user.isAdmin) return null;
+
   const renderProductCard = (product: ProductWithStore) => (
-    <Card key={product.id} className="mb-4 overflow-hidden border-l-4 border-l-primary/20">
+    <Card key={product.id} className="mb-4 overflow-hidden border-l-4 border-l-primary/20 bg-white">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -130,7 +143,7 @@ export default function AdminDashboard() {
               <span className="text-xs text-gray-500">ID: #{product.id}</span>
             </div>
             <CardTitle className="text-lg font-bold">{product.title}</CardTitle>
-            <CardDescription className="flex items-center gap-1 mt-1">
+            <CardDescription className="flex items-center gap-1 mt-1 font-medium">
               <StoreIcon className="w-3 h-3" /> {product.store?.name || 'Unknown Store'} 
               <span className="mx-1">•</span>
               <UserIcon className="w-3 h-3" /> {product.store?.user?.firstName || 'Unknown Seller'}
@@ -151,8 +164,8 @@ export default function AdminDashboard() {
               <CheckCircle className="w-4 h-4 mr-1" /> Approve
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => setLocation(`/product/${product.id}`)}>View Listing</Button>
-          <Button size="sm" variant="destructive" className="ml-auto shadow-sm" onClick={() => {
+          <Button size="sm" variant="outline" className="font-bold" onClick={() => setLocation(`/product/${product.id}`)}>View Listing</Button>
+          <Button size="sm" variant="destructive" className="ml-auto shadow-sm font-bold" onClick={() => {
             setItemToDelete({ id: product.id, type: 'product', title: product.title });
             setDeleteModalOpen(true);
           }}>
@@ -164,7 +177,7 @@ export default function AdminDashboard() {
   );
 
   const renderStoreCard = (store: StoreWithUser) => (
-    <Card key={store.id} className={`mb-6 overflow-hidden shadow-lg ${store.approvalStatus === 'pending' ? 'border-l-4 border-l-yellow-400' : 'border-l-4 border-l-primary/20'}`}>
+    <Card key={store.id} className={`mb-6 overflow-hidden shadow-lg bg-white ${store.approvalStatus === 'pending' ? 'border-l-4 border-l-yellow-400' : 'border-l-4 border-l-primary/20'}`}>
       <CardHeader className="pb-4">
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -183,7 +196,8 @@ export default function AdminDashboard() {
               {store.user?.firstName || 'Unknown'} {store.user?.lastName || ''} 
               <span className="text-gray-300 mx-1">|</span>
               {store.university}
-            </CardDescription>          </div>
+            </CardDescription>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -199,23 +213,23 @@ export default function AdminDashboard() {
               <div className="grid md:grid-cols-2 gap-4">
                  <div className="group relative">
                     <img 
-                      src={store.user.idScanUrl || ''} 
+                      src={store.user?.idScanUrl || ''} 
                       className="w-full h-56 object-cover rounded-2xl border-4 border-white shadow-md transition-transform group-hover:scale-[1.02]" 
                       alt="ID Document"
                     />
                     <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase backdrop-blur-sm">Student ID / National ID</div>
-                    <a href={store.user.idScanUrl || '#'} target="_blank" className="absolute bottom-3 right-3 bg-white/90 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href={store.user?.idScanUrl || '#'} target="_blank" className="absolute bottom-3 right-3 bg-white/90 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
                        <ExternalLink className="w-4 h-4 text-gray-900" />
                     </a>
                  </div>
                  <div className="group relative">
                     <img 
-                      src={store.user.faceScanUrl || ''} 
+                      src={store.user?.faceScanUrl || ''} 
                       className="w-full h-56 object-cover rounded-2xl border-4 border-white shadow-md transition-transform group-hover:scale-[1.02]" 
                       alt="Face Capture"
                     />
                     <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase backdrop-blur-sm">Live Face Capture</div>
-                    <a href={store.user.faceScanUrl || '#'} target="_blank" className="absolute bottom-3 right-3 bg-white/90 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href={store.user?.faceScanUrl || '#'} target="_blank" className="absolute bottom-3 right-3 bg-white/90 p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
                        <ExternalLink className="w-4 h-4 text-gray-900" />
                     </a>
                  </div>
@@ -227,7 +241,7 @@ export default function AdminDashboard() {
                  <div className="bg-primary/10 p-2 rounded-xl text-primary"><Phone className="w-5 h-5" /></div>
                  <div>
                     <p className="text-[10px] font-black uppercase text-gray-400">Mobile Money / Phone</p>
-                    <p className="font-bold text-gray-900">{store.user.phoneNumber || 'Not Provided'}</p>
+                    <p className="font-bold text-gray-900">{store.user?.phoneNumber || 'Not Provided'}</p>
                  </div>
               </div>
               <div className="bg-accent/5 p-4 rounded-2xl flex items-center gap-3 border border-accent/10">
@@ -244,11 +258,11 @@ export default function AdminDashboard() {
 
         <div className="flex gap-3 mt-10">
           {store.approvalStatus === 'pending' && (
-            <Button size="lg" className="flex-1 bg-green-600 hover:bg-green-700 h-14 rounded-2xl font-black shadow-xl shadow-green-100" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
+            <Button size="lg" className="flex-1 bg-green-600 hover:bg-green-700 h-14 rounded-2xl font-black shadow-xl shadow-green-100 transition-all hover:scale-105" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
               <CheckCircle className="w-5 h-5 mr-2" /> Approve Store
             </Button>
           )}
-          <Button size="lg" variant="destructive" className="flex-1 h-14 rounded-2xl font-black shadow-xl shadow-red-100" onClick={() => {
+          <Button size="lg" variant="destructive" className="flex-1 h-14 rounded-2xl font-black shadow-xl shadow-red-100 transition-all hover:scale-105 active:scale-95" onClick={() => {
             setItemToDelete({ id: store.id, type: 'store', title: store.name });
             setDeleteModalOpen(true);
           }}>
@@ -260,7 +274,7 @@ export default function AdminDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-12 font-body">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
@@ -302,9 +316,6 @@ export default function AdminDashboard() {
             <TabsTrigger value="all-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
               All Stores
             </TabsTrigger>
-            <TabsTrigger value="all-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
-              Inventory
-            </TabsTrigger>
             <TabsTrigger value="app-mgmt" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap flex items-center gap-2">
               <Settings className="w-4 h-4" /> App Management
             </TabsTrigger>
@@ -312,7 +323,7 @@ export default function AdminDashboard() {
 
           <TabsContent value="pending-products" className="mt-0">
             {allProducts.filter(p => p.approvalStatus === 'pending').length === 0 ? (
-              <div className="text-center py-32 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200">
+              <div className="text-center py-32 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200 shadow-inner">
                 <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                   <CheckCircle className="w-10 h-10 text-green-600" />
                 </div>
@@ -328,7 +339,7 @@ export default function AdminDashboard() {
 
           <TabsContent value="pending-stores" className="mt-0">
             {pendingStores.length === 0 ? (
-              <div className="text-center py-32 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200">
+              <div className="text-center py-32 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200 shadow-inner">
                 <div className="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                   <StoreIcon className="w-10 h-10 text-gray-400" />
                 </div>
@@ -336,7 +347,7 @@ export default function AdminDashboard() {
                 <p className="text-gray-500 mt-2 max-w-sm mx-auto">There are no new student stores waiting for verification right now.</p>
               </div>
             ) : (
-              <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                 {pendingStores.map(renderStoreCard)}
               </div>
             )}
@@ -345,12 +356,6 @@ export default function AdminDashboard() {
           <TabsContent value="all-stores" className="mt-0">
              <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                 {allStores.map(renderStoreCard)}
-              </div>
-          </TabsContent>
-
-          <TabsContent value="all-products" className="mt-0">
-             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allProducts.map(renderProductCard)}
               </div>
           </TabsContent>
 
@@ -464,40 +469,44 @@ export default function AdminDashboard() {
 
         {/* Delete with Feedback Modal */}
         <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-          <DialogContent className="max-w-lg rounded-3xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-black text-red-600 flex items-center gap-2">
-                <Trash2 className="w-6 h-6" />
+          <DialogContent className="max-w-lg rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
+            <div className="paylater-hero p-8 text-white">
+              <DialogTitle className="text-3xl font-black flex items-center gap-3 tracking-tighter">
+                <Trash2 className="w-8 h-8 text-secondary" />
                 Confirm Removal
               </DialogTitle>
-              <DialogDescription className="text-gray-600 font-medium">
-                You are about to remove <strong>{itemToDelete?.title}</strong> from the platform. 
-                Please provide feedback for the {itemToDelete?.type} owner.
+              <DialogDescription className="text-white/70 font-bold mt-2 text-lg">
+                Removing: {itemToDelete?.title}
               </DialogDescription>
-            </DialogHeader>
-            <div className="py-6">
-              <Label htmlFor="feedback" className="text-sm font-black uppercase text-gray-400 mb-2 block">
-                Feedback for Owner (Will be emailed)
+            </div>
+            
+            <div className="p-8">
+              <Label htmlFor="feedback" className="text-xs font-black uppercase text-gray-400 mb-3 block tracking-widest">
+                Admin Feedback (Required)
               </Label>
               <Textarea 
                 id="feedback" 
-                placeholder="Ex: This product violates our safety guidelines regarding prohibited items. / This store name contains inappropriate language..."
+                placeholder="Ex: This listing violates our safety policy. Please provide clearer photos and re-upload..."
                 value={adminFeedback}
                 onChange={(e) => setAdminFeedback(e.target.value)}
-                className="rounded-2xl border-2 focus:ring-red-500 focus:border-red-500 min-h-[150px] p-4 text-base"
+                className="rounded-2xl border-2 focus:ring-primary focus:border-primary min-h-[150px] p-4 text-base font-medium shadow-inner bg-gray-50"
               />
+              <p className="text-[10px] text-gray-400 mt-4 font-bold italic flex items-center gap-1">
+                 <Mail className="w-3 h-3" /> This feedback will be emailed to the owner automatically.
+              </p>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="ghost" className="rounded-xl font-bold h-12" onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
+
+            <DialogFooter className="p-8 pt-0 gap-3">
+              <Button variant="ghost" className="rounded-xl font-bold h-14 flex-1 hover:bg-gray-100" onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
               <Button 
                 variant="destructive" 
-                className="rounded-xl font-bold h-12 px-8"
+                className="rounded-2xl font-black h-14 px-8 flex-[2] shadow-xl shadow-red-100 transition-all hover:scale-105 active:scale-95"
                 onClick={confirmDelete}
                 disabled={!adminFeedback || deleteItemMutation.isPending}
               >
                 {deleteItemMutation.isPending ? (
                   <span className="flex items-center gap-2">
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Sending Email...
                   </span>
                 ) : `Delete ${itemToDelete?.type === 'product' ? 'Listing' : 'Store'}`}
