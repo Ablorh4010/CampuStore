@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 // Use environment variable for Resend API Key
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = 'The University Hub <notifications@theuniversityhub.com>';
+const FROM_EMAIL = 'The University Hub <notifications@uniexchangehub.com>';
 
 export async function sendVerificationEmail(email: string, code: string) {
   if (!resend) {
