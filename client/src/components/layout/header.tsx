@@ -195,7 +195,7 @@ export default function Header() {
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={user.avatar || ''} alt={user.firstName} />
                         <AvatarFallback className="bg-primary/5 text-primary">
-                          {user.firstName[0]}{user.lastName[0]}
+                          {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -251,7 +251,7 @@ export default function Header() {
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={user.avatar || ''} alt={user.firstName} />
                           <AvatarFallback>
-                            {user.firstName[0]}{user.lastName[0]}
+                            {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
                           </AvatarFallback>
                         </Avatar>
                         <div>

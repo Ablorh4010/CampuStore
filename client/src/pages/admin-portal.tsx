@@ -76,7 +76,7 @@ export default function AdminPortal() {
       await registerAdmin(data);
       toast({
         title: '✅ Application Received!',
-        description: 'The University Hub team will review your application and send a notification soon on the success of your admin account.',
+        description: 'The University Hub team will review your application and send a notification soon on the success of your store.',
         duration: 10000,
       });
       setLocation('/admin');
