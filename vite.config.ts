@@ -1,8 +1,5 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 // Plugin to copy 404.html to dist for SPA fallback
 function copy404Plugin() {
@@ -19,7 +16,12 @@ function copy404Plugin() {
   };
 }
 
-export default defineConfig(async ({ mode }) => {
+// Export a function that returns the config
+// We use dynamic imports for everything that depends on vite
+export default async ({ mode }: { mode: string }) => {
+  const react = (await import("@vitejs/plugin-react")).default;
+  const runtimeErrorOverlay = (await import("@replit/vite-plugin-runtime-error-modal")).default;
+
   const plugins = [
     react(),
     runtimeErrorOverlay(),
@@ -58,4 +60,4 @@ export default defineConfig(async ({ mode }) => {
       },
     },
   };
-});
+};
