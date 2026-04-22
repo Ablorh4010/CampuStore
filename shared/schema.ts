@@ -6,12 +6,6 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  university: text("university").notNull(),
-  campus: text("campus"),
-  city: text("city").notNull(),
-  password: text("password"),
   phoneNumber: text("phone_number").unique(),
   whatsappNumber: text("whatsapp_number").unique(), // For WhatsApp OTP
   isEmailVerified: boolean("is_email_verified").notNull().default(false),
@@ -317,8 +311,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
   isAdmin: true,
 }).extend({
   campus: z.string().optional(),
-  email: z.string().email(),
-  password: z.string().min(6).optional(),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   phoneNumber: z.string().optional(),
   whatsappNumber: z.string().optional(),
   userType: z.enum(['buyer', 'seller', 'admin']).optional(),

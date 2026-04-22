@@ -81,18 +81,29 @@ export default function Auth() {
 
   const onEmailLogin = async (data: EmailAuthFormData) => {
     try {
-      await login({ email: data.email, otpCode: data.otpCode });
+      const response = await login({ email: data.email, otpCode: data.otpCode });
+      
+      // If server responds that it sent an OTP (two-step login)
+      if (response && (response as any).otpSent) {
+        setOtpSent(true);
+        setShowOtpField(true);
+        toast({
+          title: '✅ Verification code sent!',
+          description: `A 6-digit login code has been sent to ${data.email}.`,
+        });
+        return;
+      }
+
       toast({
         title: '✅ Welcome back!',
-        description: 'You have been successfully signed in. Redirecting...',
-        duration: 6000,
+        description: 'You have been successfully signed in.',
       });
       setLocation('/');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Sign in failed',
-        description: 'Please check your verification code and try again.',
-        variant: 'destructive',
+        description: error.message || 'Please check your verification code and try again.',
+        variant: "destructive",
       });
     }
   };

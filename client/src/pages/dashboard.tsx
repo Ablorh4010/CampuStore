@@ -110,7 +110,11 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      toast({ title: "Success", description: "Verification details submitted to admin." });
+      toast({ 
+        title: "Application Received!", 
+        description: "The University Hub team will review your application and send a notification soon on the status of your store.",
+        duration: 10000,
+      });
     },
     onError: (error: Error) => {
       toast({ title: "Submission Failed", description: error.message, variant: "destructive" });

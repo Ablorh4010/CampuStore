@@ -13,7 +13,7 @@ interface AuthContextType {
     password?: string;
     phoneNumber?: string;
     otpCode?: string;
-  }) => Promise<void>;
+  }) => Promise<any>;
   register: (userData: any) => Promise<void>;
   registerAdmin: (userData: {
     email: string;
@@ -47,10 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return response.json();
     },
     onSuccess: (data) => {
-      setUser(data.user);
-      setToken(data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
+      if (data.token) {
+        setUser(data.user);
+        setToken(data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
+      }
     },
   });
 
@@ -100,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     phoneNumber?: string;
     otpCode?: string;
   }) => {
-    await loginMutation.mutateAsync(credentials);
+    return await loginMutation.mutateAsync(credentials);
   };
 
   const register = async (userData: any) => {

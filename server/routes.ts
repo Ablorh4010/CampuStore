@@ -265,6 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let user = null;
 
+      // Handle login cases
       if (email && password) {
         // Email/password login (admin only)
         user = await storage.verifyPassword(email, password);
@@ -285,21 +286,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         await storage.markWhatsappAsVerified(whatsappNumber);
       } else if (email && otpCode) {
-        // Email/OTP login (buyers - optional)
+        // Email/OTP login (standard user login)
         const isValidOtp = await storage.verifyOtp(email, otpCode);
         if (!isValidOtp) {
-          return res.status(401).json({ message: "Invalid or expired OTP code" });
+          return res.status(401).json({ message: "Invalid or expired verification code" });
         }
 
         user = await storage.getUserByEmail(email);
         if (!user) {
-          return res.status(401).json({ message: "User not found" });
+          return res.status(401).json({ message: "User not found. Please register first." });
         }
 
         await storage.markEmailAsVerified(email);
+      } else if (email && !otpCode && !password) {
+        // Just email provided - send them an OTP for login
+        const existingUser = await storage.getUserByEmail(email);
+        if (!existingUser) {
+          return res.status(404).json({ message: "Account not found. Please sign up instead." });
+        }
+        
+        const code = await storage.generateOtp(email);
+        const { sendVerificationEmail } = await import('./email');
+        await sendVerificationEmail(email, code);
+        
+        return res.json({ message: "Verification code sent for login", otpSent: true });
       } else {
         // No valid credentials provided
-        return res.status(400).json({ message: "Valid credentials required (email/password, email/OTP, or WhatsApp/OTP)" });
+        return res.status(400).json({ message: "Please provide your email to receive a verification code" });
       }
 
       if (!user) {
