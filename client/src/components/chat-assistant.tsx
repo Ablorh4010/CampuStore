@@ -41,7 +41,14 @@ export default function GeminiAssistant() {
 
   useEffect(() => {
     const saved = localStorage.getItem('recentSearches');
-    if (saved) setRecentSearches(JSON.parse(saved));
+    if (saved) {
+      try {
+        setRecentSearches(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse recent searches", e);
+        localStorage.removeItem('recentSearches');
+      }
+    }
   }, []);
 
   // Auto-scroll to bottom

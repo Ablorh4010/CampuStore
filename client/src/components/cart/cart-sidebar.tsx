@@ -21,6 +21,7 @@ export default function CartSidebar() {
   } = useCart();
 
   const total = cartItems.reduce((sum, item) => {
+    if (!item.product || !item.product.price) return sum;
     return sum + (calculatePriceWithFee(item.product.price) * (item.quantity || 0));
   }, 0);
 
