@@ -1186,6 +1186,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/stores", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const allStores = await storage.getAllStoresForAdmin();
+      res.json(allStores);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch all stores" });
+    }
+  });
+
   app.put("/api/admin/products/:id/approval", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);

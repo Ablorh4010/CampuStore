@@ -42,6 +42,11 @@ export default function AdminDashboard() {
     enabled: !!user?.isAdmin
   });
 
+  const { data: allStores = [] } = useQuery<StoreWithUser[]>({
+    queryKey: ['/api/admin/stores'],
+    enabled: !!user?.isAdmin
+  });
+
   if (!user || !user.isAdmin) return null;
 
   const updateProductStatusMutation = useMutation({
@@ -135,12 +140,14 @@ export default function AdminDashboard() {
   );
 
   const renderStoreCard = (store: StoreWithUser) => (
-    <Card key={store.id} className="mb-6 overflow-hidden border-l-4 border-l-yellow-400 shadow-lg">
+    <Card key={store.id} className={`mb-6 overflow-hidden shadow-lg ${store.approvalStatus === 'pending' ? 'border-l-4 border-l-yellow-400' : 'border-l-4 border-l-primary/20'}`}>
       <CardHeader className="pb-4">
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">PENDING REVIEW</Badge>
+              <Badge className={store.approvalStatus === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                {store.approvalStatus.toUpperCase()}
+              </Badge>
               <span className="text-xs text-gray-500 font-mono">Store ID: #{store.id}</span>
             </div>
             <CardTitle className="text-2xl font-black flex items-center gap-2 text-gray-900">
@@ -213,14 +220,16 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex gap-3 mt-10">
-          <Button size="lg" className="flex-1 bg-green-600 hover:bg-green-700 h-14 rounded-2xl font-black shadow-xl shadow-green-100" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
-            <CheckCircle className="w-5 h-5 mr-2" /> Approve Store
-          </Button>
+          {store.approvalStatus === 'pending' && (
+            <Button size="lg" className="flex-1 bg-green-600 hover:bg-green-700 h-14 rounded-2xl font-black shadow-xl shadow-green-100" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
+              <CheckCircle className="w-5 h-5 mr-2" /> Approve Store
+            </Button>
+          )}
           <Button size="lg" variant="destructive" className="flex-1 h-14 rounded-2xl font-black shadow-xl shadow-red-100" onClick={() => {
             setItemToDelete({ id: store.id, type: 'store', title: store.name });
             setDeleteModalOpen(true);
           }}>
-            <Trash2 className="w-5 h-5 mr-2" /> Reject Submission
+            <Trash2 className="w-5 h-5 mr-2" /> {store.approvalStatus === 'approved' ? 'Delete Store' : 'Reject Submission'}
           </Button>
         </div>
       </CardContent>
@@ -261,13 +270,16 @@ export default function AdminDashboard() {
                 <Badge className="ml-2 bg-red-500 border-none">{allProducts.filter(p => p.approvalStatus === 'pending').length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="pending-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="pending-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
               Pending Stores
               {pendingStores.length > 0 && (
                 <Badge className="ml-2 bg-yellow-500 border-none">{pendingStores.length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="all-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="all-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
+              All Stores
+            </TabsTrigger>
+            <TabsTrigger value="all-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
               Inventory
             </TabsTrigger>
           </TabsList>
@@ -302,6 +314,12 @@ export default function AdminDashboard() {
                 {pendingStores.map(renderStoreCard)}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="all-stores" className="mt-0">
+             <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                {allStores.map(renderStoreCard)}
+              </div>
           </TabsContent>
 
           <TabsContent value="all-products" className="mt-0">
