@@ -4,6 +4,7 @@ import { Link, useLocation } from 'wouter';
 import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus, BookOpen, Users, Heart, ArrowRight, Zap, Star, ShieldCheck, Wallet, CreditCard, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import ProductCard from '@/components/product/product-card';
 import StoreCard from '@/components/store/store-card';
 import { useAuth } from '@/lib/auth-context';
