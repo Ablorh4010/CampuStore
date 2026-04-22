@@ -1,49 +1,18 @@
 import { Resend } from 'resend';
 
-let connectionSettings: any;
-
-async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL
-    : null;
-
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
-  }
-
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.api_key)) {
-    throw new Error('Resend not connected');
-  }
-  return { apiKey: connectionSettings.settings.api_key, fromEmail: connectionSettings.settings.from_email };
-}
-
-async function getUncachableResendClient() {
-  const { apiKey, fromEmail } = await getCredentials();
-  return {
-    client: new Resend(apiKey),
-    fromEmail: fromEmail
-  };
-}
+// Use environment variable for Resend API Key
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const FROM_EMAIL = 'The University Hub <notifications@theuniversityhub.com>';
 
 export async function sendVerificationEmail(email: string, code: string) {
+  if (!resend) {
+    console.warn('Warning: RESEND_API_KEY is missing. Verification email skipped for:', email);
+    return false;
+  }
+
   try {
-    const { client, fromEmail } = await getUncachableResendClient();
-    
-    await client.emails.send({
-      from: fromEmail,
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
       subject: 'The University Hub - Your Verification Code',
       html: `
@@ -60,7 +29,7 @@ export async function sendVerificationEmail(email: string, code: string) {
             
             <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
               <h2 style="color: #1f2937; margin-top: 0;">Verify Your Email</h2>
-              <p style="color: #4b5563; font-size: 16px;">Welcome to The University Hub - the student market place! To complete your registration, please use the verification code below:</p>
+              <p style="color: #4b5563; font-size: 16px;">Welcome to The University Hub! To complete your registration, please use the verification code below:</p>
               
               <div style="background-color: white; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 25px 0;">
                 <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 14px;">Your Verification Code</p>
@@ -74,7 +43,7 @@ export async function sendVerificationEmail(email: string, code: string) {
               <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
               
               <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-                The University Hub - the student market place<br>
+                The University Hub - Student Marketplace<br>
                 This is an automated email. Please do not reply.
               </p>
             </div>
@@ -92,11 +61,14 @@ export async function sendVerificationEmail(email: string, code: string) {
 }
 
 export async function sendAdminInvite(email: string, inviteToken: string, inviteUrl: string) {
+  if (!resend) {
+    console.warn('Warning: RESEND_API_KEY is missing. Admin invite skipped for:', email);
+    return false;
+  }
+
   try {
-    const { client, fromEmail } = await getUncachableResendClient();
-    
-    await client.emails.send({
-      from: fromEmail,
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
       subject: 'The University Hub - Admin Invitation',
       html: `
@@ -122,7 +94,7 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
               </div>
               
               <p style="color: #6b7280; font-size: 14px; background-color: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; border-radius: 4px;">
-                <strong>⚠️ Security Notice:</strong> This link is for your eyes only. Do not share it with anyone. The link will expire in 24 hours.
+                <strong>⚠️ Security Notice:</strong> This link is for your eyes only. Do not share it with anyone.
               </p>
               
               <p style="color: #6b7280; font-size: 13px; margin-top: 20px;">
