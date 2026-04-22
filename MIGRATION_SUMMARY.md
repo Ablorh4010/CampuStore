@@ -263,4 +263,13 @@ For issues during deployment:
 ✅ **Comprehensive documentation**
 ✅ **Ready for deployment**
 
+### Recent Enhancements (April 22, 2026)
+- **AI-Powered Delivery Tracking**: Integrated Gemini 2.5 Flash to provide real-time delivery insights for buyers based on Ghana Post tracking status.
+- **Ghana-Specific Shipping**: Added "Ghana Post Standard" (1-10 days) and "Express Delivery" (1-3 days) shipping options with automated fee calculation.
+- **Unified Dashboards**:
+  - **Buyer Dashboard**: New "Purchases" tab with live tracking timeline and AI delivery assistant.
+  - **Seller Dashboard**: Enhanced order management with a tracking update system (carrier, tracking #, history).
+- **Automated Order Fulfillment**: Fixed critical bug where orders were not created after successful Stripe payment.
+- **AI Store Creation**: One-click AI generation for store descriptions and smart shipping mode selection.
+
 The application is now fully prepared for production deployment with enterprise-grade security, proper error handling, and complete documentation.

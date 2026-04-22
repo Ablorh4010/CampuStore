@@ -77,6 +77,13 @@ export interface IStorage {
   getOrdersByBuyerId(buyerId: number): Promise<OrderWithDetails[]>;
   getOrdersBySellerId(sellerId: number): Promise<OrderWithDetails[]>;
   updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
+  updateOrderTracking(id: number, data: {
+    trackingNumber?: string;
+    carrier?: string;
+    estimatedDeliveryDate?: Date | string;
+    trackingHistory?: string;
+    deliveryStatus?: string;
+  }): Promise<Order | undefined>;
 
   // Messages
   createMessage(message: InsertMessage): Promise<Message>;
@@ -756,7 +763,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
-    const [order] = await db.insert(orders).values(insertOrder).returning();
+    const orderData = { ...insertOrder };
+    if (orderData.estimatedDeliveryDate && typeof orderData.estimatedDeliveryDate === 'string') {
+      orderData.estimatedDeliveryDate = new Date(orderData.estimatedDeliveryDate);
+    }
+    const [order] = await db.insert(orders).values(orderData as any).returning();
     return order;
   }
 
@@ -815,6 +826,21 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
     const [order] = await db.update(orders).set({ status }).where(eq(orders.id, id)).returning();
+    return order || undefined;
+  }
+
+  async updateOrderTracking(id: number, data: {
+    trackingNumber?: string;
+    carrier?: string;
+    estimatedDeliveryDate?: Date | string;
+    trackingHistory?: string;
+    deliveryStatus?: string;
+  }): Promise<Order | undefined> {
+    const updateData: any = { ...data };
+    if (updateData.estimatedDeliveryDate && typeof updateData.estimatedDeliveryDate === 'string') {
+      updateData.estimatedDeliveryDate = new Date(updateData.estimatedDeliveryDate);
+    }
+    const [order] = await db.update(orders).set(updateData).where(eq(orders.id, id)).returning();
     return order || undefined;
   }
 

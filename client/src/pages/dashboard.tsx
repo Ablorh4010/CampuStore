@@ -21,7 +21,8 @@ import {
   Lock,
   Video,
   XCircle,
-  ArrowRight
+  ArrowRight,
+  Truck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -34,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import StoreForm from '@/components/modals/store-form';
 import ProductForm from '@/components/modals/product-form';
+import TrackingModal from '@/components/modals/tracking-modal';
 import { IdScanCapture, FacialCapture } from '@/components/verification';
 import { useAuth } from '@/lib/auth-context';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -41,12 +43,23 @@ import { useToast } from '@/hooks/use-toast';
 import { Link, useLocation } from 'wouter';
 import type { Store, Product, OrderWithDetails } from '@shared/schema';
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { Sparkles } from 'lucide-react';
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [showStoreForm, setShowStoreForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
+  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<OrderWithDetails | null>(null);
 
   // Verification state
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
@@ -71,6 +84,38 @@ export default function Dashboard() {
     queryKey: ['/api/orders/seller', user?.id],
     enabled: !!user?.id,
   });
+
+  const { data: buyerOrders = [], isLoading: buyerOrdersLoading } = useQuery<OrderWithDetails[]>({
+    queryKey: ['/api/orders/buyer', user?.id],
+    enabled: !!user?.id,
+  });
+
+  // Tracking insights state
+  const [viewingTracking, setViewingTracking] = useState<OrderWithDetails | null>(null);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
+
+  const fetchAiInsight = async (orderId: number) => {
+    setIsGeneratingInsight(true);
+    try {
+      const response = await apiRequest('POST', `/api/ai/generate-tracking-insights/${orderId}`, {});
+      const data = await response.json();
+      setAiInsight(data.summary);
+    } catch (error) {
+      console.error("AI Insight Error:", error);
+      setAiInsight("Unable to load AI tracking insights at this time.");
+    } finally {
+      setIsGeneratingInsight(false);
+    }
+  };
+
+  useEffect(() => {
+    if (viewingTracking) {
+      fetchAiInsight(viewingTracking.id);
+    } else {
+      setAiInsight(null);
+    }
+  }, [viewingTracking]);
 
   // Auto-open store form if onboarding
   useEffect(() => {
@@ -368,12 +413,62 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <Tabs defaultValue="products" className="space-y-8">
+      <Tabs defaultValue={userStores.length > 0 ? "products" : "purchases"} className="space-y-8">
         <TabsList className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 h-14 inline-flex items-center">
-          <TabsTrigger value="products" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Products</TabsTrigger>
-          <TabsTrigger value="orders" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Orders</TabsTrigger>
-          <TabsTrigger value="store" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Settings</TabsTrigger>
+          <TabsTrigger value="purchases" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Purchases</TabsTrigger>
+          {userStores.length > 0 && (
+            <>
+              <TabsTrigger value="products" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Inventory</TabsTrigger>
+              <TabsTrigger value="orders" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Sales</TabsTrigger>
+              <TabsTrigger value="store" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Store Settings</TabsTrigger>
+            </>
+          )}
         </TabsList>
+
+        <TabsContent value="purchases">
+          <div className="space-y-4">
+             {buyerOrders.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-3xl border">
+                   <Package className="w-12 h-12 mx-auto text-gray-200 mb-4" />
+                   <h3 className="text-xl font-bold">No Purchases Yet</h3>
+                   <p className="text-gray-500">Items you buy will appear here with their tracking status.</p>
+                   <Link href="/browse">
+                     <Button className="mt-6 rounded-xl font-bold">Start Shopping</Button>
+                   </Link>
+                </div>
+             ) : (
+                buyerOrders.map(order => (
+                  <Card key={order.id} className="rounded-3xl border-none shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-6 flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                          <img src={order.product.images[0]} className="w-16 h-16 rounded-2xl object-cover" />
+                          <div>
+                            <h4 className="font-black text-lg">{order.product.title}</h4>
+                            <p className="text-sm font-medium text-gray-500">Seller: {order.seller.firstName} • {new Date(order.createdAt!).toLocaleDateString()}</p>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-4">
+                          <div className="text-right">
+                             <p className="font-black text-xl">${parseFloat(order.totalAmount).toFixed(2)}</p>
+                             <div className="flex flex-col items-end gap-1">
+                               <Badge className="bg-blue-100 text-blue-700 border-none font-bold">{order.deliveryStatus?.toUpperCase() || 'PENDING'}</Badge>
+                               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{order.shippingMode?.replace(/_/g, ' ')}</span>
+                             </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-xl font-bold h-12 px-6 border-2"
+                            onClick={() => setViewingTracking(order)}
+                          >
+                            <Truck className="w-4 h-4 mr-2" /> Track Order
+                          </Button>
+                       </div>
+                    </CardContent>
+                  </Card>
+                ))
+             )}
+          </div>
+        </TabsContent>
 
         <TabsContent value="products">
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -506,9 +601,22 @@ export default function Dashboard() {
                        <div className="flex items-center gap-4">
                           <div className="text-right">
                              <p className="font-black text-xl">${parseFloat(order.totalAmount).toFixed(2)}</p>
-                             <Badge className="bg-primary/10 text-primary border-none font-bold">{order.status.toUpperCase()}</Badge>
+                             <div className="flex flex-col items-end gap-1">
+                               <Badge className="bg-primary/10 text-primary border-none font-bold">{order.status.toUpperCase()}</Badge>
+                               <Badge variant="outline" className="text-[10px]">{order.deliveryStatus?.toUpperCase() || 'PENDING'}</Badge>
+                             </div>
                           </div>
-                          <Button variant="ghost" size="icon" className="rounded-full h-12 w-12"><ArrowRight className="w-5 h-5" /></Button>
+                          <div className="flex flex-col gap-2">
+                             <Button 
+                               variant="outline" 
+                               size="sm" 
+                               className="rounded-xl font-bold h-9 border-2"
+                               onClick={() => setSelectedOrderForTracking(order)}
+                             >
+                               <Truck className="w-4 h-4 mr-1" /> Track
+                             </Button>
+                             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9"><ArrowRight className="w-5 h-5" /></Button>
+                          </div>
                        </div>
                     </CardContent>
                   </Card>
@@ -528,6 +636,88 @@ export default function Dashboard() {
         onClose={() => setShowProductForm(false)}
         userStores={userStores}
       />
+      {selectedOrderForTracking && (
+        <TrackingModal
+          isOpen={!!selectedOrderForTracking}
+          onClose={() => setSelectedOrderForTracking(null)}
+          orderId={selectedOrderForTracking.id}
+          initialData={{
+            deliveryStatus: selectedOrderForTracking.deliveryStatus as any,
+            trackingNumber: selectedOrderForTracking.trackingNumber || '',
+            carrier: selectedOrderForTracking.carrier || 'Ghana Post',
+            estimatedDeliveryDate: selectedOrderForTracking.estimatedDeliveryDate as any,
+            trackingHistory: selectedOrderForTracking.trackingHistory || '',
+          }}
+        />
+      )}
+
+      {/* Buyer Tracking View Dialog */}
+      <Dialog open={!!viewingTracking} onOpenChange={() => setViewingTracking(null)}>
+        <DialogContent className="max-w-md rounded-[2.5rem] p-8">
+           <DialogHeader>
+              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
+                 <Truck className="w-6 h-6 text-primary" /> Track Your Order
+              </DialogTitle>
+              <DialogDescription className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">
+                 Order #{viewingTracking?.id} • {viewingTracking?.product.title}
+              </DialogDescription>
+           </DialogHeader>
+
+           <div className="mt-6 space-y-6">
+              {/* AI Insight Box */}
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-3xl border border-blue-100 shadow-sm relative overflow-hidden">
+                 <div className="absolute top-0 right-0 p-2 opacity-10">
+                    <Sparkles className="w-12 h-12" />
+                 </div>
+                 <h4 className="text-blue-800 font-black text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <Sparkles className="w-3 h-3" /> AI Delivery Assistant
+                 </h4>
+                 {isGeneratingInsight ? (
+                   <div className="flex items-center gap-2 text-blue-600 font-medium italic animate-pulse">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Thinking...
+                   </div>
+                 ) : (
+                   <p className="text-blue-900 font-medium leading-relaxed italic">
+                      "{aiInsight || 'Setting up tracking insights...'}"
+                   </p>
+                 )}
+              </div>
+
+              <div className="space-y-4">
+                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-sm font-bold text-gray-400">Carrier</p>
+                    <p className="font-black text-gray-900">{viewingTracking?.carrier || 'Ghana Post'}</p>
+                 </div>
+                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-sm font-bold text-gray-400">Tracking Number</p>
+                    <p className="font-black text-gray-900">{viewingTracking?.trackingNumber || 'Pending Assignment'}</p>
+                 </div>
+                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <p className="text-sm font-bold text-gray-400">Estimated Delivery</p>
+                    <p className="font-black text-gray-900">
+                       {viewingTracking?.estimatedDeliveryDate ? new Date(viewingTracking.estimatedDeliveryDate).toLocaleDateString() : 'TBD'}
+                    </p>
+                 </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-6 pl-4 border-l-4 border-primary/20">
+                 <div className="relative">
+                    <div className={`absolute -left-[1.35rem] top-1 w-4 h-4 rounded-full border-4 border-white shadow-sm ${viewingTracking?.deliveryStatus === 'delivered' ? 'bg-green-500' : 'bg-primary'}`}></div>
+                    <p className="font-black text-sm uppercase tracking-wider">{viewingTracking?.deliveryStatus?.replace(/_/g, ' ') || 'ORDER PLACED'}</p>
+                    <p className="text-xs text-gray-500 font-medium mt-1">
+                       {viewingTracking?.trackingHistory || 'Your order has been received and is being processed by the seller.'}
+                    </p>
+                 </div>
+              </div>
+
+              <Button className="w-full h-14 rounded-2xl font-bold text-lg" onClick={() => setViewingTracking(null)}>
+                 Close Tracking
+              </Button>
+           </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

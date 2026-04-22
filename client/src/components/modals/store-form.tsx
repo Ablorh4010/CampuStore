@@ -15,10 +15,11 @@ import {
 } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Checkbox } from '@/components/ui/checkbox';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
-import { ImagePlus, Loader2, X, Plus } from 'lucide-react';
+import { ImagePlus, Loader2, X, Plus, Sparkles } from 'lucide-react';
 import type { Store } from '@shared/schema';
 
 const storeSchema = z.object({
@@ -28,6 +29,7 @@ const storeSchema = z.object({
   campus: z.string().nullable().optional(),
   city: z.string().min(1, 'City is required'),
   logoUrl: z.string().nullable().optional(),
+  shippingModes: z.array(z.string()).default([]),
 });
 
 type StoreFormData = z.infer<typeof storeSchema>;
@@ -43,6 +45,7 @@ export default function StoreForm({ isOpen, onClose, store }: StoreFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [logoPreview, setLogoUrl] = useState<string | null>(store?.logoUrl || null);
 
   const form = useForm<StoreFormData>({
@@ -54,6 +57,7 @@ export default function StoreForm({ isOpen, onClose, store }: StoreFormProps) {
       campus: store?.campus || user?.campus || '',
       city: store?.city || user?.city || '',
       logoUrl: store?.logoUrl || '',
+      shippingModes: store?.shippingModes || [],
     },
   });
 
@@ -67,6 +71,7 @@ export default function StoreForm({ isOpen, onClose, store }: StoreFormProps) {
         campus: store.campus,
         city: store.city,
         logoUrl: store.logoUrl,
+        shippingModes: store.shippingModes || [],
       });
       setLogoUrl(store.logoUrl || null);
     } else {
@@ -77,10 +82,42 @@ export default function StoreForm({ isOpen, onClose, store }: StoreFormProps) {
         campus: user?.campus || '',
         city: user?.city || '',
         logoUrl: '',
+        shippingModes: [],
       });
       setLogoUrl(null);
     }
   }, [store, form, user]);
+
+  const generateWithAIMutation = useMutation({
+    mutationFn: async (data: { name: string; university: string; city: string }) => {
+      const response = await apiRequest('POST', '/api/ai/generate-store-profile', data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.description) form.setValue('description', data.description);
+      if (data.shippingModes) form.setValue('shippingModes', data.shippingModes);
+      toast({ title: 'AI Profile Generated!', description: 'We updated your description and shipping modes.' });
+      setIsGenerating(false);
+    },
+    onError: () => {
+      toast({ title: 'AI Generation Failed', variant: 'destructive' });
+      setIsGenerating(false);
+    }
+  });
+
+  const handleGenerateAI = () => {
+    const name = form.getValues('name');
+    const university = form.getValues('university');
+    const city = form.getValues('city');
+    
+    if (!name || !university || !city) {
+      toast({ title: 'Missing Info', description: 'Please fill out Store Name, University, and City first.', variant: 'destructive' });
+      return;
+    }
+    
+    setIsGenerating(true);
+    generateWithAIMutation.mutate({ name, university, city });
+  };
 
   const saveStoreMutation = useMutation({
     mutationFn: async (data: StoreFormData) => {
@@ -207,6 +244,18 @@ export default function StoreForm({ isOpen, onClose, store }: StoreFormProps) {
                 </FormItem>
               )}
             />
+            
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full bg-gradient-to-r from-blue-50 to-purple-50 border-blue-100 hover:border-blue-200 text-blue-700 font-semibold"
+              disabled={isGenerating}
+              onClick={handleGenerateAI}
+            >
+              {isGenerating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2 text-blue-500" />}
+              AI Auto-fill Description & Shipping
+            </Button>
 
             <FormField
               control={form.control}
@@ -264,6 +313,57 @@ export default function StoreForm({ isOpen, onClose, store }: StoreFormProps) {
                   <FormControl>
                     <Input placeholder="Main Campus" {...field} value={field.value || ''} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="shippingModes"
+              render={() => (
+                <FormItem>
+                  <div className="mb-4">
+                    <FormLabel className="text-base">Shipping Modes</FormLabel>
+                    <DialogDescription>
+                      Select the ways you can deliver your products to buyers.
+                    </DialogDescription>
+                  </div>
+                  {['seller_delivery', 'affordcampus_pickup', 'ems'].map((mode) => (
+                    <FormField
+                      key={mode}
+                      control={form.control}
+                      name="shippingModes"
+                      render={({ field }) => {
+                        return (
+                          <FormItem
+                            key={mode}
+                            className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(mode)}
+                                onCheckedChange={(checked: boolean) => {
+                                  return checked
+                                    ? field.onChange([...(field.value || []), mode])
+                                    : field.onChange(
+                                        field.value?.filter(
+                                          (value) => value !== mode
+                                        )
+                                      )
+                                }}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel className="font-normal capitalize">
+                                {mode.replace('_', ' ')}
+                              </FormLabel>
+                            </div>
+                          </FormItem>
+                        )
+                      }}
+                    />
+                  ))}
                   <FormMessage />
                 </FormItem>
               )}

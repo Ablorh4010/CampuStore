@@ -499,6 +499,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI integrations
+  app.post("/api/ai/generate-store-profile", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { name, university, city } = req.body;
+      if (!name || !university || !city) {
+        return res.status(400).json({ message: "Name, university, and city are required for AI generation" });
+      }
+      
+      const { generateStoreProfile } = await import('./ai');
+      const profile = await generateStoreProfile(name, university, city);
+      res.json(profile);
+    } catch (error) {
+      console.error("AI Endpoint Error:", error);
+      res.status(500).json({ message: "Failed to generate AI profile" });
+    }
+  });
+
+  app.post("/api/ai/generate-tracking-insights/:orderId", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      const order = await storage.getOrderById(orderId);
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      // Check if user is buyer or seller of this order
+      if (order.buyerId !== req.userId && order.sellerId !== req.userId) {
+        return res.status(403).json({ message: "Unauthorized access to order" });
+      }
+
+      const product = await storage.getProductById(order.productId);
+      
+      const { generateTrackingInsights } = await import('./ai');
+      const insights = await generateTrackingInsights({ ...order, product });
+      res.json(insights);
+    } catch (error) {
+      console.error("AI Tracking Insight Error:", error);
+      res.status(500).json({ message: "Failed to generate AI tracking insights" });
+    }
+  });
+
   // Store routes
   app.post("/api/stores", authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -1113,6 +1152,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Confirm payment and create orders
+  app.post("/api/orders/confirm-payment", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { paymentIntentId } = req.body;
+      if (!stripe) return res.status(500).json({ message: "Payment service not configured" });
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ message: "Payment has not succeeded" });
+      }
+
+      const { userId, cartItems: cartItemsRaw, shippingMode } = paymentIntent.metadata;
+      const cartItems = JSON.parse(cartItemsRaw);
+      
+      const createdOrders = [];
+      for (const item of cartItems) {
+        const product = await storage.getProductById(item.productId);
+        if (!product) continue;
+
+        // Get the store owner's user ID
+        const store = await storage.getStoreById(product.storeId);
+        if (!store) continue;
+
+        const order = await storage.createOrder({
+          buyerId: parseInt(userId),
+          sellerId: store.userId,
+          productId: product.id,
+          quantity: item.quantity,
+          totalAmount: (parseFloat(product.price.toString()) * item.quantity).toString(),
+          status: 'confirmed',
+          shippingMode: shippingMode || 'ghana_post_standard',
+          deliveryStatus: 'pending',
+        });
+        
+        createdOrders.push(order);
+      }
+
+      // Clear cart
+      await storage.clearCart(parseInt(userId));
+
+      res.json({ message: "Orders created successfully", orders: createdOrders });
+    } catch (error) {
+      console.error("Order creation error:", error);
+      res.status(500).json({ message: "Failed to create orders after payment" });
+    }
+  });
+
   app.put("/api/orders/:id/status", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -1132,6 +1218,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedOrder);
     } catch (error) {
       res.status(500).json({ message: "Failed to update order status" });
+    }
+  });
+
+  // Tracking update route
+  app.put("/api/orders/:id/tracking", apiLimiter, authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const trackingData = req.body;
+
+      // Verify user is the seller or an admin
+      const order = await storage.getOrderById(id);
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      const user = await storage.getUserById(req.userId!);
+      if (order.sellerId !== req.userId && !user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized to update tracking" });
+      }
+
+      const updatedOrder = await storage.updateOrderTracking(id, trackingData);
+      res.json(updatedOrder);
+    } catch (error) {
+      console.error("Tracking update error:", error);
+      res.status(500).json({ message: "Failed to update tracking information" });
     }
   });
 

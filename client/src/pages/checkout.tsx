@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Lock, CreditCard, ShieldCheck, Info, Wallet } from "lucide-react";
+import { ArrowLeft, Lock, CreditCard, ShieldCheck, Info, Wallet, Truck } from "lucide-react";
 import { IdScanCapture, FacialCapture } from "@/components/verification";
 
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_dummy';
@@ -115,14 +116,19 @@ export default function Checkout() {
   const [clientSecret, setClientSecret] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isBokoo, setIsBokoo] = useState(false);
+  const [shippingMode, setShippingMode] = useState<string>('ghana_post_standard');
   const [verificationStep, setVerificationStep] = useState<'verify' | 'payment'>('verify');
   const [buyerIdFile, setBuyerIdFile] = useState<File | null>(null);
   const [buyerFaceFile, setBuyerFaceFile] = useState<File | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const initializePayment = useCallback((useBokoo: boolean = false) => {
+  const shippingFee = shippingMode === 'express_delivery' ? 15 : 0;
+  const grandTotal = cartTotal + shippingFee;
+
+  const initializePayment = useCallback((useBokoo: boolean = false, mode: string = shippingMode) => {
     setIsLoading(true);
-    const amount = useBokoo ? cartTotal / 4 : cartTotal;
+    const fee = mode === 'express_delivery' ? 15 : 0;
+    const amount = useBokoo ? (cartTotal + fee) / 4 : (cartTotal + fee);
     
     apiRequest("POST", "/api/create-payment-intent", { 
       amount,
@@ -130,7 +136,8 @@ export default function Checkout() {
         productId: item.product.id,
         quantity: item.quantity,
       })),
-      isBokoo: useBokoo
+      isBokoo: useBokoo,
+      shippingMode: mode
     })
       .then((res) => res.json())
       .then((data) => {
@@ -146,7 +153,7 @@ export default function Checkout() {
         console.error('Payment intent error:', error);
         setIsLoading(false);
       });
-  }, [cartTotal, cartItems, toast]);
+  }, [cartTotal, cartItems, toast, shippingMode]);
 
   useEffect(() => {
     if (!user) {
@@ -173,15 +180,20 @@ export default function Checkout() {
     if (user.buyerIdScanUrl && user.buyerFaceScanUrl) {
       // Skip verification step
       setVerificationStep('payment');
-      initializePayment(isBokoo);
+      initializePayment(isBokoo, shippingMode);
     } else {
       setIsLoading(false);
     }
-  }, [user, cartItems, initializePayment, isBokoo, setLocation, toast]);
+  }, [user, cartItems, initializePayment, isBokoo, shippingMode, setLocation, toast]);
 
   const handleBokooToggle = (checked: boolean) => {
     setIsBokoo(checked);
-    initializePayment(checked);
+    initializePayment(checked, shippingMode);
+  };
+
+  const handleShippingChange = (value: string) => {
+    setShippingMode(value);
+    initializePayment(isBokoo, value);
   };
 
   const handleVerificationSubmit = async () => {
@@ -386,7 +398,6 @@ export default function Checkout() {
 
         <div className="grid md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-6">
-            {/* Bɔkɔɔ Installment Toggle */}
             <Card className="border-2 border-primary/20 shadow-md">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
@@ -428,6 +439,61 @@ export default function Checkout() {
                     )}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-full">
+                    <Truck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Shipping Method</CardTitle>
+                    <CardDescription>
+                      Select your preferred delivery option within Ghana
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup value={shippingMode} onValueChange={handleShippingChange} className="grid gap-4">
+                  <div className="flex items-center space-x-3 rounded-xl border-2 p-4 cursor-pointer hover:border-primary/50 transition-colors">
+                    <RadioGroupItem value="ghana_post_standard" id="gp_standard" />
+                    <Label htmlFor="gp_standard" className="flex-1 cursor-pointer">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold">Ghana Post Standard</p>
+                          <p className="text-xs text-gray-500">1 - 10 Business Days</p>
+                        </div>
+                        <span className="text-sm font-bold text-green-600">FREE</span>
+                      </div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3 rounded-xl border-2 p-4 cursor-pointer hover:border-primary/50 transition-colors">
+                    <RadioGroupItem value="express_delivery" id="express" />
+                    <Label htmlFor="express" className="flex-1 cursor-pointer">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold">Express Delivery</p>
+                          <p className="text-xs text-gray-500">1 - 3 Business Days</p>
+                        </div>
+                        <span className="text-sm font-bold">$15.00</span>
+                      </div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3 rounded-xl border-2 p-4 cursor-pointer hover:border-primary/50 transition-colors opacity-60">
+                    <RadioGroupItem value="seller_delivery" id="seller" disabled />
+                    <Label htmlFor="seller" className="flex-1">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold">Seller Delivery</p>
+                          <p className="text-xs text-gray-500">Available for on-campus orders only</p>
+                        </div>
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
               </CardContent>
             </Card>
 
@@ -488,8 +554,10 @@ export default function Checkout() {
                     <span>${cartTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Shipping</span>
-                    <span className="text-green-600 font-medium">FREE</span>
+                    <span className="text-gray-600">Shipping ({shippingMode.replace(/_/g, ' ')})</span>
+                    <span className={shippingFee === 0 ? "text-green-600 font-medium" : ""}>
+                      {shippingFee === 0 ? "FREE" : `$${shippingFee.toFixed(2)}`}
+                    </span>
                   </div>
                 </div>
 
@@ -502,12 +570,12 @@ export default function Checkout() {
                         <span>Due Today</span>
                         <Info className="h-3 w-3" />
                       </div>
-                      <span className="text-2xl">${(cartTotal / 4).toFixed(2)}</span>
+                      <span className="text-2xl">${(grandTotal / 4).toFixed(2)}</span>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-2">
                       <div className="flex justify-between text-gray-500">
                         <span>3 installments of</span>
-                        <span>${(cartTotal / 4).toFixed(2)}</span>
+                        <span>${(grandTotal / 4).toFixed(2)}</span>
                       </div>
                       <p className="text-[10px] text-gray-400 italic">Remaining balance will be charged automatically every 2 weeks.</p>
                     </div>
@@ -516,7 +584,7 @@ export default function Checkout() {
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold">Total</span>
                     <span className="text-2xl font-bold text-primary">
-                      ${cartTotal.toFixed(2)}
+                      ${grandTotal.toFixed(2)}
                     </span>
                   </div>
                 )}

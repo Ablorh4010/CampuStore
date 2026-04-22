@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
+import { apiRequest } from '@/lib/queryClient';
 
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_dummy';
 const stripePromise = loadStripe(stripePublicKey);
@@ -42,8 +43,16 @@ function PaymentSuccessContent() {
 
       switch (paymentIntent.status) {
         case 'succeeded':
-          setStatus('succeeded');
-          clearCart();
+          apiRequest('POST', '/api/orders/confirm-payment', { paymentIntentId: paymentIntent.id })
+            .then(() => {
+              setStatus('succeeded');
+              clearCart();
+            })
+            .catch((err) => {
+              console.error('Order creation error:', err);
+              setStatus('failed');
+              setErrorMessage('Payment succeeded but we failed to create your order. Please contact support.');
+            });
           break;
         case 'processing':
           setStatus('loading');

@@ -66,7 +66,7 @@ export const stores = pgTable("stores", {
   address: text("address"), // Full address
   latitude: text("latitude"),
   longitude: text("longitude"),
-  shippingModes: text("shipping_modes").array(), // ["seller_delivery", "affordcampus_pickup", "ems"]
+  shippingModes: text("shipping_modes").array(), // ["seller_delivery", "affordcampus_pickup", "ems", "ghana_post_standard", "express_delivery"]
   deliveryRadius: integer("delivery_radius"), // in km for seller delivery
   
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -105,8 +105,12 @@ export const orders = pgTable("orders", {
   quantity: integer("quantity").notNull().default(1),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"), // pending, confirmed, completed, cancelled, rejected
-  shippingMode: text("shipping_mode"), // seller_delivery, affordcampus_pickup, ems
+  shippingMode: text("shipping_mode"), // seller_delivery, affordcampus_pickup, ems, ghana_post_standard, express_delivery
   deliveryStatus: text("delivery_status").default("pending"), // pending, in_transit, delivered, rejected
+  trackingNumber: text("tracking_number"),
+  carrier: text("carrier"), // Ghana Post, FedEx, etc.
+  estimatedDeliveryDate: timestamp("estimated_delivery_date"),
+  trackingHistory: text("tracking_history"), // Text summary of updates
   buyerConfirmation: text("buyer_confirmation"), // received, rejected
   buyerConfirmationAt: timestamp("buyer_confirmation_at"),
   payoutStatus: text("payout_status").default("pending"), // pending, processed, cancelled
@@ -339,7 +343,7 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   latitude: z.string().nullable().optional(),
   longitude: z.string().nullable().optional(),
   logoUrl: z.string().nullable().optional(),
-  shippingModes: z.array(z.enum(['seller_delivery', 'affordcampus_pickup', 'ems'])).nullable().optional(),
+  shippingModes: z.array(z.enum(['seller_delivery', 'affordcampus_pickup', 'ems', 'ghana_post_standard', 'express_delivery'])).nullable().optional(),
   deliveryRadius: z.number().nullable().optional(),
 });
 
@@ -356,6 +360,8 @@ export const insertProductSchema = createInsertSchema(products).omit({
 export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true,
   createdAt: true,
+}).extend({
+  estimatedDeliveryDate: z.string().or(z.date()).nullable().optional(),
 });
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
