@@ -403,7 +403,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteStore(id: number): Promise<boolean> {
-    // Also delete products in store
+    // Delete all products and their related data first to satisfy foreign key constraints
+    const storeProducts = await db.select().from(products).where(eq(products.storeId, id));
+    for (const product of storeProducts) {
+      await db.delete(orders).where(eq(orders.productId, product.id));
+      await db.delete(messages).where(eq(messages.productId, product.id));
+      await db.delete(cartItems).where(eq(cartItems.productId, product.id));
+    }
+    
     await db.delete(products).where(eq(products.storeId, id));
     const result = await db.delete(stores).where(eq(stores.id, id));
     return (result.rowCount || 0) > 0;

@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import StoreForm from '@/components/modals/store-form';
 import ProductForm from '@/components/modals/product-form';
 import { IdScanCapture, FacialCapture } from '@/components/verification';
@@ -60,12 +61,25 @@ export default function Dashboard() {
 
   const { data: storeProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ['/api/products/store', userStores[0]?.id],
-    enabled: !!userStores[0]?.id && userStores[0]?.approvalStatus === 'approved',
+    enabled: !!userStores[0]?.id,
   });
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery<OrderWithDetails[]>({
     queryKey: ['/api/orders/seller', user?.id],
     enabled: !!user?.id,
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      return apiRequest('DELETE', `/api/products/${productId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/products/store'] });
+      toast({ title: "Product Deleted", description: "Listing has been removed from your store." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
   });
 
   const verificationMutation = useMutation({
@@ -349,13 +363,33 @@ export default function Dashboard() {
                <Card key={product.id} className="rounded-[2.5rem] overflow-hidden border-none shadow-sm hover:shadow-xl transition-all group">
                   <div className="relative h-56 overflow-hidden">
                     <img src={product.images[0]} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
-                    <div className="absolute top-4 right-4 flex gap-2">
+                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                        <Button size="icon" variant="secondary" className="rounded-full shadow-lg h-10 w-10"><Edit className="w-4 h-4" /></Button>
+                       <Button 
+                         size="icon" 
+                         variant="destructive" 
+                         className="rounded-full shadow-lg h-10 w-10"
+                         onClick={(e) => {
+                           e.preventDefault();
+                           if (confirm('Are you sure you want to delete this product?')) {
+                             deleteProductMutation.mutate(product.id);
+                           }
+                         }}
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </Button>
                     </div>
                   </div>
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-2">
-                       <h3 className="font-black text-xl line-clamp-1">{product.title}</h3>
+                       <div className="flex-1 min-w-0 mr-2">
+                          <h3 className="font-black text-xl line-clamp-1">{product.title}</h3>
+                          {product.approvalStatus === 'pending' && (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-[10px] mt-1">
+                               PENDING APPROVAL
+                            </Badge>
+                          )}
+                       </div>
                        <p className="text-primary font-black">${parseFloat(product.price).toFixed(2)}</p>
                     </div>
                     <Badge variant="outline" className="rounded-lg font-bold border-2">{product.condition.toUpperCase()}</Badge>
@@ -363,6 +397,61 @@ export default function Dashboard() {
                </Card>
              ))}
            </div>
+        </TabsContent>
+
+        <TabsContent value="store">
+           <Card className="rounded-[2rem] border-none shadow-sm overflow-hidden">
+             <CardContent className="p-10">
+                <div className="flex justify-between items-start mb-8">
+                   <div>
+                      <h3 className="text-3xl font-black text-gray-900">{primaryStore.name}</h3>
+                      <p className="text-gray-500 font-medium mt-1">{primaryStore.description}</p>
+                   </div>
+                   <Button variant="outline" className="rounded-xl border-2 font-bold h-12 px-6" onClick={() => setShowStoreForm(true)}>
+                      <Edit className="w-4 h-4 mr-2" /> Edit Store Profile
+                   </Button>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-8">
+                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                      <p className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Campus & Location</p>
+                      <div className="space-y-3">
+                         <div className="flex items-center gap-2 text-gray-700 font-bold">
+                            <MapPin className="w-4 h-4 text-primary" /> {primaryStore.university}
+                         </div>
+                         <p className="text-sm text-gray-500 ml-6">{primaryStore.campus || 'Main Campus'}</p>
+                      </div>
+                   </div>
+                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                      <p className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Store Status</p>
+                      <div className="flex items-center gap-3">
+                         <Badge className={primaryStore.approvalStatus === 'approved' ? 'bg-green-500' : 'bg-yellow-500'}>
+                            {primaryStore.approvalStatus.toUpperCase()}
+                         </Badge>
+                         {primaryStore.isActive ? (
+                            <span className="text-sm font-bold text-green-600 flex items-center gap-1">
+                               <CheckCircle className="w-4 h-4" /> Active
+                            </span>
+                         ) : (
+                            <span className="text-sm font-bold text-red-600 flex items-center gap-1">
+                               <XCircle className="w-4 h-4" /> Paused
+                            </span>
+                         )}
+                      </div>
+                   </div>
+                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                      <p className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Store Identity</p>
+                      <div className="flex items-center gap-3">
+                         <Avatar className="h-12 w-12 border-2 border-white shadow-md">
+                            <AvatarImage src={user.avatar || ''} />
+                            <AvatarFallback>{user.firstName[0]}{user.lastName[0]}</AvatarFallback>
+                         </Avatar>
+                         <p className="font-bold text-gray-800">Store Avatar</p>
+                      </div>
+                   </div>
+                </div>
+             </CardContent>
+           </Card>
         </TabsContent>
 
         <TabsContent value="orders">
