@@ -31,6 +31,15 @@ export interface IStorage {
   setPasswordResetToken(email: string, token: string, expiry: Date): Promise<void>;
   getUserByResetToken(token: string): Promise<User | undefined>;
   resetPassword(token: string, newPassword: string): Promise<boolean>;
+  getAllUsers(): Promise<User[]>;
+  deleteUser(id: number): Promise<boolean>;
+  getAnalytics(): Promise<{
+    totalUsers: number;
+    totalStores: number;
+    totalProducts: number;
+    totalOrders: number;
+    totalRevenue: number;
+  }>;
 
   // Stores
   createStore(store: InsertStore): Promise<Store>;
@@ -235,6 +244,37 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, user.id));
     
     return true;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getAnalytics(): Promise<{
+    totalUsers: number;
+    totalStores: number;
+    totalProducts: number;
+    totalOrders: number;
+    totalRevenue: number;
+  }> {
+    const [userCount] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(users);
+    const [storeCount] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(stores);
+    const [productCount] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(products);
+    const [orderCount] = await db.select({ count: sql<number>`COUNT(*)::int` }).from(orders);
+    const [revenueSum] = await db.select({ sum: sql<number>`SUM(CAST(total_amount AS DECIMAL))::float` }).from(orders).where(eq(orders.status, 'completed'));
+
+    return {
+      totalUsers: userCount?.count || 0,
+      totalStores: storeCount?.count || 0,
+      totalProducts: productCount?.count || 0,
+      totalOrders: orderCount?.count || 0,
+      totalRevenue: revenueSum?.sum || 0,
+    };
   }
 
   async getUserById(id: number): Promise<User | undefined> {

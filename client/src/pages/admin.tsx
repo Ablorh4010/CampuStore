@@ -6,27 +6,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink, Settings, Plus, Tag, Mail, Loader2, RefreshCcw, ShieldAlert, Video } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink, Settings, Plus, Tag, Mail, Loader2, RefreshCcw, ShieldAlert, Video, Users as UsersIcon, DollarSign, Activity } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { ProductWithStore, StoreWithUser, Category } from '@shared/schema';
+import type { ProductWithStore, StoreWithUser, Category, User } from '@shared/schema';
 
 export default function AdminDashboard() {
   const { user, logout, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState('pending-products');
+  const [activeTab, setActiveTab] = useState('overview');
 
   // Category management state
   const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1' });
 
   // Deletion/Suspension feedback state
   const [modModalOpen, setModModalOpen] = useState(false);
-  const [modItem, setModItem] = useState<{ id: number; type: 'product' | 'store'; action: 'delete' | 'reject' | 'suspend'; title: string } | null>(null);
+  const [modItem, setModItem] = useState<{ id: number; type: 'product' | 'store' | 'user'; action: 'delete' | 'reject' | 'suspend'; title: string } | null>(null);
   const [adminFeedback, setAdminFeedback] = useState('');
 
   // Redirect if not admin (ensuring session is loaded first)
@@ -42,6 +42,22 @@ export default function AdminDashboard() {
   };
 
   // Queries
+  const { data: analytics } = useQuery<{
+    totalUsers: number;
+    totalStores: number;
+    totalProducts: number;
+    totalOrders: number;
+    totalRevenue: number;
+  }>({
+    queryKey: ['/api/admin/analytics'],
+    enabled: !!user?.isAdmin
+  });
+
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ['/api/admin/users'],
+    enabled: !!user?.isAdmin
+  });
+
   const { data: allProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/admin/products'],
     enabled: !!user?.isAdmin
@@ -134,7 +150,11 @@ export default function AdminDashboard() {
     if (!modItem) return;
     
     if (modItem.action === 'delete') {
-      deleteItemMutation.mutate({ id: modItem.id, type: modItem.type, feedback: adminFeedback });
+      if (modItem.type === 'user') {
+        deleteUserMutation.mutate(modItem.id);
+      } else {
+        deleteItemMutation.mutate({ id: modItem.id, type: modItem.type, feedback: adminFeedback });
+      }
     } else if (modItem.action === 'reject') {
       if (modItem.type === 'store') {
         updateStoreStatusMutation.mutate({ storeId: modItem.id, status: 'rejected', feedback: adminFeedback });
@@ -149,6 +169,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest('DELETE', `/api/admin/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: 'User Deleted' });
+      setModModalOpen(false);
+      setModItem(null);
+      setAdminFeedback('');
+    }
+  });
+
   if (authLoading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -156,6 +187,32 @@ export default function AdminDashboard() {
   );
   
   if (!user || !user.isAdmin) return null;
+
+  const renderUserRow = (u: User) => (
+    <div key={u.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border-2 border-gray-50 hover:border-primary/10 transition-all group">
+       <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+             {u.firstName?.[0]}{u.lastName?.[0]}
+          </div>
+          <div>
+             <p className="font-bold text-gray-900">{u.firstName} {u.lastName} {u.isAdmin && <Badge className="ml-1 bg-primary text-[10px]">ADMIN</Badge>}</p>
+             <p className="text-xs text-gray-400 font-medium">{u.email} • {u.university || 'No Uni'}</p>
+          </div>
+       </div>
+       <div className="flex items-center gap-4">
+          <div className="text-right hidden md:block">
+             <p className="text-[10px] font-black uppercase text-gray-400">Joined</p>
+             <p className="text-xs font-bold text-gray-700">{new Date(u.createdAt!).toLocaleDateString()}</p>
+          </div>
+          <Button variant="ghost" size="icon" className="text-gray-300 hover:text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+             setModItem({ id: u.id, type: 'user', action: 'delete', title: `${u.firstName} ${u.lastName}` });
+             setModModalOpen(true);
+          }}>
+             <Trash2 className="w-4 h-4" />
+          </Button>
+       </div>
+    </div>
+  );
 
   const renderProductCard = (product: ProductWithStore) => (
     <Card key={product.id} className="mb-4 overflow-hidden border-l-4 border-l-primary/20 bg-white">
@@ -343,6 +400,9 @@ export default function AdminDashboard() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           <TabsList className="inline-flex h-14 items-center justify-center rounded-2xl bg-white p-2 shadow-sm border overflow-x-auto w-full md:w-auto">
+            <TabsTrigger value="overview" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
+              <Activity className="w-4 h-4 mr-2" /> Overview
+            </TabsTrigger>
             <TabsTrigger value="pending-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
               Pending Products
               {allProducts.filter(p => p.approvalStatus === 'pending').length > 0 && (
@@ -358,10 +418,108 @@ export default function AdminDashboard() {
             <TabsTrigger value="all-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
               All Stores
             </TabsTrigger>
+            <TabsTrigger value="users" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
+              Users
+            </TabsTrigger>
             <TabsTrigger value="app-mgmt" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap flex items-center gap-2">
               <Settings className="w-4 h-4" /> App Management
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="overview" className="mt-0">
+             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <Card className="rounded-3xl border-none shadow-sm bg-white p-6">
+                   <div className="flex items-center gap-4">
+                      <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><UsersIcon className="w-6 h-6" /></div>
+                      <div>
+                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Total Users</p>
+                         <h3 className="text-3xl font-black text-gray-900">{analytics?.totalUsers || 0}</h3>
+                      </div>
+                   </div>
+                </Card>
+                <Card className="rounded-3xl border-none shadow-sm bg-white p-6">
+                   <div className="flex items-center gap-4">
+                      <div className="p-3 bg-orange-50 text-orange-600 rounded-2xl"><StoreIcon className="w-6 h-6" /></div>
+                      <div>
+                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Total Stores</p>
+                         <h3 className="text-3xl font-black text-gray-900">{analytics?.totalStores || 0}</h3>
+                      </div>
+                   </div>
+                </Card>
+                <Card className="rounded-3xl border-none shadow-sm bg-white p-6">
+                   <div className="flex items-center gap-4">
+                      <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl"><Package className="w-6 h-6" /></div>
+                      <div>
+                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Active Products</p>
+                         <h3 className="text-3xl font-black text-gray-900">{analytics?.totalProducts || 0}</h3>
+                      </div>
+                   </div>
+                </Card>
+                <Card className="rounded-3xl border-none shadow-sm bg-white p-6">
+                   <div className="flex items-center gap-4">
+                      <div className="p-3 bg-green-50 text-green-600 rounded-2xl"><DollarSign className="w-6 h-6" /></div>
+                      <div>
+                         <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Revenue</p>
+                         <h3 className="text-3xl font-black text-gray-900">${analytics?.totalRevenue?.toFixed(2) || '0.00'}</h3>
+                      </div>
+                   </div>
+                </Card>
+             </div>
+
+             <div className="grid lg:grid-cols-2 gap-8">
+                <Card className="rounded-[2rem] border-none shadow-lg bg-white overflow-hidden">
+                   <CardHeader className="border-b border-gray-50 pb-6">
+                      <CardTitle className="text-xl font-black">Recent Orders</CardTitle>
+                      <CardDescription className="font-medium">Platform-wide transaction log</CardDescription>
+                   </CardHeader>
+                   <CardContent className="p-0">
+                      <div className="text-center py-20 text-gray-400 font-bold italic">
+                         Order log feature coming in next module update.
+                      </div>
+                   </CardContent>
+                </Card>
+                
+                <Card className="rounded-[2rem] border-none shadow-lg bg-white overflow-hidden">
+                   <CardHeader className="border-b border-gray-50 pb-6">
+                      <CardTitle className="text-xl font-black">System Status</CardTitle>
+                      <CardDescription className="font-medium">Service health monitoring</CardDescription>
+                   </CardHeader>
+                   <CardContent className="p-6 space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                         <div className="flex items-center gap-3">
+                            <Activity className="w-5 h-5 text-green-500" />
+                            <span className="font-bold">API Engine</span>
+                         </div>
+                         <Badge className="bg-green-100 text-green-700 border-none font-bold">OPERATIONAL</Badge>
+                      </div>
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                         <div className="flex items-center gap-3">
+                            <RefreshCcw className="w-5 h-5 text-blue-500" />
+                            <span className="font-bold">Database</span>
+                         </div>
+                         <Badge className="bg-green-100 text-green-700 border-none font-bold">CONNECTED</Badge>
+                      </div>
+                   </CardContent>
+                </Card>
+             </div>
+          </TabsContent>
+
+          <TabsContent value="users" className="mt-0">
+             <Card className="rounded-[2.5rem] border-none shadow-lg bg-white p-8">
+                <div className="flex items-center justify-between mb-8">
+                   <div>
+                      <h3 className="text-2xl font-black tracking-tight">Platform Users</h3>
+                      <p className="text-gray-500 font-medium">Manage all registered accounts</p>
+                   </div>
+                   <div className="flex gap-2">
+                      <Input placeholder="Search users..." className="h-11 rounded-xl w-64 border-2" />
+                   </div>
+                </div>
+                <div className="space-y-3">
+                   {allUsers.map(renderUserRow)}
+                </div>
+             </Card>
+          </TabsContent>
 
           <TabsContent value="pending-products" className="mt-0">
             {allProducts.filter(p => p.approvalStatus === 'pending').length === 0 ? (

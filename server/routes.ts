@@ -1192,6 +1192,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear cart
       await storage.clearCart(parseInt(userId));
 
+      // Send notifications
+      const { sendOrderConfirmation } = await import('./notifications');
+      const buyer = await storage.getUserById(parseInt(userId));
+      if (buyer) {
+        for (const order of createdOrders) {
+          const product = await storage.getProductById(order.productId);
+          if (product) {
+            await sendOrderConfirmation(order, buyer, product);
+          }
+        }
+      }
+
       res.json({ message: "Orders created successfully", orders: createdOrders });
     } catch (error) {
       console.error("Order creation error:", error);
@@ -1237,6 +1249,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedOrder = await storage.updateOrderTracking(id, trackingData);
+      
+      // Notify buyer about tracking update
+      if (updatedOrder) {
+        const { sendTrackingUpdate } = await import('./notifications');
+        const buyer = await storage.getUserById(updatedOrder.buyerId);
+        const product = await storage.getProductById(updatedOrder.productId);
+        if (buyer && product) {
+          await sendTrackingUpdate(updatedOrder, buyer, product);
+        }
+      }
+
       res.json(updatedOrder);
     } catch (error) {
       console.error("Tracking update error:", error);
@@ -1353,7 +1376,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin routes for product and store approval
+  // Admin routes for moderation and analytics
+  app.get("/api/admin/analytics", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const analytics = await storage.getAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch platform analytics" });
+    }
+  });
+
+  app.get("/api/admin/users", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (id === req.userId) {
+        return res.status(400).json({ message: "Cannot delete your own admin account" });
+      }
+      const deleted = await storage.deleteUser(id);
+      res.json({ success: deleted });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   app.get("/api/admin/products/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const pendingProducts = await storage.getPendingProducts();
