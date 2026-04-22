@@ -153,6 +153,16 @@ export default function AdminPortal() {
                         </FormItem>
                       )}
                     />
+                    <div className="flex justify-end">
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="text-xs text-primary font-bold p-0 h-auto" 
+                        onClick={() => setLocation('/forgot-password')}
+                      >
+                        Forgot Password?
+                      </Button>
+                    </div>
                     <Button type="submit" disabled={isLoading} className="w-full h-12 rounded-xl font-bold text-lg shadow-xl shadow-primary/20">
                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enter Portal'}
                     </Button>

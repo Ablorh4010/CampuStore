@@ -121,3 +121,61 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
     throw new Error('Failed to send admin invite');
   }
 }
+
+export async function sendPasswordResetEmail(email: string, resetUrl: string) {
+  if (!resend) {
+    console.warn('Warning: RESEND_API_KEY is missing. Password reset email skipped for:', email);
+    return false;
+  }
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: 'The University Hub - Reset Your Password',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #1f2937 0%, #111827 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">The University Hub</h1>
+            </div>
+            
+            <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">Password Reset Request</h2>
+              <p style="color: #4b5563; font-size: 16px;">We received a request to reset your password. If you didn't make this request, you can safely ignore this email.</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetUrl}" style="background-color: #1f2937; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+                  Reset My Password
+                </a>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 13px; margin-top: 20px;">
+                If the button doesn't work, copy and paste this link into your browser:<br>
+                <span style="color: #667eea; word-break: break-all;">${resetUrl}</span>
+              </p>
+              
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
+              
+              <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+                The University Hub - Admin Security<br>
+                This is an automated email. Please do not reply.
+              </p>
+            </div>
+          </body>
+        </html>
+      `
+    });
+    
+    console.log(`Password reset email sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send password reset email:', error);
+    throw new Error('Failed to send password reset email');
+  }
+}

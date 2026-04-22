@@ -390,14 +390,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.getUserByEmail(email);
-      if (!user) {
-        // Don't reveal if email exists or not for security
-        return res.json({ message: "If an account with that email exists, a password reset link has been sent." });
-      }
-
-      // Only allow password reset for admin account
-      if (email !== 'richard.jil@outlook.com') {
-        return res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+      if (!user || !user.isAdmin) {
+        // For security, don't reveal if user exists or is admin
+        return res.json({ message: "If an admin account with that email exists, a password reset link has been sent." });
       }
 
       // Generate reset token
@@ -408,16 +403,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.setPasswordResetToken(email, resetToken, expiry);
 
       // Send email with reset link
-      const { sendPasswordResetEmail } = await import('./resend');
-      const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
-      
-      const emailSent = await sendPasswordResetEmail(email, resetToken, resetUrl);
-      
-      if (!emailSent) {
-        return res.status(500).json({ message: "Failed to send password reset email" });
-      }
+      const { sendPasswordResetEmail } = await import('./email');
+      const baseUrl = process.env.NODE_ENV === 'production' ? 'https://uniexchangehub.com' : `${req.protocol}://${req.get('host')}`;
+      const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
-      res.json({ message: "If an account with that email exists, a password reset link has been sent." });
+      await sendPasswordResetEmail(email, resetUrl);
+
+      res.json({ message: "If an admin account with that email exists, a password reset link has been sent." });
     } catch (error) {
       console.error('Password reset request error:', error);
       res.status(500).json({ message: "Failed to process password reset request" });
