@@ -56,7 +56,8 @@ export default function AdminPortal() {
   const onLogin = async (data: AdminLoginData) => {
     try {
       const res = await login(data);
-      if (!res.user.isAdmin) {
+      // Backend now populates full user object
+      if (!res.user || !res.user.isAdmin) {
         throw new Error('This account does not have administrator privileges.');
       }
       toast({ title: 'Admin access granted', description: 'Welcome to the moderation engine.' });
@@ -74,8 +75,9 @@ export default function AdminPortal() {
     try {
       await registerAdmin(data);
       toast({
-        title: 'Admin account created',
-        description: 'Successfully registered as an administrator.',
+        title: '✅ Application Received!',
+        description: 'The University Hub team will review your application and send a notification soon on the success of your admin account.',
+        duration: 10000,
       });
       setLocation('/admin');
     } catch (error: any) {
