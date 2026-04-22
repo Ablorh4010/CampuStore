@@ -69,6 +69,14 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
+  // Auto-open store form if onboarding
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('onboarding') === 'true' && userStores.length === 0 && !storesLoading) {
+      setShowStoreForm(true);
+    }
+  }, [userStores.length, storesLoading]);
+
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: number) => {
       return apiRequest('DELETE', `/api/products/${productId}`);
@@ -286,7 +294,7 @@ export default function Dashboard() {
          </div>
          <h1 className="text-4xl font-black text-gray-900 tracking-tighter mb-4">Pending Admin Review</h1>
          <p className="text-xl text-gray-500 leading-relaxed">
-           Your store <strong>"{primaryStore.name}"</strong> and verification documents are currently being reviewed by our campus moderation team.
+           University Hub has received your application! Our team is reviewing your store <strong>"{primaryStore.name}"</strong> and will send you a notification soon on the success of your application.
          </p>
          <div className="mt-12 p-6 bg-white rounded-3xl border-2 border-gray-100 shadow-sm flex items-center justify-center gap-4">
             <Badge className="bg-yellow-500 font-bold px-3 py-1">TIMELINE</Badge>
@@ -447,10 +455,10 @@ export default function Dashboard() {
                       <p className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Store Identity</p>
                       <div className="flex items-center gap-3">
                          <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                            <AvatarImage src={user.avatar || ''} />
-                            <AvatarFallback>{user.firstName[0]}{user.lastName[0]}</AvatarFallback>
+                            <AvatarImage src={primaryStore.logoUrl || ''} />
+                            <AvatarFallback>{primaryStore.name[0]}</AvatarFallback>
                          </Avatar>
-                         <p className="font-bold text-gray-800">Store Avatar</p>
+                         <p className="font-bold text-gray-800">Store Profile Picture</p>
                       </div>
                    </div>
                 </div>
@@ -492,8 +500,16 @@ export default function Dashboard() {
         </TabsContent>
       </Tabs>
 
-      <StoreForm isOpen={showStoreForm} onClose={() => setShowStoreForm(false)} />
-      <ProductForm isOpen={showProductForm} onClose={() => setShowProductForm(false)} userStores={userStores} />
+      <StoreForm 
+        isOpen={showStoreForm} 
+        onClose={() => setShowStoreForm(false)} 
+        store={primaryStore}
+      />
+      <ProductForm 
+        isOpen={showProductForm} 
+        onClose={() => setShowProductForm(false)}
+        userStores={userStores}
+      />
     </div>
   );
 }

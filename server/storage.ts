@@ -648,21 +648,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrdersByBuyerId(buyerId: number): Promise<OrderWithDetails[]> {
-    return await db
-      .select()
-      .from(orders)
-      .leftJoin(products, eq(orders.productId, products.id))
-      .leftJoin(users, eq(orders.buyerId, users.id))
-      .where(eq(orders.buyerId, buyerId)) as any[];
-  }
-
-  async getOrdersBySellerId(sellerId: number): Promise<OrderWithDetails[]> {
-    return await db
+    const results = await db
       .select()
       .from(orders)
       .leftJoin(products, eq(orders.productId, products.id))
       .leftJoin(users, eq(orders.sellerId, users.id))
-      .where(eq(orders.sellerId, sellerId)) as any[];
+      .where(eq(orders.buyerId, buyerId));
+
+    return results.map(result => ({
+      ...result.orders,
+      product: result.products!,
+      buyer: { firstName: '', lastName: '', email: '' }, // Not needed for buyer view
+      seller: {
+        firstName: result.users!.firstName,
+        lastName: result.users!.lastName,
+        email: result.users!.email,
+      }
+    }));
+  }
+
+  async getOrdersBySellerId(sellerId: number): Promise<OrderWithDetails[]> {
+    const results = await db
+      .select()
+      .from(orders)
+      .leftJoin(products, eq(orders.productId, products.id))
+      .leftJoin(users, eq(orders.buyerId, users.id))
+      .where(eq(orders.sellerId, sellerId));
+
+    return results.map(result => ({
+      ...result.orders,
+      product: result.products!,
+      seller: { firstName: '', lastName: '', email: '' }, // Not needed for seller view
+      buyer: {
+        firstName: result.users!.firstName,
+        lastName: result.users!.lastName,
+        email: result.users!.email,
+      }
+    }));
   }
 
   async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {

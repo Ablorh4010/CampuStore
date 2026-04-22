@@ -47,6 +47,7 @@ export const stores = pgTable("stores", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   description: text("description").notNull(),
+  logoUrl: text("logo_url"), // Store profile picture
   university: text("university").notNull(),
   campus: text("campus"),
   city: text("city").notNull(),
@@ -330,6 +331,7 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   address: z.string().nullable().optional(),
   latitude: z.string().nullable().optional(),
   longitude: z.string().nullable().optional(),
+  logoUrl: z.string().nullable().optional(),
   shippingModes: z.array(z.enum(['seller_delivery', 'affordcampus_pickup', 'ems'])).nullable().optional(),
   deliveryRadius: z.number().nullable().optional(),
 });

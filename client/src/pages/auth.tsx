@@ -127,14 +127,19 @@ export default function Auth() {
         lastName: data.lastName,
         university: data.university,
         city: data.city,
-        isMerchant: false,
+        isMerchant: userMode === 'seller',
       });
       toast({
         title: '✅ Account created successfully!',
-        description: 'Welcome to The University Hub! Redirecting to homepage...',
+        description: 'Welcome to The University Hub!',
         duration: 8000,
       });
-      setLocation('/');
+      
+      if (userMode === 'seller') {
+        setLocation('/dashboard?onboarding=true');
+      } else {
+        setLocation('/');
+      }
     } catch (error: any) {
       toast({
         title: 'Registration failed',

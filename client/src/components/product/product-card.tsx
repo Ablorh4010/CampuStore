@@ -24,7 +24,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     }
   };
 
-  const sellerName = `${product.store.user.firstName} ${product.store.user.lastName[0]}.`;
+  const sellerName = `${product.store.user.firstName} ${product.store.user.lastName?.[0] || ''}.`;
   const priceWithFee = calculatePriceWithFee(product.price);
   const originalPriceWithFee = product.originalPrice ? calculatePriceWithFee(product.originalPrice) : null;
   const savings = originalPriceWithFee 
