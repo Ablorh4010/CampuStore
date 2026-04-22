@@ -34,10 +34,9 @@ const onlineUsers = new Map<number, Set<string>>();
 export function setupSocketIO(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? ['https://theuniversityhub.com'] 
-        : ['http://localhost:5000', 'http://localhost:3000'],
-      methods: ['GET', 'POST'],
+      origin: process.env.NODE_ENV === 'production'
+        ? ['https://uniexchangehub.com']
+        : ['http://localhost:5000', 'http://localhost:3000'],      methods: ['GET', 'POST'],
       credentials: true
     },
     pingTimeout: 60000,

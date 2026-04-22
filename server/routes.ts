@@ -26,7 +26,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
   try {
     await resend.emails.send({
-      from: 'The University Hub <notifications@theuniversityhub.com>',
+      from: 'The University Hub <notifications@uniexchangehub.com>',
       to,
       subject,
       html,

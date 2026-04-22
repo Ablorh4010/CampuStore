@@ -19,7 +19,7 @@ export interface PushSubscription {
 function initializeWebPush() {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const email = process.env.VAPID_EMAIL || 'support@theuniversityhub.com';
+  const email = process.env.VAPID_EMAIL || 'support@uniexchangehub.com';
 
   if (publicKey && privateKey) {
     webpush.setVapidDetails(
