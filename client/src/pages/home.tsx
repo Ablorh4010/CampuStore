@@ -133,7 +133,7 @@ export default function Home() {
                 {categories.slice(0, 3).map(cat => (
                   <div key={cat.id} className="w-16 h-16 bg-gray-50 rounded-xl flex flex-col items-center justify-center text-[10px] font-bold text-gray-500 cursor-pointer hover:bg-primary/5 hover:text-primary transition-colors">
                     <span className="text-xl mb-1">{cat.icon === 'fas fa-laptop' ? '💻' : cat.icon === 'fas fa-book' ? '📚' : '👕'}</span>
-                    {cat.name.split(' ')[0]}
+                    {cat.name?.split(' ')[0] || 'Item'}
                   </div>
                 ))}
               </div>

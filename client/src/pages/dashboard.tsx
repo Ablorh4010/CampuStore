@@ -166,6 +166,15 @@ export default function Dashboard() {
   const isPendingAdmin = primaryStore && primaryStore.approvalStatus === 'pending';
   const isApproved = primaryStore && primaryStore.approvalStatus === 'approved';
 
+  if (storesLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
+         <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
+         <p className="mt-4 text-gray-500 font-medium">Loading store details...</p>
+      </div>
+    );
+  }
+
   if (userStores.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">

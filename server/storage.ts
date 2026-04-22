@@ -289,6 +289,7 @@ export class DatabaseStorage implements IStorage {
         userId: stores.userId,
         name: stores.name,
         description: stores.description,
+        logoUrl: stores.logoUrl,
         university: stores.university,
         campus: stores.campus,
         city: stores.city,
@@ -297,15 +298,13 @@ export class DatabaseStorage implements IStorage {
         isActive: stores.isActive,
         approvalStatus: stores.approvalStatus,
         createdAt: stores.createdAt,
-        user: {
-          firstName: users.firstName,
-          lastName: users.lastName,
-          avatar: users.avatar,
-          email: users.email,
-          phoneNumber: users.phoneNumber,
-          idScanUrl: users.idScanUrl,
-          faceScanUrl: users.faceScanUrl,
-        },
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userAvatar: users.avatar,
+        userEmail: users.email,
+        userPhoneNumber: users.phoneNumber,
+        userIdScanUrl: users.idScanUrl,
+        userFaceScanUrl: users.faceScanUrl,
         productCount: sql<number>`COUNT(${products.id})::int`
       })
       .from(stores)
@@ -314,7 +313,31 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .groupBy(stores.id, users.id);
 
-    return results as any[];
+    return results.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      name: row.name,
+      description: row.description,
+      logoUrl: row.logoUrl,
+      university: row.university,
+      campus: row.campus,
+      city: row.city,
+      rating: row.rating,
+      reviewCount: row.reviewCount,
+      isActive: row.isActive,
+      approvalStatus: row.approvalStatus,
+      createdAt: row.createdAt,
+      user: {
+        firstName: row.userFirstName,
+        lastName: row.userLastName,
+        avatar: row.userAvatar,
+        email: row.userEmail,
+        phoneNumber: row.userPhoneNumber,
+        idScanUrl: row.userIdScanUrl,
+        faceScanUrl: row.userFaceScanUrl,
+      },
+      productCount: row.productCount
+    })) as any[];
   }
 
   async getFeaturedStores(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]> {
@@ -331,6 +354,7 @@ export class DatabaseStorage implements IStorage {
         userId: stores.userId,
         name: stores.name,
         description: stores.description,
+        logoUrl: stores.logoUrl,
         university: stores.university,
         campus: stores.campus,
         city: stores.city,
@@ -339,15 +363,13 @@ export class DatabaseStorage implements IStorage {
         isActive: stores.isActive,
         approvalStatus: stores.approvalStatus,
         createdAt: stores.createdAt,
-        user: {
-          firstName: users.firstName,
-          lastName: users.lastName,
-          avatar: users.avatar,
-          email: users.email,
-          phoneNumber: users.phoneNumber,
-          idScanUrl: users.idScanUrl,
-          faceScanUrl: users.faceScanUrl,
-        },
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userAvatar: users.avatar,
+        userEmail: users.email,
+        userPhoneNumber: users.phoneNumber,
+        userIdScanUrl: users.idScanUrl,
+        userFaceScanUrl: users.faceScanUrl,
         productCount: sql<number>`COUNT(${products.id})::int`
       })
       .from(stores)
@@ -356,7 +378,31 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .groupBy(stores.id, users.id);
 
-    return results as any[];
+    return results.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      name: row.name,
+      description: row.description,
+      logoUrl: row.logoUrl,
+      university: row.university,
+      campus: row.campus,
+      city: row.city,
+      rating: row.rating,
+      reviewCount: row.reviewCount,
+      isActive: row.isActive,
+      approvalStatus: row.approvalStatus,
+      createdAt: row.createdAt,
+      user: {
+        firstName: row.userFirstName,
+        lastName: row.userLastName,
+        avatar: row.userAvatar,
+        email: row.userEmail,
+        phoneNumber: row.userPhoneNumber,
+        idScanUrl: row.userIdScanUrl,
+        faceScanUrl: row.userFaceScanUrl,
+      },
+      productCount: row.productCount
+    })) as any[];
   }
 
   async getAllStoresForAdmin(): Promise<StoreWithUser[]> {
@@ -366,6 +412,7 @@ export class DatabaseStorage implements IStorage {
         userId: stores.userId,
         name: stores.name,
         description: stores.description,
+        logoUrl: stores.logoUrl,
         university: stores.university,
         campus: stores.campus,
         city: stores.city,
@@ -374,15 +421,13 @@ export class DatabaseStorage implements IStorage {
         isActive: stores.isActive,
         approvalStatus: stores.approvalStatus,
         createdAt: stores.createdAt,
-        user: {
-          firstName: users.firstName,
-          lastName: users.lastName,
-          avatar: users.avatar,
-          email: users.email,
-          phoneNumber: users.phoneNumber,
-          idScanUrl: users.idScanUrl,
-          faceScanUrl: users.faceScanUrl,
-        },
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userAvatar: users.avatar,
+        userEmail: users.email,
+        userPhoneNumber: users.phoneNumber,
+        userIdScanUrl: users.idScanUrl,
+        userFaceScanUrl: users.faceScanUrl,
         productCount: sql<number>`COUNT(${products.id})::int`
       })
       .from(stores)
@@ -391,7 +436,31 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(stores.createdAt))
       .groupBy(stores.id, users.id);
 
-    return results as any[];
+    return results.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      name: row.name,
+      description: row.description,
+      logoUrl: row.logoUrl,
+      university: row.university,
+      campus: row.campus,
+      city: row.city,
+      rating: row.rating,
+      reviewCount: row.reviewCount,
+      isActive: row.isActive,
+      approvalStatus: row.approvalStatus,
+      createdAt: row.createdAt,
+      user: {
+        firstName: row.userFirstName,
+        lastName: row.userLastName,
+        avatar: row.userAvatar,
+        email: row.userEmail,
+        phoneNumber: row.userPhoneNumber,
+        idScanUrl: row.userIdScanUrl,
+        faceScanUrl: row.userFaceScanUrl,
+      },
+      productCount: row.productCount
+    })) as any[];
   }
 
   async updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined> {
