@@ -134,14 +134,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const detectCountry = async () => {
     try {
       const response = await fetch('https://ipapi.co/json/');
-      const data = await response.json();
-      if (data.country_code) {
-        setCountryCode(data.country_code);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.country_code) {
+          setCountryCode(data.country_code);
+        }
+      } else {
+        throw new Error('IPAPI request failed');
       }
     } catch (error) {
-      console.error('Failed to detect country:', error);
-      // Fallback to US
-      setCountryCode('US');
+      console.warn('Failed to detect country, defaulting to GH:', error);
+      setCountryCode('GH');
     }
   };
 

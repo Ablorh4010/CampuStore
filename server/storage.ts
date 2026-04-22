@@ -524,7 +524,12 @@ export class DatabaseStorage implements IStorage {
 
   async getProductWithStore(id: number): Promise<ProductWithStore | undefined> {
     const [result] = await db
-      .select()
+      .select({
+        product: products,
+        store: stores,
+        user: users,
+        category: categories
+      })
       .from(products)
       .leftJoin(stores, eq(products.storeId, stores.id))
       .leftJoin(users, eq(stores.userId, users.id))
@@ -534,16 +539,16 @@ export class DatabaseStorage implements IStorage {
     if (!result) return undefined;
 
     return {
-      ...result.products,
+      ...result.product,
       store: {
-        ...result.stores!,
+        ...result.store!,
         user: {
-          firstName: result.users!.firstName,
-          lastName: result.users!.lastName,
-          avatar: result.users!.avatar,
+          firstName: result.user!.firstName,
+          lastName: result.user!.lastName,
+          avatar: result.user!.avatar,
         }
       },
-      category: result.categories!
+      category: result.category!
     };
   }
 
@@ -601,7 +606,12 @@ export class DatabaseStorage implements IStorage {
     }
 
     let baseQuery = db
-      .select()
+      .select({
+        product: products,
+        store: stores,
+        user: users,
+        category: categories
+      })
       .from(products)
       .leftJoin(stores, eq(products.storeId, stores.id))
       .leftJoin(users, eq(stores.userId, users.id))
@@ -629,16 +639,16 @@ export class DatabaseStorage implements IStorage {
     const results = await baseQuery;
 
     return results.map(result => ({
-      ...result.products,
+      ...result.product,
       store: {
-        ...result.stores!,
+        ...result.store!,
         user: {
-          firstName: result.users!.firstName,
-          lastName: result.users!.lastName,
-          avatar: result.users!.avatar,
+          firstName: result.user!.firstName,
+          lastName: result.user!.lastName,
+          avatar: result.user!.avatar,
         }
       },
-      category: result.categories!
+      category: result.category!
     }));
   }
 
@@ -658,7 +668,12 @@ export class DatabaseStorage implements IStorage {
 
   async getPendingProducts(): Promise<ProductWithStore[]> {
     const results = await db
-      .select()
+      .select({
+        product: products,
+        store: stores,
+        user: users,
+        category: categories
+      })
       .from(products)
       .leftJoin(stores, eq(products.storeId, stores.id))
       .leftJoin(users, eq(stores.userId, users.id))
@@ -667,22 +682,27 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(products.createdAt));
 
     return results.map(result => ({
-      ...result.products,
+      ...result.product,
       store: {
-        ...result.stores!,
+        ...result.store!,
         user: {
-          firstName: result.users!.firstName,
-          lastName: result.users!.lastName,
-          avatar: result.users!.avatar,
+          firstName: result.user!.firstName,
+          lastName: result.user!.lastName,
+          avatar: result.user!.avatar,
         }
       },
-      category: result.categories!
+      category: result.category!
     }));
   }
 
   async getAllProductsForAdmin(): Promise<ProductWithStore[]> {
     const results = await db
-      .select()
+      .select({
+        product: products,
+        store: stores,
+        user: users,
+        category: categories
+      })
       .from(products)
       .leftJoin(stores, eq(products.storeId, stores.id))
       .leftJoin(users, eq(stores.userId, users.id))
@@ -690,16 +710,16 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(products.createdAt));
 
     return results.map(result => ({
-      ...result.products,
+      ...result.product,
       store: {
-        ...result.stores!,
+        ...result.store!,
         user: {
-          firstName: result.users!.firstName,
-          lastName: result.users!.lastName,
-          avatar: result.users!.avatar,
+          firstName: result.user!.firstName,
+          lastName: result.user!.lastName,
+          avatar: result.user!.avatar,
         }
       },
-      category: result.categories!
+      category: result.category!
     }));
   }
 
@@ -810,14 +830,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCartByUserId(userId: number): Promise<CartItemWithProduct[]> {
-    return await db
-      .select()
+    const results = await db
+      .select({
+        cartItem: cartItems,
+        product: products,
+        store: stores,
+        user: users,
+        category: categories
+      })
       .from(cartItems)
       .leftJoin(products, eq(cartItems.productId, products.id))
       .leftJoin(stores, eq(products.storeId, stores.id))
       .leftJoin(users, eq(stores.userId, users.id))
       .leftJoin(categories, eq(products.categoryId, categories.id))
-      .where(eq(cartItems.userId, userId)) as any[];
+      .where(eq(cartItems.userId, userId));
+
+    return results.map(result => ({
+      ...result.cartItem,
+      product: {
+        ...result.product!,
+        store: {
+          ...result.store!,
+          user: {
+            firstName: result.user!.firstName,
+            lastName: result.user!.lastName,
+            avatar: result.user!.avatar,
+          }
+        },
+        category: result.category!
+      }
+    }));
   }
 
   async updateCartItemQuantity(id: number, quantity: number): Promise<CartItem | undefined> {

@@ -30,6 +30,8 @@ import About from "./pages/about";
 import Contact from "./pages/contact";
 import NotFound from "@/pages/not-found";
 
+import GeminiAssistant from "./components/chat-assistant";
+
 function Router() {
   return (
     <Switch>
@@ -71,6 +73,7 @@ function App() {
                 <Footer />
                 <CartSidebar />
                 <PWAInstallPrompt />
+                <GeminiAssistant />
               </div>
               <Toaster />
             </CartProvider>

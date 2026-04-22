@@ -107,9 +107,9 @@ export default function AdminDashboard() {
             </div>
             <CardTitle className="text-lg font-bold">{product.title}</CardTitle>
             <CardDescription className="flex items-center gap-1 mt-1">
-              <StoreIcon className="w-3 h-3" /> {product.store.name} 
+              <StoreIcon className="w-3 h-3" /> {product.store?.name || 'Unknown Store'} 
               <span className="mx-1">•</span>
-              <UserIcon className="w-3 h-3" /> {product.store.user.firstName}
+              <UserIcon className="w-3 h-3" /> {product.store?.user?.firstName || 'Unknown Seller'}
             </CardDescription>
           </div>
           {product.images?.[0] && (
@@ -156,11 +156,10 @@ export default function AdminDashboard() {
             </CardTitle>
             <CardDescription className="font-bold text-gray-700 mt-1 flex items-center gap-2">
               <UserIcon className="w-4 h-4" />
-              {store.user.firstName} {store.user.lastName} 
+              {store.user?.firstName || 'Unknown'} {store.user?.lastName || ''} 
               <span className="text-gray-300 mx-1">|</span>
               {store.university}
-            </CardDescription>
-          </div>
+            </CardDescription>          </div>
         </div>
       </CardHeader>
       <CardContent>
