@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink, Settings, Plus, Tag, Mail, Loader2, RefreshCcw, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertCircle, Trash2, Store as StoreIcon, Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink, Settings, Plus, Tag, Mail, Loader2, RefreshCcw, ShieldAlert, Video } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { Label } from '@/components/ui/label';
@@ -175,9 +175,19 @@ export default function AdminDashboard() {
               <UserIcon className="w-3 h-3" /> {product.store?.user?.firstName || 'Unknown Seller'}
             </CardDescription>
           </div>
-          {product.images?.[0] && (
-            <img src={product.images[0]} className="w-20 h-20 object-cover rounded-lg shadow-sm" alt="" />
-          )}
+          <div className="flex gap-2 shrink-0">
+             {product.mediaGifUrl && (
+               <div className="relative group/vid overflow-hidden rounded-lg w-24 h-24 border-2 border-primary/10">
+                  <img src={product.mediaGifUrl} className="w-full h-full object-cover" alt="Showcase" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover/vid:opacity-100 transition-opacity">
+                     <Video className="w-6 h-6 text-white" />
+                  </div>
+               </div>
+             )}
+             {product.images?.[0] && (
+               <img src={product.images[0]} className="w-24 h-24 object-cover rounded-lg shadow-sm border" alt="" />
+             )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -187,7 +197,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap gap-2">
           {product.approvalStatus === 'pending' && (
             <Button size="sm" className="bg-green-600 hover:bg-green-700 shadow-sm" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}>
-              <CheckCircle className="w-4 h-4 mr-1" /> Approve
+              <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
             </Button>
           )}
           <Button size="sm" variant="outline" className="font-bold" onClick={() => setLocation(`/product/${product.id}`)}>View Listing</Button>
@@ -271,7 +281,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap gap-3 mt-10">
           {store.approvalStatus === 'pending' && (
             <Button size="lg" className="flex-1 bg-green-600 hover:bg-green-700 h-14 rounded-2xl font-black shadow-xl transition-all" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>
-              <CheckCircle className="w-5 h-5 mr-2" /> Approve Store
+              <CheckCircle2 className="w-5 h-5 mr-2" /> Approve Store
             </Button>
           )}
           
@@ -357,7 +367,7 @@ export default function AdminDashboard() {
             {allProducts.filter(p => p.approvalStatus === 'pending').length === 0 ? (
               <div className="text-center py-32 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-200 shadow-inner">
                 <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
+                  <CheckCircle2 className="w-10 h-10 text-green-600" />
                 </div>
                 <h3 className="text-2xl font-black text-gray-900">All Products Reviewed</h3>
                 <p className="text-gray-500 mt-2 max-w-sm mx-auto">The product queue is empty.</p>
@@ -438,7 +448,7 @@ export default function AdminDashboard() {
                 <div className="space-y-8">
                    <Card className="rounded-[2rem] border-none shadow-lg bg-black text-white p-8">
                       <h3 className="text-xl font-black mb-6 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-500" /> System Healthy
+                        <CheckCircle2 className="w-5 h-5 text-green-500" /> System Healthy
                       </h3>
                       <div className="space-y-4">
                          <div className="flex justify-between items-center py-3 border-b border-white/10">

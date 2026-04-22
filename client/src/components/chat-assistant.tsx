@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, Link } from 'wouter';
-import { MessageCircle, X, Send, Sparkles, ShoppingBag, ArrowRight, User, Bot, Search } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles, ShoppingBag, ArrowRight, User, Bot, Search, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useVoiceSearch } from '@/hooks/use-voice-search';
 import type { ProductWithStore } from '@shared/schema';
 
 interface Message {
@@ -50,26 +51,27 @@ export default function GeminiAssistant() {
     }
   }, [messages, isTyping]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const handleSend = async (overrideInput?: string) => {
+    const textToSend = overrideInput || input;
+    if (!textToSend.trim()) return;
 
-    const userMsg: Message = { id: Date.now().toString(), type: 'user', text: input };
+    const userMsg: Message = { id: Date.now().toString(), type: 'user', text: textToSend };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
     // Save search term
-    const newSearches = [input, ...recentSearches.slice(0, 4)];
+    const newSearches = [textToSend, ...recentSearches.slice(0, 4)];
     setRecentSearches(newSearches);
     localStorage.setItem('recentSearches', JSON.stringify(newSearches));
 
     // Simulate AI logic
     setTimeout(() => {
-      const searchTerm = input.toLowerCase();
+      const searchTerm = textToSend.toLowerCase();
       const matchedProducts = allProducts.filter(p => 
         p.title.toLowerCase().includes(searchTerm) || 
         p.description.toLowerCase().includes(searchTerm) ||
-        p.category.name.toLowerCase().includes(searchTerm)
+        p.category?.name?.toLowerCase().includes(searchTerm)
       ).slice(0, 3);
 
       let responseText = "";
@@ -90,6 +92,11 @@ export default function GeminiAssistant() {
       setIsTyping(false);
     }, 1000);
   };
+
+  const { isListening, startListening } = useVoiceSearch((text) => {
+    setInput(text);
+    handleSend(text);
+  });
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
@@ -113,7 +120,7 @@ export default function GeminiAssistant() {
           </CardHeader>
 
           <CardContent className="flex-1 overflow-hidden p-0 bg-gray-50/50">
-            <ScrollArea className="h-full p-6" viewportRef={scrollRef}>
+            <ScrollArea className="h-full p-6" ref={scrollRef}>
               <div className="space-y-6">
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.type === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -143,7 +150,7 @@ export default function GeminiAssistant() {
                             {m.products.map(product => (
                               <Link key={product.id} href={`/product/${product.id}`}>
                                 <div className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3 hover:border-primary/30 transition-all cursor-pointer group shadow-sm">
-                                  <img src={product.images[0]} className="w-12 h-12 object-cover rounded-lg" alt="" />
+                                  {product.images?.[0] && <img src={product.images[0]} className="w-12 h-12 object-cover rounded-lg" alt="" />}
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black truncate">{product.title}</p>
                                     <p className="text-primary font-bold text-xs">${product.price}</p>
@@ -174,17 +181,26 @@ export default function GeminiAssistant() {
           </CardContent>
 
           <CardFooter className="p-4 bg-white border-t shrink-0">
-            <div className="flex w-full gap-2 relative">
-              <Input 
-                placeholder="Find a product..." 
-                className="rounded-xl border-gray-200 focus:ring-primary h-12 pr-12"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              />
-              <Button size="icon" className="absolute right-1 top-1 h-10 w-10 rounded-lg shadow-lg" onClick={handleSend}>
-                <Send className="w-4 h-4" />
-              </Button>
+            <div className="flex w-full gap-2 relative items-center">
+              <button
+                type="button"
+                onClick={startListening}
+                className={`p-2 rounded-xl transition-all ${isListening ? 'bg-secondary text-white animate-pulse shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
+              <div className="flex-1 relative">
+                <Input 
+                  placeholder="Ask for a product..." 
+                  className="rounded-xl border-gray-200 focus:ring-primary h-12 pr-12"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                />
+                <Button size="icon" className="absolute right-1 top-1 h-10 w-10 rounded-lg shadow-lg" onClick={() => handleSend()}>
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </CardFooter>
         </Card>

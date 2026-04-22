@@ -12,13 +12,16 @@ import {
   Trash2,
   Settings,
   ShieldCheck,
-  CheckCircle,
+  CheckCircle2,
   AlertCircle,
   MapPin,
   Phone,
   Camera,
   Loader2,
-  Lock
+  Lock,
+  Video,
+  XCircle,
+  ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -380,10 +383,16 @@ export default function Dashboard() {
                 </div>
                 <p className="font-bold text-gray-400 group-hover:text-primary">Add Product</p>
              </Card>
-             {storeProducts.map(product => (
-               <Card key={product.id} className="rounded-[2.5rem] overflow-hidden border-none shadow-sm hover:shadow-xl transition-all group">
+             {storeProducts.map((product) => (
+               <Card key={product.id} className="rounded-[2.5rem] overflow-hidden border-none shadow-sm hover:shadow-xl transition-all group bg-white">
                   <div className="relative h-56 overflow-hidden">
-                    <img src={product.images[0]} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+                    <img src={product.mediaGifUrl || product.images[0]} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
+                    {product.mediaGifUrl && (
+                      <div className="absolute top-4 left-4 bg-primary/80 backdrop-blur-sm text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                        <Video className="w-3 h-3" /> Showcase
+                      </div>
+                    )}
                     <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                        <Button size="icon" variant="secondary" className="rounded-full shadow-lg h-10 w-10"><Edit className="w-4 h-4" /></Button>
                        <Button 
@@ -451,7 +460,7 @@ export default function Dashboard() {
                          </Badge>
                          {primaryStore.isActive ? (
                             <span className="text-sm font-bold text-green-600 flex items-center gap-1">
-                               <CheckCircle className="w-4 h-4" /> Active
+                               <CheckCircle2 className="w-4 h-4" /> Active
                             </span>
                          ) : (
                             <span className="text-sm font-bold text-red-600 flex items-center gap-1">

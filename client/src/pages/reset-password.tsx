@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Lock, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Lock, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
@@ -161,7 +161,7 @@ export default function ResetPassword() {
           <CardContent className="py-12" data-testid="reset-success-message">
             <div className="text-center">
               <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
               </div>
               <h3 className="text-lg font-semibold mb-2">Password Reset Successful</h3>
               <p className="text-gray-600 text-sm mb-6">

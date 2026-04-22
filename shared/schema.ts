@@ -4,6 +4,11 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  university: text("university"),
+  campus: text("campus"),
+  city: text("city"),
   email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
   phoneNumber: text("phone_number").unique(),
@@ -83,7 +88,8 @@ export const products = pgTable("products", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   condition: text("condition").notNull(),
-  images: text("images").array().notNull(),
+  images: text("images").array().notNull(), // At most 4 images
+  mediaGifUrl: text("media_gif_url").notNull(), // Mandatory short quality GIF/Video
   specialOffer: text("special_offer"),
   isAvailable: boolean("is_available").notNull().default(true),
   approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
@@ -342,6 +348,9 @@ export const insertProductSchema = createInsertSchema(products).omit({
   viewCount: true,
   approvalStatus: true,
   createdAt: true,
+}).extend({
+  images: z.array(z.string()).max(4, "Maximum 4 images allowed per listing"),
+  mediaGifUrl: z.string().min(1, "A showcase GIF or video is mandatory"),
 });
 
 export const insertOrderSchema = createInsertSchema(orders).omit({

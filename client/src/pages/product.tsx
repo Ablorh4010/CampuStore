@@ -277,7 +277,7 @@ export default function Product() {
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={product.store.user.avatar || ''} alt={sellerName} />
                   <AvatarFallback>
-                    {product.store.user.firstName[0]}{product.store.user.lastName[0]}
+                    {product.store.user.firstName?.[0] || ''}{product.store.user.lastName?.[0] || ''}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">

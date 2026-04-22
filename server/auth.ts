@@ -112,8 +112,8 @@ export async function authenticateTokenForSocket(token: string): Promise<{
 
     return {
       id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
       avatar: user.avatar
     };
   } catch (error) {

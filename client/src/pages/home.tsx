@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
-import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus, BookOpen, Users, Heart, ArrowRight, Zap, Star, ShieldCheck, Wallet, CreditCard, Smartphone } from 'lucide-react';
+import { ShoppingBag, Store, Camera, Edit, DollarSign, Plus, BookOpen, Users, Heart, ArrowRight, Zap, Star, ShieldCheck, Wallet, CreditCard, Smartphone, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -130,7 +130,7 @@ export default function Home() {
                 {/* Floating UI Element */}
                 <div className="absolute top-10 -left-10 bg-white p-6 rounded-3xl shadow-2xl animate-reveal-up border border-gray-100 hidden sm:block">
                    <div className="flex items-center gap-4">
-                      <div className="bg-green-100 p-3 rounded-2xl"><CheckCircle className="text-green-600" /></div>
+                      <div className="bg-green-100 p-3 rounded-2xl"><CheckCircle2 className="text-green-600" /></div>
                       <div>
                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Installment Paid</p>
                          <p className="text-lg font-black text-gray-900">$25.00 <span className="text-xs text-gray-400">/ 1 of 4</span></p>

@@ -16,6 +16,7 @@ import path from "path";
 import Stripe from "stripe";
 import rateLimit from "express-rate-limit";
 import { Resend } from 'resend';
+import sharp from 'sharp';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -690,6 +691,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Product image upload with AI Watermarking
+  app.post("/api/upload/product", authenticateToken, imageUpload.single('image'), async (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No image uploaded" });
+      }
+
+      const filePath = req.file.path;
+      const fileName = req.file.filename;
+      const outputPath = path.join('uploads', `wm_${fileName}`);
+
+      // AI Watermarking using Sharp
+      const image = sharp(filePath);
+      const metadata = await image.metadata();
+      
+      const watermarkText = Buffer.from(`
+        <svg width="${metadata.width}" height="${metadata.height}">
+          <style>
+            .text { fill: white; font-family: sans-serif; font-weight: bold; opacity: 0.4; font-size: ${Math.floor(metadata.width! / 15)}px; }
+          </style>
+          <text x="80%" y="90%" text-anchor="middle" class="text">University Hub</text>
+        </svg>
+      `);
+
+      await image
+        .composite([{ input: watermarkText, top: 0, left: 0 }])
+        .toFile(outputPath);
+
+      // Clean up original un-watermarked file
+      const fs = await import('fs');
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      res.json({ url: `/uploads/wm_${fileName}` });
+    } catch (error) {
+      console.error('Image processing error:', error);
+      res.status(500).json({ message: "Failed to process image with AI watermarking" });
+    }
+  });
+
   // Upload seller verification for store approval
   app.post("/api/upload/seller-verification", apiLimiter, authenticateToken, imageUpload.fields([
     { name: 'idScan', maxCount: 1 },
@@ -727,11 +769,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const store of userStores) {
         if (store.approvalStatus === 'waiting_verification' || store.approvalStatus === 'rejected') {
           await storage.updateStore(store.id, {
-            approvalStatus: 'pending',
             latitude: latitude || store.latitude,
             longitude: longitude || store.longitude,
             address: address || store.address
           });
+          await storage.updateStoreApprovalStatus(store.id, 'pending');
         }
       }
 
@@ -1304,9 +1346,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const { isActive, feedback } = req.body;
-      
-      const store = await storage.updateStore(id, { isActive });
-      if (!store) return res.status(404).json({ message: "Store not found" });
+
+      const store = await storage.updateStoreIsActive(id, isActive);      if (!store) return res.status(404).json({ message: "Store not found" });
 
       // Notify seller about suspension
       if (isActive === false) {
@@ -1423,10 +1464,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/products", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
-      const { storeId, categoryId, title, description, price, originalPrice, condition, images, specialOffer } = req.body;
+      const { storeId, categoryId, title, description, price, originalPrice, condition, images, specialOffer, mediaGifUrl } = req.body;
 
       // Validate required fields
-      if (!storeId || !categoryId || !title || !description || !price || !condition || !images || images.length === 0) {
+      if (!storeId || !categoryId || !title || !description || !price || !condition || !images || images.length === 0 || !mediaGifUrl) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
@@ -1446,6 +1487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         originalPrice: originalPrice ? originalPrice.toString() : null,
         condition,
         images,
+        mediaGifUrl,
         specialOffer: specialOffer || null,
       });
 
@@ -1628,7 +1670,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid amount" });
       }
 
-      const paymentIntent = await stripe.paymentIntents.create({
+      if (!stripe) {
+        return res.status(500).json({ message: "Payment service not configured" });
+      }
+
+      const paymentIntent = await stripe!.paymentIntents.create({
         amount: Math.round(amount * 100),
         currency: "usd",
         automatic_payment_methods: {

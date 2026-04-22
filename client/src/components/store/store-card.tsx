@@ -20,7 +20,7 @@ export default function StoreCard({ store }: StoreCardProps) {
             <Avatar className="h-12 w-12">
               <AvatarImage src={store.user.avatar || ''} alt={ownerName} />
               <AvatarFallback>
-                {store.user.firstName[0]}{store.user.lastName[0]}
+                {store.user.firstName?.[0] || ''}{store.user.lastName?.[0] || ''}
               </AvatarFallback>
             </Avatar>
             <div>

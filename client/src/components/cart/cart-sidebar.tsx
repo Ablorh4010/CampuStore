@@ -89,7 +89,7 @@ export default function CartSidebar() {
                       {item.product.title}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      by {item.product.store.user.firstName} {item.product.store.user.lastName[0]}.
+                      by {item.product.store.user.firstName || 'Unknown'} {item.product.store.user.lastName?.[0] || ''}.
                     </p>
                     <p className="text-primary font-semibold">
                       ${formatPriceWithFee(item.product.price)}

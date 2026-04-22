@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown } from 'lucide-react';
+import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown, Mic, MicOff } from 'lucide-react';
+import { useVoiceSearch } from '@/hooks/use-voice-search';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +45,11 @@ export default function Header() {
       setLocation(`/browse?search=${encodeURIComponent(searchQuery)}`);
     }
   };
+
+  const { isListening, startListening } = useVoiceSearch((text) => {
+    setSearchQuery(text);
+    setLocation(`/browse?search=${encodeURIComponent(text)}`);
+  });
 
   const handleProfileAction = (action: string) => {
     switch (action) {
@@ -92,17 +98,24 @@ export default function Header() {
               </div>
             </Link>
 
-            {/* Desktop Search */}
             <div className="hidden md:block flex-1 max-w-2xl ml-8">
-              <form onSubmit={handleSearch} className="relative">
+              <form onSubmit={handleSearch} className="relative group">
                 <Input
                   type="text"
                   placeholder="Search products, stores, or categories..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4"
+                  className="w-full pl-10 pr-10 rounded-xl border-2 focus:border-primary transition-all shadow-sm group-hover:shadow-md"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <button
+                  type="button"
+                  onClick={startListening}
+                  className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-all ${isListening ? 'text-secondary animate-pulse bg-secondary/10' : 'text-gray-400 hover:text-primary hover:bg-gray-100'}`}
+                  title="Voice Search"
+                >
+                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
               </form>
             </div>
           </div>
@@ -193,7 +206,7 @@ export default function Header() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all">
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={user.avatar || ''} alt={user.firstName} />
+                        <AvatarImage src={user.avatar || ''} alt={user.firstName || 'User'} />
                         <AvatarFallback className="bg-primary/5 text-primary">
                           {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
                         </AvatarFallback>
@@ -249,7 +262,7 @@ export default function Header() {
                     <>
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={user.avatar || ''} alt={user.firstName} />
+                          <AvatarImage src={user.avatar || ''} alt={user.firstName || 'User'} />
                           <AvatarFallback>
                             {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
                           </AvatarFallback>

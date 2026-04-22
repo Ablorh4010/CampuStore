@@ -485,6 +485,15 @@ export class DatabaseStorage implements IStorage {
     return store || undefined;
   }
 
+  async updateStoreIsActive(id: number, isActive: boolean): Promise<Store | undefined> {
+    const [store] = await db
+      .update(stores)
+      .set({ isActive })
+      .where(eq(stores.id, id))
+      .returning();
+    return store || undefined;
+  }
+
   async deleteStore(id: number): Promise<boolean> {
     // Delete all products and their related data first to satisfy foreign key constraints
     const storeProducts = await db.select().from(products).where(eq(products.storeId, id));
