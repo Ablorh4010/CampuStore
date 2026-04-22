@@ -2,12 +2,21 @@ runtime: nodejs20
 instance_class: F1
 env_variables:
   NODE_ENV: "production"
-  # Note: Sensitive variables should be set in the Cloud Console or Secret Manager
-  # GOOGLE_CLOUD_PROJECT: "chromatic-force-480509-j5"
+  DATABASE_URL: "postgresql://campustore_user:%40Concierge2020@/campustore?host=/cloudsql/chromatic-force-480509-j5:europe-west1:campus-db"
+  SESSION_SECRET: "campus-store-secure-session-secret-2025"
+  STRIPE_SECRET_KEY: "sk_test_placeholder"
+  STRIPE_PUBLISHABLE_KEY: "pk_test_placeholder"
+  VITE_STRIPE_PUBLIC_KEY: "pk_test_placeholder"
+  GEMINI_API_KEY: "dummy_key"
+
+beta_settings:
+  cloud_sql_instances: "chromatic-force-480509-j5:europe-west1:campus-db"
 
 handlers:
   - url: /assets
     static_dir: dist/public/assets
+  - url: /uploads
+    static_dir: uploads
   - url: /.*
     secure: always
     script: auto

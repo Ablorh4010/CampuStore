@@ -1,8 +1,5 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 // Plugin to copy 404.html to dist for GitHub Pages SPA fallback
 function copy404Plugin() {
@@ -19,10 +16,10 @@ function copy404Plugin() {
   };
 }
 
-export default defineConfig({
+const config = {
   plugins: [
-    react(),
-    runtimeErrorOverlay(),
+    await import("@vitejs/plugin-react").then(m => m.default()),
+    await import("@replit/vite-plugin-runtime-error-modal").then(m => m.default()),
     copy404Plugin(),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
@@ -57,4 +54,6 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
-});
+};
+
+export default config;
