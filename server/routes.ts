@@ -789,6 +789,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/categories", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { name, icon, color } = req.body;
+      const category = await storage.createCategory({ name, icon, color });
+      res.json(category);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create category" });
+    }
+  });
+
+  app.delete("/api/categories/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteCategory(id);
+      res.json({ success });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+
   // Product routes
   app.post("/api/products", authenticateToken, async (req: AuthRequest, res) => {
     try {

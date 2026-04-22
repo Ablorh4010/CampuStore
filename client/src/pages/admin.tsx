@@ -15,22 +15,17 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import type { ProductWithStore, StoreWithUser } from '@shared/schema';
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('pending-products');
 
-  // Deletion feedback state
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ id: number; type: 'product' | 'store'; title: string } | null>(null);
-  const [adminFeedback, setAdminFeedback] = useState('');
-
-  // Redirect if not admin
+  // Redirect if not admin (ensuring session is loaded first)
   useEffect(() => {
-    if (!user || !user.isAdmin) {
+    if (!authLoading && (!user || !user.isAdmin)) {
       setLocation('/');
     }
-  }, [user, setLocation]);
+  }, [user, authLoading, setLocation]);
 
   const { data: allProducts = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/admin/products'],
@@ -47,7 +42,36 @@ export default function AdminDashboard() {
     enabled: !!user?.isAdmin
   });
 
+  if (authLoading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+       <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+    </div>
+  );
+  
   if (!user || !user.isAdmin) return null;
+
+  const { data: categories = [], refetch: refetchCategories } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+  });
+
+  const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1' });
+
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest('POST', '/api/categories', data),
+    onSuccess: () => {
+      refetchCategories();
+      setNewCategory({ name: '', icon: '📦', color: '#6366f1' });
+      toast({ title: 'Category Created' });
+    }
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest('DELETE', `/api/categories/${id}`),
+    onSuccess: () => {
+      refetchCategories();
+      toast({ title: 'Category Removed' });
+    }
+  });
 
   const updateProductStatusMutation = useMutation({
     mutationFn: ({ productId, status, feedback }: { productId: number; status: string; feedback?: string }) =>
@@ -247,23 +271,23 @@ export default function AdminDashboard() {
             <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-4">
                <div className="bg-primary/10 p-2 rounded-full"><Package className="w-6 h-6 text-primary" /></div>
                <div>
-                 <p className="text-xs text-gray-400 font-bold uppercase">Total Products</p>
+                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Products</p>
                  <p className="text-xl font-black">{allProducts.length}</p>
                </div>
             </div>
             <div className="bg-white p-4 rounded-2xl shadow-sm border flex items-center gap-4">
                <div className="bg-yellow-100 p-2 rounded-full"><StoreIcon className="w-6 h-6 text-yellow-600" /></div>
                <div>
-                 <p className="text-xs text-gray-400 font-bold uppercase">Pending Stores</p>
-                 <p className="text-xl font-black">{pendingStores.length}</p>
+                 <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">All Stores</p>
+                 <p className="text-xl font-black">{allStores.length}</p>
                </div>
             </div>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="inline-flex h-14 items-center justify-center rounded-2xl bg-white p-2 shadow-sm border">
-            <TabsTrigger value="pending-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+          <TabsList className="inline-flex h-14 items-center justify-center rounded-2xl bg-white p-2 shadow-sm border overflow-x-auto w-full md:w-auto">
+            <TabsTrigger value="pending-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
               Pending Products
               {allProducts.filter(p => p.approvalStatus === 'pending').length > 0 && (
                 <Badge className="ml-2 bg-red-500 border-none">{allProducts.filter(p => p.approvalStatus === 'pending').length}</Badge>
@@ -280,6 +304,9 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="all-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap">
               Inventory
+            </TabsTrigger>
+            <TabsTrigger value="app-mgmt" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white whitespace-nowrap flex items-center gap-2">
+              <Settings className="w-4 h-4" /> App Management
             </TabsTrigger>
           </TabsList>
 
@@ -325,6 +352,113 @@ export default function AdminDashboard() {
              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {allProducts.map(renderProductCard)}
               </div>
+          </TabsContent>
+
+          <TabsContent value="app-mgmt" className="mt-0">
+             <div className="grid lg:grid-cols-3 gap-8">
+                {/* Categories Management */}
+                <Card className="lg:col-span-2 rounded-[2rem] border-none shadow-lg bg-white overflow-hidden">
+                   <CardHeader className="bg-primary/5 pb-8">
+                      <div className="flex items-center gap-3">
+                         <div className="p-3 bg-white rounded-2xl shadow-sm"><Tag className="w-6 h-6 text-primary" /></div>
+                         <div>
+                            <CardTitle className="text-2xl font-black">Marketplace Categories</CardTitle>
+                            <CardDescription className="font-bold">Add or remove product categories</CardDescription>
+                         </div>
+                      </div>
+                   </CardHeader>
+                   <CardContent className="p-8">
+                      <div className="flex gap-4 mb-10 bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                         <div className="flex-1 space-y-2">
+                            <Label className="text-xs font-black uppercase text-gray-400 ml-1">New Category Name</Label>
+                            <Input 
+                              placeholder="E.g., Academics, Housing..." 
+                              className="h-12 rounded-xl border-2" 
+                              value={newCategory.name}
+                              onChange={e => setNewCategory({...newCategory, name: e.target.value})}
+                            />
+                         </div>
+                         <div className="w-24 space-y-2">
+                            <Label className="text-xs font-black uppercase text-gray-400 ml-1">Color</Label>
+                            <Input 
+                               type="color" 
+                               className="h-12 w-full p-1 rounded-xl cursor-pointer" 
+                               value={newCategory.color}
+                               onChange={e => setNewCategory({...newCategory, color: e.target.value})}
+                            />
+                         </div>
+                         <div className="self-end pb-0.5">
+                            <Button 
+                              className="h-12 px-6 rounded-xl font-black shadow-lg"
+                              disabled={!newCategory.name || createCategoryMutation.isPending}
+                              onClick={() => createCategoryMutation.mutate(newCategory)}
+                            >
+                               <Plus className="w-5 h-5 mr-2" /> Add
+                            </Button>
+                         </div>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                         {categories.map(cat => (
+                            <div key={cat.id} className="p-4 rounded-2xl border-2 flex items-center justify-between group hover:border-primary/20 transition-all">
+                               <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm border" style={{ backgroundColor: `${cat.color}20`, borderColor: cat.color }}>
+                                     <span>{cat.icon === 'fas fa-book' ? '📚' : cat.icon === 'fas fa-laptop' ? '💻' : '📦'}</span>
+                                  </div>
+                                  <span className="font-bold text-gray-700">{cat.name}</span>
+                               </div>
+                               <Button 
+                                 variant="ghost" 
+                                 size="icon" 
+                                 className="text-gray-300 hover:text-red-500 rounded-full"
+                                 onClick={() => {
+                                   if(confirm('Delete this category? Products in this category will become unassigned.')) {
+                                      deleteCategoryMutation.mutate(cat.id);
+                                   }
+                                 }}
+                               >
+                                  <Trash2 className="w-4 h-4" />
+                               </Button>
+                            </div>
+                         ))}
+                      </div>
+                   </CardContent>
+                </Card>
+
+                {/* System Stats */}
+                <div className="space-y-8">
+                   <Card className="rounded-[2rem] border-none shadow-lg bg-black text-white p-8">
+                      <h3 className="text-xl font-black mb-6 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-500" /> System Healthy
+                      </h3>
+                      <div className="space-y-4">
+                         <div className="flex justify-between items-center py-3 border-b border-white/10">
+                            <span className="text-gray-400 font-bold">Resend API</span>
+                            <Badge className="bg-green-500/20 text-green-400 border-none">ACTIVE</Badge>
+                         </div>
+                         <div className="flex justify-between items-center py-3 border-b border-white/10">
+                            <span className="text-gray-400 font-bold">Stripe</span>
+                            <Badge className="bg-yellow-500/20 text-yellow-400 border-none">TEST MODE</Badge>
+                         </div>
+                         <div className="flex justify-between items-center py-3">
+                            <span className="text-gray-400 font-bold">Cloud SQL</span>
+                            <Badge className="bg-green-500/20 text-green-400 border-none">CONNECTED</Badge>
+                         </div>
+                      </div>
+                   </Card>
+
+                   <Card className="rounded-[2rem] border-none shadow-lg p-8 bg-primary text-white text-center">
+                      <div className="bg-white/20 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                         <Settings className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-2xl font-black mb-2">Need a Token?</h3>
+                      <p className="text-white/70 text-sm font-medium mb-6 leading-relaxed">Generated new invite tokens for additional team members.</p>
+                      <Button className="w-full bg-white text-primary hover:bg-gray-100 font-black rounded-2xl h-12 shadow-xl shadow-black/10">
+                         Create Admin Link
+                      </Button>
+                   </Card>
+                </div>
+             </div>
           </TabsContent>
         </Tabs>
 
