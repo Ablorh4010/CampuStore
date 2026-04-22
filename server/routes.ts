@@ -47,9 +47,9 @@ if (process.env.STRIPE_SECRET_KEY) {
 
 // Rate limiters
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
-  message: 'Too many authentication attempts, please try again later.',
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 20, // Allow 20 attempts per 10 mins
+  message: 'Too many authentication attempts, please try again in 10 minutes.',
   standardHeaders: true,
   legacyHeaders: false,
   validate: { trustProxy: false },
