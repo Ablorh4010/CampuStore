@@ -699,6 +699,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const idScanUrl = `/uploads/${files.idScan[0].filename}`;
       const faceScanUrl = `/uploads/${files.faceScan[0].filename}`;
 
+      // Check if phone number is already taken by another user
+      if (phoneNumber) {
+        const existingUserWithPhone = await storage.getUserByPhoneNumber(phoneNumber);
+        if (existingUserWithPhone && existingUserWithPhone.id !== req.userId) {
+          return res.status(400).json({ message: "Phone number is already associated with another account" });
+        }
+      }
+
       // Update user verification details
       await storage.updateUser(req.userId!, {
         verificationStatus: 'pending',

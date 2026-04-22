@@ -47,6 +47,18 @@ export async function authenticateToken(
   }
 
   req.userId = decoded.userId;
+
+  const { storage } = await import('./storage');
+  const user = await storage.getUserById(req.userId);
+  if (user) {
+    req.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      isAdmin: user.isAdmin
+    };
+  }
+
   next();
 }
 
