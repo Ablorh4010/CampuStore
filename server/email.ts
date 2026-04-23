@@ -2,11 +2,11 @@ import { Resend } from 'resend';
 
 // Use environment variable for Resend API Key
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = 'The University Hub <notifications@uniexchangehub.com>';
+const FROM_EMAIL = 'The University Hub <onboarding@resend.dev>';
 
 export async function sendVerificationEmail(email: string, code: string) {
   if (!resend) {
-    console.warn('Warning: RESEND_API_KEY is missing. Verification email skipped for:', email);
+    console.error('❌ ERROR: RESEND_API_KEY is missing. Verification email cannot be sent to:', email);
     return false;
   }
 
@@ -62,7 +62,7 @@ export async function sendVerificationEmail(email: string, code: string) {
 
 export async function sendAdminInvite(email: string, inviteToken: string, inviteUrl: string) {
   if (!resend) {
-    console.warn('Warning: RESEND_API_KEY is missing. Admin invite skipped for:', email);
+    console.error('❌ ERROR: RESEND_API_KEY is missing. Admin invite cannot be sent to:', email);
     return false;
   }
 
@@ -124,7 +124,7 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
 
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   if (!resend) {
-    console.warn('Warning: RESEND_API_KEY is missing. Password reset email skipped for:', email);
+    console.error('❌ ERROR: RESEND_API_KEY is missing. Password reset email cannot be sent to:', email);
     return false;
   }
 

@@ -27,7 +27,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   }
   try {
     await resend.emails.send({
-      from: 'The University Hub <notifications@uniexchangehub.com>',
+      from: 'The University Hub <onboarding@resend.dev>',
       to,
       subject,
       html,
@@ -204,25 +204,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Seller Registration - WhatsApp OTP based
+  // Seller Registration - Email OTP based
   app.post("/api/auth/seller/register", authLimiter, async (req, res) => {
     try {
-      const { whatsappOtpCode, ...userData } = req.body;
+      const { otpCode, ...userData } = req.body;
       
-      // Validate WhatsApp OTP
-      if (!whatsappOtpCode || !userData.whatsappNumber) {
-        return res.status(400).json({ message: "WhatsApp verification code is required for seller registration" });
+      // Validate Email OTP
+      if (!otpCode || !userData.email) {
+        return res.status(400).json({ message: "Verification code is required for seller registration" });
       }
 
-      const isValidOtp = await storage.verifyWhatsappOtp(userData.whatsappNumber, whatsappOtpCode);
+      const isValidOtp = await storage.verifyOtp(userData.email, otpCode);
       if (!isValidOtp) {
-        return res.status(401).json({ message: "Invalid or expired WhatsApp verification code" });
-      }
-
-      // Check if whatsapp number already exists
-      const existingWhatsapp = await storage.getUserByWhatsapp(userData.whatsappNumber);
-      if (existingWhatsapp) {
-        return res.status(400).json({ message: "WhatsApp number already registered" });
+        return res.status(401).json({ message: "Invalid or expired verification code" });
       }
 
       // Check if email or username already exists
@@ -246,8 +240,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const parsedUserData = insertUserSchema.parse(sellerData);
       const user = await storage.createUser(parsedUserData);
       
-      // Mark WhatsApp as verified since we just verified the OTP
-      await storage.markWhatsappAsVerified(userData.whatsappNumber);
+      // Mark email as verified since we just verified the OTP
+      await storage.markEmailAsVerified(userData.email);
       
       // Generate JWT token
       const token = generateToken(user.id);
@@ -310,7 +304,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const code = await storage.generateOtp(email);
         const { sendVerificationEmail } = await import('./email');
-        await sendVerificationEmail(email, code);
+        const sent = await sendVerificationEmail(email, code);
+        
+        if (!sent) {
+          return res.status(500).json({ message: "Verification service not configured or failed to send" });
+        }
         
         return res.json({ message: "Verification code sent for login", otpSent: true });
       } else {
@@ -346,7 +344,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Import email service
       const { sendVerificationEmail } = await import('./email');
-      await sendVerificationEmail(email, otpCode);
+      const sent = await sendVerificationEmail(email, otpCode);
+
+      if (!sent) {
+        return res.status(500).json({ message: "Verification service not configured or failed to send" });
+      }
 
       res.json({ message: "Verification code sent to your email" });
     } catch (error) {
@@ -880,13 +882,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/categories/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+  app.delete("/api/admin/users/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
-      const success = await storage.deleteCategory(id);
+      const success = await storage.deleteUser(id);
       res.json({ success });
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete category" });
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Weekly Deals Admin
+  app.get("/api/admin/weekly-deals", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const deals = await storage.getWeeklyDeals();
+      res.json(deals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch weekly deals" });
+    }
+  });
+
+  app.post("/api/admin/weekly-deals", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const dealData = insertWeeklyDealSchema.parse(req.body);
+      const deal = await storage.createWeeklyDeal(dealData);
+      res.json(deal);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid deal data" });
+    }
+  });
+
+  app.delete("/api/admin/weekly-deals/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteWeeklyDeal(id);
+      res.json({ success });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete deal" });
+    }
+  });
+
+  // Campus Activity Admin
+  app.get("/api/admin/campus-activity", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const activities = await storage.getCampusActivities();
+      res.json(activities);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch campus activity" });
+    }
+  });
+
+  app.post("/api/admin/campus-activity", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const activityData = insertCampusActivitySchema.parse(req.body);
+      const activity = await storage.createCampusActivity(activityData);
+      res.json(activity);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid activity data" });
+    }
+  });
+
+  app.delete("/api/admin/campus-activity/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteCampusActivity(id);
+      res.json({ success });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete activity" });
+    }
+  });
+
+  // Public Routes for weekly deals and campus activity
+  app.get("/api/weekly-deals", async (req, res) => {
+    try {
+      const deals = await storage.getWeeklyDeals();
+      res.json(deals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch weekly deals" });
+    }
+  });
+
+  app.get("/api/campus-activity", async (req, res) => {
+    try {
+      let activities = await storage.getCampusActivities();
+      
+      // If feed is thin, add real product activity from sellers
+      if (activities.length < 10) {
+        const recentProducts = await storage.getProductsWithStore({ limit: 10 });
+        for (const p of recentProducts) {
+           // Only add if not already present (simplified check)
+           const existing = activities.find(a => a.title.includes(p.title));
+           if (!existing) {
+             await storage.createCampusActivity({
+                userId: p.store.userId,
+                title: `New Item in ${p.store.name}`,
+                content: `Check out the new ${p.title} available now at ${p.store.university}.`,
+                source: 'internal',
+                activityType: 'sale',
+                imageUrl: p.images[0]
+             });
+           }
+        }
+        activities = await storage.getCampusActivities();
+      }
+
+      // Final seed check if still empty
+      if (activities.length === 0) {
+        const seedActivities = [
+          { title: "KNUST SRC Week 2026", content: "Main campus celebrations starting this weekend. Check out the local flea market!", source: "facebook", activityType: "activity" },
+          { title: "University of Ghana Exams", content: "End of semester examinations begin next Monday. Study groups now forming in the Balme Library.", source: "google", activityType: "news" },
+          { title: "Senior High Admissions", content: "CSSPS portal now open for SHS admissions check. 2026 Batch placement updates live.", source: "google", activityType: "news" }
+        ];
+
+        for (const seed of seedActivities) {
+          await storage.createCampusActivity(seed);
+        }
+        
+        activities = await storage.getCampusActivities();
+      }
+      
+      res.json(activities);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch campus activity" });
     }
   });
 
