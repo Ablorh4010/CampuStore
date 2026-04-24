@@ -176,7 +176,7 @@ export default function Home() {
                 <div className="bg-white p-2 rounded-lg shadow-lg flex items-center justify-center h-10 w-16"><img src="https://www.vectorlogo.zone/logos/visa/visa-ar21.svg" className="h-4" alt="Visa" referrerPolicy="no-referrer" /></div>
                 <div className="bg-white p-2 rounded-lg shadow-lg flex items-center justify-center h-10 w-16"><img src="https://www.vectorlogo.zone/logos/mastercard/mastercard-ar21.svg" className="h-6" alt="Mastercard" referrerPolicy="no-referrer" /></div>
                 <div className="bg-white p-2 rounded-lg shadow-lg flex items-center justify-center h-10 w-16"><img src="https://upload.wikimedia.org/wikipedia/commons/a/a2/MTN_Logo.svg" className="h-8" alt="MTN MoMo" referrerPolicy="no-referrer" /></div>
-                <div className="bg-white p-2 rounded-lg shadow-lg flex items-center justify-center h-10 w-16"><img src="https://www.vectorlogo.zone/logos/telecel/telecel-icon.svg" className="h-5" alt="Telecel" referrerPolicy="no-referrer" /></div>
+                <div className="bg-white p-2 rounded-lg shadow-lg flex items-center justify-center h-10 w-16"><img src="https://www.vectorlogo.zone/logos/facebook/facebook-icon.svg" className="h-5" alt="Facebook" referrerPolicy="no-referrer" /></div>
               </div>
             </div>
             

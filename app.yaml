@@ -8,6 +8,7 @@ env_variables:
   STRIPE_PUBLISHABLE_KEY: "pk_test_placeholder"
   VITE_STRIPE_PUBLIC_KEY: "pk_test_placeholder"
   GEMINI_API_KEY: "dummy_key"
+  RESEND_API_KEY: "re_placeholder_please_update"
 
 beta_settings:
   cloud_sql_instances: "chromatic-force-480509-j5:europe-west1:campus-db"
