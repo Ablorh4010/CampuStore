@@ -110,24 +110,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, 0);
 
   const addToCart = async (productId: number, quantity = 1) => {
-    if (user) {
-      await addToCartMutation.mutateAsync({ productId, quantity });
-    } else {
-      // Guest add
-      const existingIndex = guestCart.findIndex(item => item.product.id === productId);
-      let newCart;
-      if (existingIndex > -1) {
-        newCart = [...guestCart];
-        newCart[existingIndex].quantity += quantity;
+    try {
+      if (user) {
+        await addToCartMutation.mutateAsync({ productId, quantity });
       } else {
-        // Fetch product info for the guest cart display
-        const res = await fetch(`/api/products/${productId}`);
-        const product = await res.json();
-        newCart = [...guestCart, { id: Date.now(), productId, quantity, product }];
+        // Guest add
+        const existingIndex = guestCart.findIndex(item => item.product.id === productId);
+        let newCart;
+        if (existingIndex > -1) {
+          newCart = [...guestCart];
+          newCart[existingIndex].quantity += quantity;
+        } else {
+          // Fetch product info for the guest cart display
+          const res = await fetch(`/api/products/${productId}`);
+          if (!res.ok) throw new Error('Failed to fetch product');
+          const product = await res.json();
+          newCart = [...guestCart, { id: Date.now(), productId, quantity, product }];
+        }
+        setGuestCart(newCart);
+        localStorage.setItem('guest_cart', JSON.stringify(newCart));
       }
-      setGuestCart(newCart);
-      localStorage.setItem('guest_cart', JSON.stringify(newCart));
+      // Always open cart when item is added
       setIsOpen(true);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
     }
   };
 
