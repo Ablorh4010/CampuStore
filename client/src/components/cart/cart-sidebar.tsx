@@ -150,7 +150,6 @@ export default function CartSidebar() {
           </div>
         )}
       </div>
-      </div>
     </>
   );
 }
