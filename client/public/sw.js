@@ -1,4 +1,4 @@
-const CACHE_NAME = 'theuniversityhub-v4';
+const CACHE_NAME = 'theuniversityhub-v5';
 
 // Install service worker
 self.addEventListener('install', (event) => {

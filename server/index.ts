@@ -11,6 +11,14 @@ app.use(express.urlencoded({ extended: false }));
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
+// Cache control for PWA assets
+app.use((req, res, next) => {
+  if (req.path === '/sw.js' || req.path === '/manifest.json') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
