@@ -2,7 +2,10 @@ import { Resend } from 'resend';
 
 // Use environment variable for Resend API Key
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = 'The University Hub <support@uniexchangehub.com>';
+
+// Use verified domain if available, otherwise fall back to Resend's default domain
+// For production, ensure your custom domain is verified in Resend dashboard
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 export async function sendVerificationEmail(email: string, code: string) {
   if (!resend) {
