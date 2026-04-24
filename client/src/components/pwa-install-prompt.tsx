@@ -8,15 +8,17 @@ export default function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    const handler = (e: Event) => {
-      // Prevent the mini-infobar from appearing on mobile
-      e.preventDefault();
-      // Store the event so it can be triggered later
-      setDeferredPrompt(e);
-      // Show the install prompt
+    const handler = (e: any) => {
       const hasInstalled = localStorage.getItem('pwaInstalled');
       const hasDismissed = localStorage.getItem('pwaDismissed');
+
+      // Only handle if not already installed or dismissed
       if (!hasInstalled && !hasDismissed) {
+        // Prevent the mini-infobar from appearing on mobile
+        e.preventDefault();
+        // Store the event so it can be triggered later
+        setDeferredPrompt(e);
+        // Show our custom install prompt
         setShowPrompt(true);
       }
     };
