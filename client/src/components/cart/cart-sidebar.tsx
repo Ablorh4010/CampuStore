@@ -48,29 +48,18 @@ export default function CartSidebar() {
           </Button>
         </div>
 
-        {!user ? (
-          <div className="flex flex-col items-center justify-center p-8 h-full">
-            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-              <ShoppingCart className="h-12 w-12 text-primary" />
+        <ScrollArea className="flex-1 p-6">
+          {cartItems.length === 0 ? (
+            <div className="text-center py-20 flex flex-col items-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <ShoppingCart className="h-8 w-8 text-gray-200" />
+              </div>
+              <p className="text-gray-500 font-medium">Your cart is empty</p>
+              <Link href="/browse" onClick={closeCart}>
+                <Button variant="link" className="text-primary mt-2">Start Shopping</Button>
+              </Link>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Sign In to Shop</h3>
-            <p className="text-gray-600 text-center mb-6">
-              Sign in to add items to your cart and checkout
-            </p>
-            <Link href="/auth" onClick={closeCart}>
-              <Button size="lg" className="w-full" data-testid="button-cart-signin">
-                Sign In to Continue
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <>
-            <ScrollArea className="flex-1 p-6">
-              {cartItems.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">Your cart is empty</p>
-                </div>
-              ) : (
+          ) : (
             <div className="space-y-4">
               {cartItems.map((item) => (
                 <div
@@ -128,33 +117,39 @@ export default function CartSidebar() {
                   </div>
                 </div>
               ))}
-              </div>
-            )}
-          </ScrollArea>
-
-          {cartItems.length > 0 && (
-            <div className="border-t border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-lg font-semibold">Total:</span>
-                <span className="text-xl font-bold text-primary">
-                  ${total.toFixed(2)}
-                </span>
-              </div>
-              <Button 
-                className="w-full" 
-                size="lg" 
-                data-testid="button-checkout"
-                onClick={() => {
-                  closeCart();
-                  setLocation('/checkout');
-                }}
-              >
-                Proceed to Checkout
-              </Button>
             </div>
           )}
-        </>
+        </ScrollArea>
+
+        {cartItems.length > 0 && (
+          <div className="border-t border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-lg font-semibold">Total:</span>
+              <span className="text-xl font-bold text-primary">
+                ${total.toFixed(2)}
+              </span>
+            </div>
+            {!user && (
+              <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mb-4">
+                <p className="text-xs text-yellow-800 font-medium">
+                  Checking out as guest. <Link href="/auth" onClick={closeCart} className="underline font-bold">Sign in</Link> to save your order history.
+                </p>
+              </div>
+            )}
+            <Button 
+              className="w-full h-12 text-base font-bold shadow-lg shadow-primary/20" 
+              size="lg" 
+              data-testid="button-checkout"
+              onClick={() => {
+                closeCart();
+                setLocation('/checkout');
+              }}
+            >
+              Proceed to Checkout
+            </Button>
+          </div>
         )}
+      </div>
       </div>
     </>
   );
