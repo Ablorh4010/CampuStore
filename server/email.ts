@@ -2,18 +2,19 @@ import { Resend } from 'resend';
 
 // Use environment variable for Resend API Key
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-// Use verified domain if available, otherwise fall back to Resend's default domain
-// For production, ensure your custom domain is verified in Resend dashboard
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+const FROM_EMAIL = 'The University Hub <support@uniexchangehub.com>';
 
 export async function sendVerificationEmail(email: string, code: string) {
+  console.log(`[Email] Attempting to send verification code to ${email}...`);
+  console.log(`[Email] Using API Key starting with: ${process.env.RESEND_API_KEY?.substring(0, 5)}...`);
+
   if (!resend) {
     console.error('❌ ERROR: RESEND_API_KEY is missing. Verification email cannot be sent to:', email);
     return false;
   }
 
   try {
+    console.log(`[Email] Calling Resend API with FROM: ${FROM_EMAIL}`);
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
@@ -56,14 +57,14 @@ export async function sendVerificationEmail(email: string, code: string) {
     });
     
     if (error) {
-      console.error('❌ Resend API Error:', error);
+      console.error('❌ Resend API Error detail:', JSON.stringify(error, null, 2));
       return false;
     }
 
-    console.log(`✅ Verification email sent to ${email}. ID: ${data?.id}`);
+    console.log(`✅ Verification email sent to ${email} successfully. ID: ${data?.id}`);
     return true;
   } catch (error) {
-    console.error('❌ Failed to send verification email:', error);
+    console.error('❌ Exception in sendVerificationEmail:', error);
     return false;
   }
 }
