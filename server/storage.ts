@@ -1,10 +1,16 @@
 import {
   users, stores, categories, products, orders, messages, cartItems, otpCodes,
+  events, eventRsvps, clubs, clubMemberships, auctions, auctionBids,
+  studyGroups, studyGroupMemberships, userFollows, sellerReviews,
+  badges, userBadges, userPoints, pointsHistory,
+  weeklyDeals, campusActivity,
   type User, type InsertUser, type Store, type InsertStore, type Category,
   type Product, type InsertProduct, type Order, type InsertOrder,
   type Message, type InsertMessage, type CartItem, type InsertCartItem,
   type ProductWithStore, type StoreWithUser, type OrderWithDetails, type CartItemWithProduct,
-  type OtpCode, type InsertOtp
+  type OtpCode, type InsertOtp,
+  type WeeklyDeal, type WeeklyDealWithProduct, type InsertWeeklyDeal,
+  type CampusActivity, type CampusActivityWithUser, type InsertCampusActivity
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, gte } from "drizzle-orm";
@@ -106,6 +112,16 @@ export interface IStorage {
   updateCartItemQuantity(id: number, quantity: number): Promise<CartItem | undefined>;
   removeFromCart(id: number): Promise<boolean>;
   clearCart(userId: number): Promise<boolean>;
+
+  // Weekly Deals
+  getWeeklyDeals(): Promise<WeeklyDealWithProduct[]>;
+  createWeeklyDeal(deal: InsertWeeklyDeal): Promise<WeeklyDeal>;
+  deleteWeeklyDeal(id: number): Promise<boolean>;
+
+  // Campus Activity
+  getCampusActivities(): Promise<CampusActivityWithUser[]>;
+  createCampusActivity(activity: InsertCampusActivity): Promise<CampusActivity>;
+  deleteCampusActivity(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -971,6 +987,73 @@ export class DatabaseStorage implements IStorage {
 
   async clearCart(userId: number): Promise<boolean> {
     const result = await db.delete(cartItems).where(eq(cartItems.userId, userId));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Weekly Deals
+  async getWeeklyDeals(): Promise<WeeklyDealWithProduct[]> {
+    const deals = await db
+      .select()
+      .from(weeklyDeals)
+      .where(eq(weeklyDeals.isActive, true))
+      .orderBy(weeklyDeals.displayOrder);
+
+    const dealsWithProducts = await Promise.all(
+      deals.map(async (deal) => {
+        const product = await this.getProductWithStore(deal.productId);
+        return {
+          ...deal,
+          product: product!,
+        };
+      })
+    );
+
+    return dealsWithProducts.filter(d => d.product !== undefined);
+  }
+
+  async createWeeklyDeal(deal: InsertWeeklyDeal): Promise<WeeklyDeal> {
+    const [newDeal] = await db.insert(weeklyDeals).values(deal).returning();
+    return newDeal;
+  }
+
+  async deleteWeeklyDeal(id: number): Promise<boolean> {
+    const result = await db.delete(weeklyDeals).where(eq(weeklyDeals.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Campus Activity
+  async getCampusActivities(): Promise<CampusActivityWithUser[]> {
+    const activities = await db
+      .select()
+      .from(campusActivity)
+      .orderBy(desc(campusActivity.createdAt))
+      .limit(20);
+
+    const activitiesWithUsers = await Promise.all(
+      activities.map(async (activity) => {
+        if (!activity.userId) return activity;
+        const user = await this.getUserById(activity.userId);
+        return {
+          ...activity,
+          user: user ? {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            avatar: user.avatar,
+          } : undefined,
+        };
+      })
+    );
+
+    return activitiesWithUsers;
+  }
+
+  async createCampusActivity(activity: InsertCampusActivity): Promise<CampusActivity> {
+    const [newActivity] = await db.insert(campusActivity).values(activity).returning();
+    return newActivity;
+  }
+
+  async deleteCampusActivity(id: number): Promise<boolean> {
+    const result = await db.delete(campusActivity).where(eq(campusActivity.id, id));
     return (result.rowCount || 0) > 0;
   }
 }

@@ -11,7 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Package
+  Package,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,6 +32,7 @@ export default function Product() {
   const [, params] = useRoute('/product/:id');
   const productId = params?.id ? parseInt(params.id) : null;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [brokenImages, setBrokenImages] = useState<Record<number, boolean>>({});
   const { user } = useAuth();
   const { addToCart } = useCart();
   const { toast } = useToast();
@@ -38,6 +40,11 @@ export default function Product() {
 
   const { data: product, isLoading } = useQuery<ProductWithStore>({
     queryKey: ['/api/products', productId],
+    enabled: !!productId,
+  });
+
+  const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery<ProductWithStore[]>({
+    queryKey: ['/api/products', productId, 'suggestions'],
     enabled: !!productId,
   });
 
@@ -70,15 +77,6 @@ export default function Product() {
   });
 
   const handleAddToCart = async () => {
-    if (!user) {
-      toast({
-        title: 'Please sign in',
-        description: 'You need to be signed in to add items to cart.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     if (!product) return;
     
     try {
@@ -179,12 +177,13 @@ export default function Product() {
         {/* Image Gallery */}
         <div className="space-y-4">
           <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-            {product.images && product.images.length > 0 ? (
+            {product.images && product.images.length > 0 && !brokenImages[currentImageIndex] ? (
               <>
                 <img
                   src={product.images[currentImageIndex]}
                   alt={product.title}
                   className="w-full h-96 object-cover"
+                  onError={() => setBrokenImages(prev => ({ ...prev, [currentImageIndex]: true }))}
                 />
                 {product.images.length > 1 && (
                   <>
@@ -303,7 +302,7 @@ export default function Product() {
               size="lg" 
               className="w-full"
               onClick={handleAddToCart}
-              disabled={!product.isAvailable || !user}
+              disabled={!product.isAvailable}
             >
               <ShoppingCart className="mr-2 h-5 w-5" />
               {product.isAvailable ? 'Add to Cart' : 'Sold Out'}
@@ -328,12 +327,30 @@ export default function Product() {
           {!user && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                <Link href="/auth" className="font-medium underline">Sign in</Link> to add items to cart and contact sellers.
+                <Link href="/auth" className="font-medium underline">Sign in</Link> to contact sellers. You can add items to cart as a guest.
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* AI Suggestions */}
+      {suggestions.length > 0 && (
+        <section className="mb-12">
+          <div className="flex items-center space-x-2 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Better Deals for You</h2>
+            <div className="flex items-center bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
+              <Sparkles className="h-3 w-3 mr-1" />
+              AI Suggested
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {suggestions.map((suggestion) => (
+              <ProductCard key={suggestion.id} product={suggestion} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Related Products */}
       {filteredRelatedProducts.length > 0 && (

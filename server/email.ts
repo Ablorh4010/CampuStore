@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 // Use environment variable for Resend API Key
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = 'The University Hub <onboarding@resend.dev>';
+const FROM_EMAIL = 'The University Hub <support@uniexchangehub.com>';
 
 export async function sendVerificationEmail(email: string, code: string) {
   if (!resend) {
@@ -11,7 +11,7 @@ export async function sendVerificationEmail(email: string, code: string) {
   }
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'The University Hub - Your Verification Code',
@@ -52,11 +52,16 @@ export async function sendVerificationEmail(email: string, code: string) {
       `
     });
     
-    console.log(`Verification email sent to ${email}`);
+    if (error) {
+      console.error('❌ Resend API Error:', error);
+      return false;
+    }
+
+    console.log(`✅ Verification email sent to ${email}. ID: ${data?.id}`);
     return true;
   } catch (error) {
-    console.error('Failed to send verification email:', error);
-    throw new Error('Failed to send verification email');
+    console.error('❌ Failed to send verification email:', error);
+    return false;
   }
 }
 
@@ -67,7 +72,7 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
   }
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'The University Hub - Admin Invitation',
@@ -114,11 +119,16 @@ export async function sendAdminInvite(email: string, inviteToken: string, invite
       `
     });
     
-    console.log(`Admin invite sent to ${email}`);
+    if (error) {
+      console.error('❌ Resend API Error (Admin Invite):', error);
+      return false;
+    }
+
+    console.log(`✅ Admin invite sent to ${email}. ID: ${data?.id}`);
     return true;
   } catch (error) {
-    console.error('Failed to send admin invite:', error);
-    throw new Error('Failed to send admin invite');
+    console.error('❌ Failed to send admin invite:', error);
+    return false;
   }
 }
 
@@ -129,7 +139,7 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
   }
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'The University Hub - Reset Your Password',
@@ -172,10 +182,15 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
       `
     });
     
-    console.log(`Password reset email sent to ${email}`);
+    if (error) {
+      console.error('❌ Resend API Error (Password Reset):', error);
+      return false;
+    }
+
+    console.log(`✅ Password reset email sent to ${email}. ID: ${data?.id}`);
     return true;
   } catch (error) {
-    console.error('Failed to send password reset email:', error);
-    throw new Error('Failed to send password reset email');
+    console.error('❌ Failed to send password reset email:', error);
+    return false;
   }
 }

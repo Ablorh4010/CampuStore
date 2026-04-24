@@ -62,6 +62,33 @@ export async function authenticateToken(
   next();
 }
 
+export async function tryAuthenticate(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (token) {
+    const decoded = verifyToken(token);
+    if (decoded) {
+      req.userId = decoded.userId;
+      const { storage } = await import('./storage');
+      const user = await storage.getUserById(req.userId);
+      if (user) {
+        req.user = {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          isAdmin: user.isAdmin
+        };
+      }
+    }
+  }
+  next();
+}
+
 export async function requireAdmin(
   req: AuthRequest,
   res: Response,

@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import multer from "multer";
 import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
-import { generateToken, authenticateToken, requireAdmin, type AuthRequest } from "./auth";
+import { generateToken, authenticateToken, tryAuthenticate, requireAdmin, type AuthRequest } from "./auth";
 import path from "path";
 import Stripe from "stripe";
 import rateLimit from "express-rate-limit";
@@ -23,17 +23,26 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 async function sendEmail(to: string, subject: string, html: string) {
   if (!resend) {
     console.warn('Warning: RESEND_API_KEY is missing. Email skipped:', { to, subject });
-    return;
+    return false;
   }
   try {
-    await resend.emails.send({
-      from: 'The University Hub <onboarding@resend.dev>',
+    const { data, error } = await resend.emails.send({
+      from: 'The University Hub <support@uniexchangehub.com>',
       to,
       subject,
       html,
     });
+    
+    if (error) {
+      console.error('❌ Resend API Error (sendEmail):', error);
+      return false;
+    }
+    
+    console.log(`✅ Email sent to ${to}. ID: ${data?.id}`);
+    return true;
   } catch (error) {
-    console.error('Failed to send email:', error);
+    console.error('❌ Failed to send email:', error);
+    return false;
   }
 }
 
@@ -698,13 +707,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload buyer verification for checkout
-  app.post("/api/upload/buyer-verification", apiLimiter, authenticateToken, imageUpload.fields([
+  app.post("/api/upload/buyer-verification", apiLimiter, tryAuthenticate, imageUpload.fields([
     { name: 'buyerIdScan', maxCount: 1 },
     { name: 'buyerFaceScan', maxCount: 1 }
   ]), async (req: AuthRequest, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-      
+      const { latitude, longitude } = req.body;
+
       if (!files || (!files.buyerIdScan && !files.buyerFaceScan)) {
         return res.status(400).json({ message: "No verification documents uploaded" });
       }
@@ -712,26 +722,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const buyerIdScanUrl = files.buyerIdScan ? `/uploads/${files.buyerIdScan[0].filename}` : undefined;
       const buyerFaceScanUrl = files.buyerFaceScan ? `/uploads/${files.buyerFaceScan[0].filename}` : undefined;
 
-      // Update buyer verification documents
-      await storage.updateUser(req.userId!, {
+      // Update buyer verification documents if user is logged in
+      if (req.userId) {
+        await storage.updateUser(req.userId, {
+          buyerIdScanUrl,
+          buyerFaceScanUrl,
+          buyerLatitude: latitude,
+          buyerLongitude: longitude,
+          buyerVerifiedAt: new Date()
+        });
+      }
+
+      res.json({
         buyerIdScanUrl,
         buyerFaceScanUrl,
-        buyerVerifiedAt: new Date()
-      });
-
-      res.json({ 
-        buyerIdScanUrl, 
-        buyerFaceScanUrl,
-        message: "Buyer verification documents uploaded successfully." 
+        latitude,
+        longitude,
+        message: "Buyer verification documents uploaded successfully."
       });
     } catch (error) {
       console.error('Buyer verification upload error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: error instanceof Error ? error.message : 'Failed to upload buyer verification documents'
       });
     }
   });
-
   // Product image upload with AI Watermarking
   app.post("/api/upload/product", authenticateToken, imageUpload.single('image'), async (req: AuthRequest, res) => {
     try {
@@ -1088,6 +1103,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/products/:id/suggestions", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const product = await storage.getProductWithStore(id);
+      if (!product) return res.status(404).json({ message: "Product not found" });
+
+      // Find candidates from other sellers in the same category
+      const candidates = await storage.getProductsWithStore({ 
+        categoryId: product.categoryId,
+        limit: 15
+      });
+      
+      const otherSellersCandidates = candidates.filter(c => c.storeId !== product.storeId && c.id !== product.id);
+
+      const { generateProductSuggestions } = await import('./ai');
+      const suggestions = await generateProductSuggestions(product, otherSellersCandidates);
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Suggestions Endpoint Error:", error);
+      res.status(500).json({ message: "Failed to fetch product suggestions" });
+    }
+  });
+
   app.get("/api/products/store/:storeId", async (req, res) => {
     try {
       const storeId = parseInt(req.params.storeId);
@@ -1270,7 +1308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Confirm payment and create orders
-  app.post("/api/orders/confirm-payment", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/orders/confirm-payment", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
       const { paymentIntentId } = req.body;
       if (!stripe) return res.status(500).json({ message: "Payment service not configured" });
@@ -1280,20 +1318,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Payment has not succeeded" });
       }
 
-      const { userId, cartItems: cartItemsRaw, shippingMode } = paymentIntent.metadata;
+      const { 
+        userId, 
+        cartItems: cartItemsRaw, 
+        shippingMode, 
+        isBokoo, 
+        guestDetails: guestDetailsRaw,
+        buyerLatitude,
+        buyerLongitude,
+        verificationUrls: verificationUrlsRaw
+      } = paymentIntent.metadata;
+
       const cartItems = JSON.parse(cartItemsRaw);
+      const guestDetails = guestDetailsRaw ? JSON.parse(guestDetailsRaw) : null;
+      const verificationUrls = verificationUrlsRaw ? JSON.parse(verificationUrlsRaw) : null;
+
+      let buyerId = userId !== "guest" ? parseInt(userId) : null;
       
       const createdOrders = [];
       for (const item of cartItems) {
         const product = await storage.getProductById(item.productId);
         if (!product) continue;
 
-        // Get the store owner's user ID
         const store = await storage.getStoreById(product.storeId);
         if (!store) continue;
 
         const order = await storage.createOrder({
-          buyerId: parseInt(userId),
+          buyerId: buyerId || 0,
           sellerId: store.userId,
           productId: product.id,
           quantity: item.quantity,
@@ -1301,22 +1352,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'confirmed',
           shippingMode: shippingMode || 'ghana_post_standard',
           deliveryStatus: 'pending',
+          buyerLatitude: buyerLatitude,
+          buyerLongitude: buyerLongitude,
+          buyerAddress: guestDetails?.address,
+          buyerUniversity: guestDetails?.university,
+          buyerCity: guestDetails?.city,
+          buyerPhone: guestDetails?.phoneNumber,
+          buyerEmail: guestDetails?.email,
+          payoutStatus: isBokoo === 'true' ? 'installment_active' : 'pending'
         });
         
         createdOrders.push(order);
       }
 
       // Clear cart
-      await storage.clearCart(parseInt(userId));
+      if (buyerId) {
+        await storage.clearCart(buyerId);
+      }
 
       // Send notifications
       const { sendOrderConfirmation } = await import('./notifications');
-      const buyer = await storage.getUserById(parseInt(userId));
-      if (buyer) {
+      let buyerInfo: any;
+      if (buyerId) {
+        buyerInfo = await storage.getUserById(buyerId);
+      } else if (guestDetails) {
+        buyerInfo = {
+          firstName: guestDetails.firstName,
+          lastName: guestDetails.lastName,
+          email: guestDetails.email,
+          phoneNumber: guestDetails.phoneNumber
+        };
+      }
+
+      if (buyerInfo) {
         for (const order of createdOrders) {
           const product = await storage.getProductById(order.productId);
           if (product) {
-            await sendOrderConfirmation(order, buyer, product);
+            await sendOrderConfirmation(order, buyerInfo, product);
           }
         }
       }
@@ -1942,10 +2014,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe payment intent route
-  app.post("/api/create-payment-intent", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/create-payment-intent", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
-      const { amount, cartItems } = req.body;
-      
+      const { amount, cartItems, isBokoo, guestDetails, buyerLocation, verificationUrls } = req.body;
+
       if (!amount || amount <= 0) {
         return res.status(400).json({ message: "Invalid amount" });
       }
@@ -1954,6 +2026,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Payment service not configured" });
       }
 
+      const userId = req.userId;
+
       const paymentIntent = await stripe!.paymentIntents.create({
         amount: Math.round(amount * 100),
         currency: "usd",
@@ -1961,8 +2035,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           enabled: true,
         },
         metadata: {
-          userId: req.user!.id.toString(),
+          userId: userId?.toString() || "guest",
           cartItems: JSON.stringify(cartItems || []),
+          isBokoo: isBokoo ? "true" : "false",
+          guestDetails: guestDetails ? JSON.stringify(guestDetails) : undefined,
+          buyerLatitude: buyerLocation?.latitude || undefined,
+          buyerLongitude: buyerLocation?.longitude || undefined,
+          verificationUrls: verificationUrls ? JSON.stringify(verificationUrls) : undefined,
         },
       });
 
@@ -1972,7 +2051,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating payment intent: " + error.message });
     }
   });
-
   // Push notification routes
   
   // Get VAPID public key for client

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from './queryClient';
 import { useAuth } from './auth-context';
@@ -23,12 +23,41 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [guestCart, setGuestCart] = useState<any[]>(() => {
+    const saved = localStorage.getItem('guest_cart');
+    return saved ? JSON.parse(saved) : [];
+  });
   const queryClient = useQueryClient();
 
-  const { data: cartItems = [], isLoading } = useQuery<CartItemWithProduct[]>({
+  const { data: serverCartItems = [], isLoading } = useQuery<CartItemWithProduct[]>({
     queryKey: ['/api/cart', user?.id],
     enabled: !!user?.id,
   });
+
+  // Sync guest cart to server when user logs in
+  useEffect(() => {
+    if (user?.id && guestCart.length > 0) {
+      const syncCart = async () => {
+        for (const item of guestCart) {
+          try {
+            await apiRequest('POST', '/api/cart', {
+              userId: user.id,
+              productId: item.product.id,
+              quantity: item.quantity,
+            });
+          } catch (error) {
+            console.error('Failed to sync guest item:', error);
+          }
+        }
+        setGuestCart([]);
+        localStorage.removeItem('guest_cart');
+        queryClient.invalidateQueries({ queryKey: ['/api/cart', user?.id] });
+      };
+      syncCart();
+    }
+  }, [user?.id]);
+
+  const cartItems = user ? serverCartItems : guestCart;
 
   const addToCartMutation = useMutation({
     mutationFn: async ({ productId, quantity = 1 }: { productId: number; quantity?: number }) => {
@@ -81,21 +110,56 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, 0);
 
   const addToCart = async (productId: number, quantity = 1) => {
-    if (!user) return;
-    await addToCartMutation.mutateAsync({ productId, quantity });
+    if (user) {
+      await addToCartMutation.mutateAsync({ productId, quantity });
+    } else {
+      // Guest add
+      const existingIndex = guestCart.findIndex(item => item.product.id === productId);
+      let newCart;
+      if (existingIndex > -1) {
+        newCart = [...guestCart];
+        newCart[existingIndex].quantity += quantity;
+      } else {
+        // Fetch product info for the guest cart display
+        const res = await fetch(`/api/products/${productId}`);
+        const product = await res.json();
+        newCart = [...guestCart, { id: Date.now(), productId, quantity, product }];
+      }
+      setGuestCart(newCart);
+      localStorage.setItem('guest_cart', JSON.stringify(newCart));
+      setIsOpen(true);
+    }
   };
 
   const updateQuantity = async (cartItemId: number, quantity: number) => {
-    await updateQuantityMutation.mutateAsync({ cartItemId, quantity });
+    if (user) {
+      await updateQuantityMutation.mutateAsync({ cartItemId, quantity });
+    } else {
+      const newCart = guestCart.map(item => 
+        item.id === cartItemId ? { ...item, quantity } : item
+      );
+      setGuestCart(newCart);
+      localStorage.setItem('guest_cart', JSON.stringify(newCart));
+    }
   };
 
   const removeFromCart = async (cartItemId: number) => {
-    await removeFromCartMutation.mutateAsync(cartItemId);
+    if (user) {
+      await removeFromCartMutation.mutateAsync(cartItemId);
+    } else {
+      const newCart = guestCart.filter(item => item.id !== cartItemId);
+      setGuestCart(newCart);
+      localStorage.setItem('guest_cart', JSON.stringify(newCart));
+    }
   };
 
   const clearCart = async () => {
-    if (!user) return;
-    await clearCartMutation.mutateAsync();
+    if (user) {
+      await clearCartMutation.mutateAsync();
+    } else {
+      setGuestCart([]);
+      localStorage.removeItem('guest_cart');
+    }
   };
 
   return (

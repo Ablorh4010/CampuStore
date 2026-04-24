@@ -12,13 +12,34 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Lock, CreditCard, ShieldCheck, Info, Wallet, Truck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { 
+  ArrowLeft, Lock, CreditCard, ShieldCheck, Info, Wallet, 
+  Truck, User, MapPin, CheckCircle2, Map as MapIcon
+} from "lucide-react";
 import { IdScanCapture, FacialCapture } from "@/components/verification";
+import { useGeolocation } from "@/hooks/use-geolocation";
 
 const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_dummy';
 const stripePromise = loadStripe(stripePublicKey);
 
-function CheckoutForm({ isBokoo, originalTotal }: { isBokoo: boolean, originalTotal: number }) {
+interface CheckoutDetails {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  university: string;
+  city: string;
+  campus: string;
+  address: string;
+}
+
+function CheckoutForm({ isBokoo, originalTotal, checkoutDetails, locationData }: { 
+  isBokoo: boolean, 
+  originalTotal: number,
+  checkoutDetails: CheckoutDetails,
+  locationData: { latitude: string; longitude: string } | null
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -39,6 +60,13 @@ function CheckoutForm({ isBokoo, originalTotal }: { isBokoo: boolean, originalTo
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/payment-success`,
+        payment_method_data: {
+          billing_details: {
+            name: `${checkoutDetails.firstName} ${checkoutDetails.lastName}`,
+            email: checkoutDetails.email,
+            phone: checkoutDetails.phoneNumber,
+          }
+        }
       },
       redirect: 'if_required',
     });
@@ -62,9 +90,9 @@ function CheckoutForm({ isBokoo, originalTotal }: { isBokoo: boolean, originalTo
         <div className="flex-1">
           <h3 className="font-semibold text-blue-900 text-sm">Secure Payment</h3>
           <p className="text-blue-700 text-xs mt-1">
-            {isBokoo 
-              ? `Bɔkɔɔ Active: You are paying the first installment of $${(originalTotal / 4).toFixed(2)}.`
-              : "All payment methods (Card, Apple Pay, MTN MoMo, Telecel Cash) are processed securely through Stripe."
+            {isBokoo
+              ? `Bɔkɔɔ Pay Active: You are paying the first installment of $${(originalTotal / 4).toFixed(2)}.`
+              : "All payment methods are processed securely through Stripe."
             }
           </p>
         </div>
@@ -79,7 +107,6 @@ function CheckoutForm({ isBokoo, originalTotal }: { isBokoo: boolean, originalTo
         className="w-full h-12 text-lg font-bold" 
         size="lg"
         disabled={!stripe || isProcessing}
-        data-testid="button-complete-payment"
       >
         {isProcessing ? (
           <span className="flex items-center gap-2">
@@ -94,16 +121,12 @@ function CheckoutForm({ isBokoo, originalTotal }: { isBokoo: boolean, originalTo
         )}
       </Button>
 
-      <div className="flex justify-center items-center gap-4 opacity-50 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
-         {/* Simulated payment provider logos */}
-         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Apple_Pay_logo.svg/512px-Apple_Pay_logo.svg.png" alt="Apple Pay" className="h-6" />
-         <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/MTN_Logo.svg/1024px-MTN_Logo.svg.png" alt="MTN MoMo" className="h-6" />
-         <img src="https://seeklogo.com/images/V/vodafone-cash-logo-9759DB60F4-seeklogo.com.png" alt="Telecel" className="h-6" />
+      <div className="flex flex-wrap justify-center items-center gap-4 opacity-90 transition-all">
+         <img src="https://www.vectorlogo.zone/logos/apple_pay/apple_pay-ar21.svg" alt="Apple Pay" className="h-5" />
+         <img src="https://www.vectorlogo.zone/logos/google_pay/google_pay-ar21.svg" alt="Google Pay" className="h-5" />
+         <img src="https://www.vectorlogo.zone/logos/visa/visa-ar21.svg" alt="Visa" className="h-3" />
+         <img src="https://www.vectorlogo.zone/logos/mastercard/mastercard-ar21.svg" alt="Mastercard" className="h-5" />
       </div>
-
-      <p className="text-xs text-gray-500 text-center">
-        By completing this payment, you agree to our Terms of Service and Privacy Policy.
-      </p>
     </form>
   );
 }
@@ -113,19 +136,40 @@ export default function Checkout() {
   const { cartItems, cartTotal } = useCart();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [clientSecret, setClientSecret] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const { location, captureLocation, loading: locationLoading } = useGeolocation();
+  
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1); // 1: Info, 2: Address, 3: Verification (Installments), 4: Payment
+  const [details, setDetails] = useState<CheckoutDetails>({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phoneNumber: user?.phoneNumber || '',
+    university: user?.university || '',
+    city: user?.city || '',
+    campus: user?.campus || '',
+    address: '',
+  });
+
   const [isBokoo, setIsBokoo] = useState(false);
   const [shippingMode, setShippingMode] = useState<string>('ghana_post_standard');
-  const [verificationStep, setVerificationStep] = useState<'verify' | 'payment'>('verify');
+  const [clientSecret, setClientSecret] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  
   const [buyerIdFile, setBuyerIdFile] = useState<File | null>(null);
   const [buyerFaceFile, setBuyerFaceFile] = useState<File | null>(null);
+  const [verificationUrls, setVerificationUrls] = useState<{ idUrl: string; faceUrl: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
 
   const shippingFee = shippingMode === 'express_delivery' ? 15 : 0;
   const grandTotal = cartTotal + shippingFee;
 
-  const initializePayment = useCallback((useBokoo: boolean = false, mode: string = shippingMode) => {
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      setLocation('/browse');
+    }
+  }, [cartItems.length, setLocation]);
+
+  const initializePayment = useCallback((useBokoo: boolean = false, mode: string = shippingMode, vUrls = verificationUrls) => {
     setIsLoading(true);
     const fee = mode === 'express_delivery' ? 15 : 0;
     const amount = useBokoo ? (cartTotal + fee) / 4 : (cartTotal + fee);
@@ -137,7 +181,10 @@ export default function Checkout() {
         quantity: item.quantity,
       })),
       isBokoo: useBokoo,
-      shippingMode: mode
+      shippingMode: mode,
+      guestDetails: !user ? details : undefined,
+      buyerLocation: location,
+      verificationUrls: vUrls
     })
       .then((res) => res.json())
       .then((data) => {
@@ -150,450 +197,383 @@ export default function Checkout() {
           description: "Unable to initialize payment. Please try again.",
           variant: "destructive",
         });
-        console.error('Payment intent error:', error);
         setIsLoading(false);
       });
-  }, [cartTotal, cartItems, toast, shippingMode]);
+  }, [cartTotal, cartItems, toast, shippingMode, user, details, location, verificationUrls]);
 
-  useEffect(() => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to proceed with checkout",
-        variant: "destructive",
-      });
-      setLocation('/auth');
-      return;
+  const handleNextStep = () => {
+    if (step === 1) {
+      if (!details.firstName || !details.lastName || !details.email || !details.phoneNumber) {
+        toast({ title: "Missing Information", description: "Please fill in all personal details.", variant: "destructive" });
+        return;
+      }
+      setStep(2);
+    } else if (step === 2) {
+      if (!details.university || !details.city || !details.address) {
+        toast({ title: "Missing Address", description: "Please provide your delivery address.", variant: "destructive" });
+        return;
+      }
+      if (isBokoo) {
+        setStep(3);
+        captureLocation();
+      } else {
+        setStep(4);
+        initializePayment(false);
+      }
+    } else if (step === 3) {
+      if (!buyerIdFile || !buyerFaceFile || !location) {
+        toast({ 
+          title: "Verification Required", 
+          description: "Live ID, face photo, and location are mandatory for installments.", 
+          variant: "destructive" 
+        });
+        if (!location) captureLocation();
+        return;
+      }
+      handleVerificationAndContinue();
     }
-
-    if (cartItems.length === 0) {
-      toast({
-        title: "Cart is Empty",
-        description: "Add items to your cart before checking out",
-        variant: "destructive",
-      });
-      setLocation('/browse');
-      return;
-    }
-
-    // Check if buyer already verified
-    if (user.buyerIdScanUrl && user.buyerFaceScanUrl) {
-      // Skip verification step
-      setVerificationStep('payment');
-      initializePayment(isBokoo, shippingMode);
-    } else {
-      setIsLoading(false);
-    }
-  }, [user, cartItems, initializePayment, isBokoo, shippingMode, setLocation, toast]);
-
-  const handleBokooToggle = (checked: boolean) => {
-    setIsBokoo(checked);
-    initializePayment(checked, shippingMode);
   };
 
-  const handleShippingChange = (value: string) => {
-    setShippingMode(value);
-    initializePayment(isBokoo, value);
-  };
-
-  const handleVerificationSubmit = async () => {
-    if (!buyerIdFile || !buyerFaceFile) {
-      toast({
-        title: "Verification Required",
-        description: "Please upload both ID document and selfie to continue",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleVerificationAndContinue = async () => {
     setIsVerifying(true);
-
     try {
       const formData = new FormData();
-      formData.append('buyerIdScan', buyerIdFile);
-      formData.append('buyerFaceScan', buyerFaceFile);
-
+      formData.append('buyerIdScan', buyerIdFile!);
+      formData.append('buyerFaceScan', buyerFaceFile!);
+      formData.append('latitude', location!.latitude);
+      formData.append('longitude', location!.longitude);
+      
       const token = localStorage.getItem('token');
       const response = await fetch('/api/upload/buyer-verification', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error('Verification upload failed');
-      }
-
-      toast({
-        title: "Verification Complete",
-        description: "Your identity has been verified. Proceeding to payment...",
-      });
-
-      setVerificationStep('payment');
-      initializePayment(isBokoo);
+      if (!response.ok) throw new Error("Upload failed");
+      const data = await response.json();
+      
+      const vUrls = { idUrl: data.buyerIdScanUrl, faceUrl: data.buyerFaceScanUrl };
+      setVerificationUrls(vUrls);
+      setStep(4);
+      initializePayment(true, shippingMode, vUrls);
     } catch (error) {
-      toast({
-        title: "Verification Failed",
-        description: "Unable to verify your identity. Please try again.",
-        variant: "destructive",
-      });
-      console.error('Verification error:', error);
+      toast({ title: "Verification Failed", variant: "destructive" });
     } finally {
       setIsVerifying(false);
     }
   };
 
-  if (isLoading && !clientSecret) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">
-            {verificationStep === 'verify' ? 'Processing...' : 'Setting up secure payment...'}
-          </p>
+  return (
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-5xl mx-auto px-4">
+        {/* Step Indicator */}
+        <div className="flex items-center justify-between mb-12 max-w-2xl mx-auto">
+          {[
+            { n: 1, label: 'Info', icon: User },
+            { n: 2, label: 'Address', icon: MapPin },
+            { n: 3, label: 'Verify', icon: ShieldCheck, hide: !isBokoo },
+            { n: 4, label: 'Pay', icon: CreditCard }
+          ].filter(s => !s.hide).map((s, i, arr) => (
+            <div key={s.n} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
+                  step === s.n ? 'bg-primary border-primary text-white shadow-lg shadow-primary/30 scale-110' : 
+                  step > s.n ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-gray-300 text-gray-400'
+                }`}>
+                  {step > s.n ? <CheckCircle2 className="h-6 w-6" /> : <s.icon className="h-5 w-5" />}
+                </div>
+                <span className={`text-[10px] font-black uppercase mt-2 tracking-widest ${step === s.n ? 'text-primary' : 'text-gray-400'}`}>
+                  {s.label}
+                </span>
+              </div>
+              {i < arr.length - 1 && (
+                <div className={`h-0.5 flex-1 mx-4 transition-colors ${step > s.n ? 'bg-green-500' : 'bg-gray-200'}`} />
+              )}
+            </div>
+          ))}
         </div>
-      </div>
-    );
-  }
 
-  // Show verification step first
-  if (verificationStep === 'verify') {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => setLocation('/browse')}
-            className="mb-6"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Shopping
-          </Button>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <ShieldCheck className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle>Buyer Verification Required</CardTitle>
-                      <CardDescription>
-                        For your security, please verify your identity before checkout
-                      </CardDescription>
-                    </div>
-                  </div>
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {step === 1 && (
+              <Card className="rounded-[2.5rem] shadow-xl border-none">
+                <CardHeader className="pt-8 px-8">
+                  <CardTitle className="text-2xl font-black italic">Personal Details.</CardTitle>
+                  <CardDescription>Tell us who is receiving the order</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      🔒 Your verification documents are encrypted and securely stored.
-                      This one-time verification helps protect both buyers and sellers.
-                    </p>
+                <CardContent className="p-8 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest">First Name</Label>
+                      <Input 
+                        value={details.firstName} 
+                        onChange={e => setDetails({...details, firstName: e.target.value})}
+                        className="rounded-xl h-12 border-gray-100 bg-gray-50 focus:bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest">Last Name</Label>
+                      <Input 
+                        value={details.lastName} 
+                        onChange={e => setDetails({...details, lastName: e.target.value})}
+                        className="rounded-xl h-12 border-gray-100 bg-gray-50 focus:bg-white"
+                      />
+                    </div>
                   </div>
-                  
-                  <IdScanCapture 
-                    onCapture={setBuyerIdFile}
-                    onRemove={() => setBuyerIdFile(null)}
-                  />
-                  
-                  <FacialCapture 
-                    onCapture={setBuyerFaceFile}
-                    onRemove={() => setBuyerFaceFile(null)}
-                  />
-
-                  <Button 
-                    onClick={handleVerificationSubmit}
-                    disabled={!buyerIdFile || !buyerFaceFile || isVerifying}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {isVerifying ? (
-                      <>
-                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                        Verifying...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="h-4 w-4 mr-2" />
-                        Verify & Continue to Payment
-                      </>
-                    )}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs uppercase tracking-widest">Email Address</Label>
+                    <Input 
+                      type="email"
+                      value={details.email} 
+                      onChange={e => setDetails({...details, email: e.target.value})}
+                      className="rounded-xl h-12 border-gray-100 bg-gray-50 focus:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs uppercase tracking-widest">Phone Number</Label>
+                    <Input 
+                      value={details.phoneNumber} 
+                      onChange={e => setDetails({...details, phoneNumber: e.target.value})}
+                      className="rounded-xl h-12 border-gray-100 bg-gray-50 focus:bg-white"
+                    />
+                  </div>
+                  <Button onClick={handleNextStep} className="w-full h-14 rounded-2xl bg-black text-white font-black text-lg mt-4">
+                    Continue to Address
                   </Button>
                 </CardContent>
               </Card>
-            </div>
+            )}
 
-            <div className="md:col-span-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
+            {step === 2 && (
+              <Card className="rounded-[2.5rem] shadow-xl border-none">
+                <CardHeader className="pt-8 px-8">
+                  <CardTitle className="text-2xl font-black italic">Delivery Address.</CardTitle>
+                  <CardDescription>Where should we send your items?</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    {cartItems.map((item: any) => (
-                      <div key={item.product.id} className="flex justify-between text-sm">
-                        <div className="flex-1">
-                          <p className="font-medium truncate">{item.product.title}</p>
-                          <p className="text-gray-500">Qty: {item.quantity}</p>
-                        </div>
-                        <p className="font-medium">
-                          ${(item.product.price * item.quantity).toFixed(2)}
-                        </p>
-                      </div>
-                    ))}
+                <CardContent className="p-8 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest">University</Label>
+                      <Input 
+                        value={details.university} 
+                        onChange={e => setDetails({...details, university: e.target.value})}
+                        className="rounded-xl h-12 border-gray-100 bg-gray-50 focus:bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-xs uppercase tracking-widest">City</Label>
+                      <Input 
+                        value={details.city} 
+                        onChange={e => setDetails({...details, city: e.target.value})}
+                        className="rounded-xl h-12 border-gray-100 bg-gray-50 focus:bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs uppercase tracking-widest">Detailed Address / Campus Hall</Label>
+                    <Input 
+                      value={details.address} 
+                      onChange={e => setDetails({...details, address: e.target.value})}
+                      placeholder="e.g. Block B Room 42, Jean Nelson Hall"
+                      className="rounded-xl h-12 border-gray-100 bg-gray-50 focus:bg-white"
+                    />
                   </div>
 
-                  <Separator />
+                  <Separator className="my-8" />
 
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span>${cartTotal.toFixed(2)}</span>
+                  <div className={`p-6 rounded-3xl border-2 transition-all ${isBokoo ? 'border-primary bg-primary/5' : 'border-gray-100 bg-gray-50'}`}>
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-white rounded-2xl shadow-sm">
+                        <Wallet className={`h-6 w-6 ${isBokoo ? 'text-primary' : 'text-gray-400'}`} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-black text-lg">Bɔkɔɔ Pay (Installments)</h3>
+                            <p className="text-sm text-gray-500 font-medium">Pay 25% now, the rest later. No interest.</p>
+                          </div>
+                          <Checkbox 
+                            id="bokoo-toggle" 
+                            checked={isBokoo}
+                            onCheckedChange={(checked) => setIsBokoo(checked as boolean)}
+                            className="h-6 w-6 rounded-lg"
+                          />
+                        </div>
+                        {isBokoo && (
+                          <div className="mt-4 bg-white p-4 rounded-2xl border border-primary/20 space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                              <ShieldCheck className="h-3 w-3" />
+                              Strict Verification Required
+                            </p>
+                            <p className="text-xs text-gray-600">Selecting this option requires live ID capture, facial verification, and live location sharing.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Button variant="outline" onClick={() => setStep(1)} className="flex-1 h-14 rounded-2xl font-black">Back</Button>
+                    <Button onClick={handleNextStep} className="flex-[2] h-14 rounded-2xl bg-black text-white font-black text-lg">
+                      {isBokoo ? 'Continue to Verification' : 'Continue to Payment'}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+            )}
 
-  if (!clientSecret && !isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md w-full">
-          <CardHeader>
-            <CardTitle>Payment Setup Failed</CardTitle>
-            <CardDescription>
-              We couldn't initialize the payment. Please try again or contact support.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setLocation('/browse')} className="w-full">
-              Return to Shopping
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Button 
-          variant="ghost" 
-          onClick={() => setLocation('/browse')}
-          className="mb-6"
-          data-testid="button-back-to-cart"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Shopping
-        </Button>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
-            <Card className="border-2 border-primary/20 shadow-md">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-primary/10 rounded-xl">
-                    <Wallet className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">Bɔkɔɔ (Pay in 4)</h3>
-                        <p className="text-sm text-gray-600">Split your purchase into four equal interest-free installments.</p>
-                      </div>
-                      <Checkbox 
-                        id="bokoo-toggle" 
-                        checked={isBokoo}
-                        onCheckedChange={(checked) => handleBokooToggle(checked as boolean)}
-                        className="h-6 w-6"
-                      />
+            {step === 3 && (
+              <Card className="rounded-[2.5rem] shadow-xl border-none">
+                <CardHeader className="pt-8 px-8">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-red-100 rounded-2xl">
+                      <ShieldCheck className="h-6 w-6 text-red-600" />
                     </div>
-                    {isBokoo && (
-                      <div className="mt-4 grid grid-cols-4 gap-2">
-                        <div className="bg-primary text-white p-2 rounded-lg text-center text-xs">
-                          <p className="font-bold">Today</p>
-                          <p>${(cartTotal / 4).toFixed(2)}</p>
-                        </div>
-                        <div className="bg-gray-100 text-gray-400 p-2 rounded-lg text-center text-xs border border-dashed">
-                          <p className="font-bold">2 Weeks</p>
-                          <p>${(cartTotal / 4).toFixed(2)}</p>
-                        </div>
-                        <div className="bg-gray-100 text-gray-400 p-2 rounded-lg text-center text-xs border border-dashed">
-                          <p className="font-bold">4 Weeks</p>
-                          <p>${(cartTotal / 4).toFixed(2)}</p>
-                        </div>
-                        <div className="bg-gray-100 text-gray-400 p-2 rounded-lg text-center text-xs border border-dashed">
-                          <p className="font-bold">6 Weeks</p>
-                          <p>${(cartTotal / 4).toFixed(2)}</p>
-                        </div>
-                      </div>
-                    )}
+                    <div>
+                      <CardTitle className="text-2xl font-black italic">Live Verification.</CardTitle>
+                      <CardDescription>Installment plans require mandatory live authentication</CardDescription>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="p-8 space-y-6">
+                  {location ? (
+                    <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+                      <MapIcon className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="text-xs font-black text-green-800 uppercase tracking-widest">Live Location Captured</p>
+                        <p className="text-[10px] text-green-700">Lat: {location.latitude}, Lng: {location.longitude}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      onClick={captureLocation} 
+                      disabled={locationLoading}
+                      className="w-full h-12 rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      {locationLoading ? 'Capturing Location...' : 'Capture Live Location'}
+                    </Button>
+                  )}
 
-            <Card className="shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-full">
-                    <Truck className="h-5 w-5 text-primary" />
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <IdScanCapture 
+                      title="Live ID Photo"
+                      description="Take a live photo of your National ID or Student ID."
+                      onCapture={setBuyerIdFile}
+                      onRemove={() => setBuyerIdFile(null)}
+                    />
+                    <FacialCapture 
+                      title="Live Face Photo"
+                      description="Take a live selfie to verify your identity."
+                      onCapture={setBuyerFaceFile}
+                      onRemove={() => setBuyerFaceFile(null)}
+                    />
                   </div>
-                  <div>
-                    <CardTitle>Shipping Method</CardTitle>
-                    <CardDescription>
-                      Select your preferred delivery option within Ghana
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup value={shippingMode} onValueChange={handleShippingChange} className="grid gap-4">
-                  <div className="flex items-center space-x-3 rounded-xl border-2 p-4 cursor-pointer hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="ghana_post_standard" id="gp_standard" />
-                    <Label htmlFor="gp_standard" className="flex-1 cursor-pointer">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-bold">Ghana Post Standard</p>
-                          <p className="text-xs text-gray-500">1 - 10 Business Days</p>
-                        </div>
-                        <span className="text-sm font-bold text-green-600">FREE</span>
-                      </div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 rounded-xl border-2 p-4 cursor-pointer hover:border-primary/50 transition-colors">
-                    <RadioGroupItem value="express_delivery" id="express" />
-                    <Label htmlFor="express" className="flex-1 cursor-pointer">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-bold">Express Delivery</p>
-                          <p className="text-xs text-gray-500">1 - 3 Business Days</p>
-                        </div>
-                        <span className="text-sm font-bold">$15.00</span>
-                      </div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 rounded-xl border-2 p-4 cursor-pointer hover:border-primary/50 transition-colors opacity-60">
-                    <RadioGroupItem value="seller_delivery" id="seller" disabled />
-                    <Label htmlFor="seller" className="flex-1">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <p className="font-bold">Seller Delivery</p>
-                          <p className="text-xs text-gray-500">Available for on-campus orders only</p>
-                        </div>
-                      </div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
 
-            <Card className="shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-full">
-                    <CreditCard className="h-5 w-5 text-primary" />
+                  <div className="flex gap-4">
+                    <Button variant="outline" onClick={() => setStep(2)} className="flex-1 h-14 rounded-2xl font-black">Back</Button>
+                    <Button 
+                      onClick={handleNextStep} 
+                      disabled={!buyerIdFile || !buyerFaceFile || !location || isVerifying}
+                      className="flex-[2] h-14 rounded-2xl bg-black text-white font-black text-lg"
+                    >
+                      {isVerifying ? 'Verifying...' : 'Complete Verification'}
+                    </Button>
                   </div>
-                  <div>
-                    <CardTitle>Payment Details</CardTitle>
-                    <CardDescription>
-                      Choose your preferred payment method
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                   <div className="py-20 text-center">
-                      <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-                      <p className="text-sm text-gray-500">Updating amount...</p>
-                   </div>
-                ) : (
-                  <Elements stripe={stripePromise} options={{ clientSecret }} key={clientSecret}>
-                    <CheckoutForm isBokoo={isBokoo} originalTotal={cartTotal} />
-                  </Elements>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {step === 4 && (
+              <Card className="rounded-[2.5rem] shadow-xl border-none">
+                <CardHeader className="pt-8 px-8">
+                  <CardTitle className="text-2xl font-black italic">Payment Details.</CardTitle>
+                  <CardDescription>Choose your preferred payment method</CardDescription>
+                </CardHeader>
+                <CardContent className="p-8">
+                  {isLoading ? (
+                    <div className="py-20 text-center">
+                      <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+                      <p className="font-black italic text-gray-400">Preparing secure gateway...</p>
+                    </div>
+                  ) : clientSecret ? (
+                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                      <CheckoutForm 
+                        isBokoo={isBokoo} 
+                        originalTotal={cartTotal} 
+                        checkoutDetails={details}
+                        locationData={location}
+                      />
+                    </Elements>
+                  ) : null}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
-          <div className="md:col-span-1">
-            <Card className="sticky top-24">
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
+          <div className="lg:col-span-1">
+            <Card className="rounded-[2.5rem] shadow-xl border-none sticky top-24">
+              <CardHeader className="p-8 pb-0">
+                <CardTitle className="text-xl font-black italic">Order Summary.</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
+              <CardContent className="p-8 space-y-6">
+                <div className="space-y-4 max-h-[300px] overflow-auto pr-2">
                   {cartItems.map((item: any) => (
-                    <div key={item.product.id} className="flex justify-between text-sm">
-                      <div className="flex-1">
-                        <p className="font-medium truncate">{item.product.title}</p>
-                        <p className="text-gray-500">Qty: {item.quantity}</p>
+                    <div key={item.product.id} className="flex gap-4">
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0">
+                        <img src={item.product.images[0]} className="w-full h-full object-cover" alt="" />
                       </div>
-                      <p className="font-medium">
-                        ${(item.product.price * item.quantity).toFixed(2)}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm truncate">{item.product.title}</p>
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs text-gray-400 font-bold">Qty: {item.quantity}</span>
+                          <span className="font-black text-sm">${(parseFloat(item.product.price) * item.quantity).toFixed(2)}</span>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
 
-                <Separator />
+                <Separator className="bg-gray-100" />
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span>${cartTotal.toFixed(2)}</span>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <span>Subtotal</span>
+                    <span className="text-gray-900">${cartTotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Shipping ({shippingMode.replace(/_/g, ' ')})</span>
-                    <span className={shippingFee === 0 ? "text-green-600 font-medium" : ""}>
+                  <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <span>Shipping</span>
+                    <span className={shippingFee === 0 ? "text-green-600" : "text-gray-900"}>
                       {shippingFee === 0 ? "FREE" : `$${shippingFee.toFixed(2)}`}
                     </span>
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="bg-gray-100" />
 
-                {isBokoo ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center text-primary font-bold">
-                      <div className="flex items-center gap-1">
-                        <span>Due Today</span>
-                        <Info className="h-3 w-3" />
-                      </div>
-                      <span className="text-2xl">${(grandTotal / 4).toFixed(2)}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-black italic">Grand Total.</span>
+                  <span className="text-3xl font-black">${grandTotal.toFixed(2)}</span>
+                </div>
+
+                {isBokoo && (
+                  <div className="p-6 bg-primary/5 rounded-3xl border border-primary/10">
+                    <div className="flex justify-between items-center text-primary mb-2">
+                      <span className="font-black italic">Due Today.</span>
+                      <span className="text-2xl font-black">${(grandTotal / 4).toFixed(2)}</span>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-xs space-y-2">
-                      <div className="flex justify-between text-gray-500">
-                        <span>3 installments of</span>
-                        <span>${(grandTotal / 4).toFixed(2)}</span>
-                      </div>
-                      <p className="text-[10px] text-gray-400 italic">Remaining balance will be charged automatically every 2 weeks.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold">Total</span>
-                    <span className="text-2xl font-bold text-primary">
-                      ${grandTotal.toFixed(2)}
-                    </span>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                      Remaining 3 payments of ${(grandTotal / 4).toFixed(2)} charged bi-weekly.
+                    </p>
                   </div>
                 )}
-
-                <div className="bg-gray-50 rounded-lg p-3 mt-4 border border-dashed border-gray-200">
-                  <p className="text-xs text-gray-600 text-center flex items-center justify-center gap-1">
-                    <ShieldCheck className="h-3 w-3 text-green-500" />
-                    Secure payment powered by Stripe
-                  </p>
+                
+                <div className="flex items-center justify-center gap-2 pt-4">
+                  <ShieldCheck className="h-4 w-4 text-green-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    100% Secure Transaction
+                  </span>
                 </div>
               </CardContent>
             </Card>

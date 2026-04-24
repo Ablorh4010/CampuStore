@@ -43,6 +43,8 @@ export const users = pgTable("users", {
   // Buyer verification (for checkout)
   buyerIdScanUrl: text("buyer_id_scan_url"),
   buyerFaceScanUrl: text("buyer_face_scan_url"),
+  buyerLatitude: text("buyer_latitude"),
+  buyerLongitude: text("buyer_longitude"),
   buyerVerifiedAt: timestamp("buyer_verified_at"),
   
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -113,6 +115,13 @@ export const orders = pgTable("orders", {
   trackingHistory: text("tracking_history"), // Text summary of updates
   buyerConfirmation: text("buyer_confirmation"), // received, rejected
   buyerConfirmationAt: timestamp("buyer_confirmation_at"),
+  buyerLatitude: text("buyer_latitude"),
+  buyerLongitude: text("buyer_longitude"),
+  buyerAddress: text("buyer_address"),
+  buyerUniversity: text("buyer_university"),
+  buyerCity: text("buyer_city"),
+  buyerPhone: text("buyer_phone"),
+  buyerEmail: text("buyer_email"),
   payoutStatus: text("payout_status").default("pending"), // pending, processed, cancelled
   payoutProcessedAt: timestamp("payout_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -313,6 +322,30 @@ export const pointsHistory = pgTable("points_history", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Weekly Deals for the front page
+export const weeklyDeals = pgTable("weekly_deals", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  discountPercentage: integer("discount_percentage"),
+  dealLabel: text("deal_label").notNull().default("Flash Deal"),
+  isActive: boolean("is_active").notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Campus Activity Feed
+export const campusActivity = pgTable("campus_activity", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id), // Nullable for external news
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  source: text("source").notNull().default("internal"), // internal, google, facebook
+  activityType: text("activity_type").notNull().default("news"), // news, activity, sale
+  externalLink: text("external_link"),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -362,6 +395,13 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   createdAt: true,
 }).extend({
   estimatedDeliveryDate: z.string().or(z.date()).nullable().optional(),
+  buyerLatitude: z.string().nullable().optional(),
+  buyerLongitude: z.string().nullable().optional(),
+  buyerAddress: z.string().nullable().optional(),
+  buyerUniversity: z.string().nullable().optional(),
+  buyerCity: z.string().nullable().optional(),
+  buyerPhone: z.string().nullable().optional(),
+  buyerEmail: z.string().nullable().optional(),
 });
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
@@ -460,6 +500,16 @@ export const insertPointsHistorySchema = createInsertSchema(pointsHistory).omit(
   createdAt: true,
 });
 
+export const insertWeeklyDealSchema = createInsertSchema(weeklyDeals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCampusActivitySchema = createInsertSchema(campusActivity).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -511,10 +561,23 @@ export type UserPoints = typeof userPoints.$inferSelect;
 export type PointsHistory = typeof pointsHistory.$inferSelect;
 export type InsertPointsHistory = z.infer<typeof insertPointsHistorySchema>;
 
+export type WeeklyDeal = typeof weeklyDeals.$inferSelect;
+export type InsertWeeklyDeal = z.infer<typeof insertWeeklyDealSchema>;
+export type CampusActivity = typeof campusActivity.$inferSelect;
+export type InsertCampusActivity = z.infer<typeof insertCampusActivitySchema>;
+
 // Extended types for API responses
 export type ProductWithStore = Product & {
   store: Store & { user: Pick<User, 'firstName' | 'lastName' | 'avatar'> };
   category: Category;
+};
+
+export type WeeklyDealWithProduct = WeeklyDeal & {
+  product: ProductWithStore;
+};
+
+export type CampusActivityWithUser = CampusActivity & {
+  user?: Pick<User, 'firstName' | 'lastName' | 'avatar'>;
 };
 
 export type StoreWithUser = Store & {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'theuniversityhub-v3';
+const CACHE_NAME = 'theuniversityhub-v4';
 
 // Install service worker
 self.addEventListener('install', (event) => {
@@ -13,16 +13,20 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // Network-first for HTML pages to prevent stale asset links
+  // Network-first for HTML pages/navigation to prevent blank pages on back
   if (event.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('.html')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => {
+          return caches.match(event.request) || caches.match('/index.html');
+        })
     );
     return;
   }
@@ -36,6 +40,9 @@ self.addEventListener('fetch', (event) => {
             cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;
+        }).catch(() => {
+          // Return a fallback or just let it fail gracefully
+          return new Response('Network error', { status: 408, statusText: 'Network error' });
         });
         return cachedResponse || fetchPromise;
       });

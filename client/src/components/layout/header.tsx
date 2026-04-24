@@ -75,24 +75,24 @@ export default function Header() {
             <Link href="/">
               <div className="cursor-pointer flex items-center space-x-3 group">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
-                  <img 
-                    src={logoImage} 
-                    alt="The University Hub Logo" 
-                    className="relative h-12 w-12 rounded-full border-2 border-transparent bg-white group-hover:border-primary/30 transition-all duration-300 group-hover:scale-110"
-                  />
+                  <div className="absolute inset-0 bg-primary/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="relative h-12 w-12 bg-gradient-to-br from-[#2E5BFF] to-[#B2FCE4] rounded-2xl flex items-center justify-center shadow-lg group-hover:rotate-6 transition-all duration-500">
+                    <svg viewBox="0 0 24 24" className="w-8 h-8 text-white fill-current" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 4v10a8 8 0 0 0 16 0V4h-3v10a5 5 0 0 1-10 0V4H4zm7 7h2v10h-2v-10z" />
+                    </svg>
+                  </div>
                 </div>
                 <div className="group-hover:translate-x-1 transition-transform duration-300">
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold font-heading text-primary group-hover:text-accent transition-colors duration-300">
-                      The University Hub
+                    <h1 className="text-2xl font-black font-heading tracking-tighter text-[#2E5BFF] group-hover:text-[#B2FCE4] transition-colors duration-300">
+                      UNIVERSITY HUB
                     </h1>
-                    <span className="text-xs font-bold text-white bg-primary px-2 py-0.5 rounded-md">
+                    <span className="text-[10px] font-black text-white bg-[#2E5BFF] px-2 py-0.5 rounded-full">
                       {countryCode}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-600 -mt-1 font-body group-hover:text-gray-700 transition-colors duration-300">
-                    the student market place
+                  <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest -mt-1 group-hover:text-gray-500 transition-colors duration-300">
+                    Buy. Sell. Campus.
                   </p>
                 </div>
               </div>
@@ -177,12 +177,15 @@ export default function Header() {
             <div className="h-6 w-px bg-gray-200"></div>
 
             <div className="flex items-center space-x-3">
-              <Link href="/dashboard">
-                <Button variant="outline" size="sm" className="font-medium flex items-center border-primary/20 hover:border-primary/50 text-primary">
-                  <Store className="h-4 w-4 mr-2" />
-                  Sell Items
-                </Button>
-              </Link>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="font-medium flex items-center border-primary/20 hover:border-primary/50 text-primary"
+                onClick={() => setLocation(user?.isMerchant ? '/dashboard' : '/seller-auth')}
+              >
+                <Store className="h-4 w-4 mr-2" />
+                Sell Items
+              </Button>
 
               <Button
                 variant="ghost"
@@ -272,24 +275,42 @@ export default function Header() {
                           <p className="text-sm text-gray-600">{user.email}</p>
                         </div>
                       </div>
-                      <Button onClick={() => handleProfileAction('dashboard')} className="w-full">
+                      <Button onClick={() => { handleProfileAction('dashboard'); setIsMobileMenuOpen(false); }} className="w-full">
                         Dashboard
                       </Button>
                       {user.isAdmin && (
-                        <Button onClick={() => handleProfileAction('admin')} variant="outline" className="w-full">
+                        <Button onClick={() => { handleProfileAction('admin'); setIsMobileMenuOpen(false); }} variant="outline" className="w-full">
                           <Shield className="mr-2 h-4 w-4" />
                           Admin Portal
                         </Button>
                       )}
-                      <Button variant="outline" onClick={() => handleProfileAction('logout')} className="w-full">
+                      <Button variant="outline" onClick={() => { handleProfileAction('logout'); setIsMobileMenuOpen(false); }} className="w-full">
                         Log out
                       </Button>
                     </>
-                  ) : shouldShowSignIn ? (
-                    <Link href="/auth">
-                      <Button className="w-full" data-testid="button-sign-in-mobile">Sign In</Button>
-                    </Link>
-                  ) : null}
+                  ) : (
+                    <div className="flex flex-col space-y-3">
+                       <p className="text-sm text-gray-500 font-medium px-1">Welcome to University Hub</p>
+                       <Link href="/auth" onClick={() => setIsMobileMenuOpen(false)}>
+                         <Button className="w-full" data-testid="button-sign-in-mobile">Sign In</Button>
+                       </Link>
+                       <Button 
+                         variant="outline" 
+                         className="w-full"
+                         onClick={() => { setLocation(user?.isMerchant ? '/dashboard' : '/seller-auth'); setIsMobileMenuOpen(false); }}
+                       >
+                         Start Selling
+                       </Button>
+                       <div className="h-px bg-gray-100 my-2"></div>
+                       <div className="space-y-1">
+                          {categories.slice(0, 5).map(cat => (
+                             <Button key={cat.id} variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation(`/browse?categoryId=${cat.id}`); setIsMobileMenuOpen(false); }}>
+                                {cat.name}
+                             </Button>
+                          ))}
+                       </div>
+                    </div>
+                  )}
                 </div>
               </SheetContent>
             </Sheet>

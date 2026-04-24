@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 import { whatsappOtpService } from './whatsapp';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = 'The University Hub <notifications@uniexchangehub.com>';
+const FROM_EMAIL = 'The University Hub <support@uniexchangehub.com>';
 
 export async function sendEmailNotification(to: string, subject: string, html: string) {
   if (!resend) {
@@ -11,15 +11,22 @@ export async function sendEmailNotification(to: string, subject: string, html: s
   }
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to,
       subject,
       html,
     });
+    
+    if (error) {
+      console.error('❌ Resend API Error (Notification):', error);
+      return false;
+    }
+
+    console.log(`✅ Email notification sent to ${to}. ID: ${data?.id}`);
     return true;
   } catch (error) {
-    console.error('Failed to send email notification:', error);
+    console.error('❌ Failed to send email notification:', error);
     return false;
   }
 }

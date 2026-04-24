@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from 'wouter';
-import { Store, Phone, ShieldCheck } from 'lucide-react';
+import { Store, Mail, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,29 +13,28 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { IdScanCapture, FacialCapture } from '@/components/verification';
 
-const whatsappLoginSchema = z.object({
-  whatsappNumber: z.string().min(10, 'Please enter a valid phone number'),
-  whatsappOtpCode: z.string().optional(),
-}).refine((data) => !data.whatsappOtpCode || data.whatsappOtpCode.length === 6, {
+const emailLoginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  otpCode: z.string().optional(),
+}).refine((data) => !data.otpCode || data.otpCode.length === 6, {
   message: 'Verification code must be 6 digits',
-  path: ['whatsappOtpCode'],
+  path: ['otpCode'],
 });
 
 const sellerRegisterSchema = z.object({
-  whatsappNumber: z.string().min(10, 'Please enter a valid WhatsApp number'),
-  whatsappOtpCode: z.string().optional(),
   email: z.string().email('Please enter a valid email address'),
+  otpCode: z.string().optional(),
   username: z.string().min(3, 'Username must be at least 3 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   university: z.string().min(1, 'University is required'),
   city: z.string().min(1, 'City is required'),
-}).refine((data) => !data.whatsappOtpCode || data.whatsappOtpCode.length === 6, {
+}).refine((data) => !data.otpCode || data.otpCode.length === 6, {
   message: 'Verification code must be 6 digits',
-  path: ['whatsappOtpCode'],
+  path: ['otpCode'],
 });
 
-type WhatsappLoginFormData = z.infer<typeof whatsappLoginSchema>;
+type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
 type SellerRegisterFormData = z.infer<typeof sellerRegisterSchema>;
 
 export default function SellerAuth() {
@@ -49,20 +48,19 @@ export default function SellerAuth() {
   const [faceFile, setFaceFile] = useState<File | null>(null);
   const { toast } = useToast();
 
-  const loginForm = useForm<WhatsappLoginFormData>({
-    resolver: zodResolver(whatsappLoginSchema),
+  const loginForm = useForm<EmailLoginFormData>({
+    resolver: zodResolver(emailLoginSchema),
     defaultValues: {
-      whatsappNumber: '',
-      whatsappOtpCode: '',
+      email: '',
+      otpCode: '',
     },
   });
 
   const registerForm = useForm<SellerRegisterFormData>({
     resolver: zodResolver(sellerRegisterSchema),
     defaultValues: {
-      whatsappNumber: '',
-      whatsappOtpCode: '',
       email: '',
+      otpCode: '',
       username: '',
       firstName: '',
       lastName: '',
@@ -71,12 +69,21 @@ export default function SellerAuth() {
     },
   });
 
-  const sendWhatsappOtp = async (phoneNumber: string) => {
+  const sendEmailOtp = async (email: string) => {
+    if (!email) {
+       toast({
+         title: 'Email Required',
+         description: 'Please enter your email address to receive a code.',
+         variant: 'destructive',
+       });
+       return;
+    }
+
     try {
-      const response = await fetch('/api/auth/send-whatsapp-otp', {
+      const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ email }),
       });
 
       if (!response.ok) {
@@ -88,11 +95,11 @@ export default function SellerAuth() {
       setShowOtpField(true);
       toast({
         title: '✅ Verification code sent!',
-        description: `A 6-digit code has been sent to your WhatsApp number. Please check and enter it below.`,
+        description: `A 6-digit code has been sent to ${email}.`,
         duration: 10000,
       });
     } catch (error: any) {
-      console.error('WhatsApp OTP send error:', error);
+      console.error('Email OTP send error:', error);
       toast({
         title: 'Failed to send verification code',
         description: error.message || 'Please try again.',
@@ -101,11 +108,11 @@ export default function SellerAuth() {
     }
   };
 
-  const onLogin = async (data: WhatsappLoginFormData) => {
-    if (!data.whatsappOtpCode || data.whatsappOtpCode.length !== 6) {
+  const onLogin = async (data: EmailLoginFormData) => {
+    if (!data.otpCode || data.otpCode.length !== 6) {
       toast({
         title: 'Verification Code Required',
-        description: 'Please enter the 6-digit verification code sent to your WhatsApp.',
+        description: 'Please enter the 6-digit verification code sent to your email.',
         variant: 'destructive',
       });
       return;
@@ -117,8 +124,8 @@ export default function SellerAuth() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          whatsappNumber: data.whatsappNumber,
-          whatsappOtpCode: data.whatsappOtpCode,
+          email: data.email,
+          otpCode: data.otpCode,
         }),
       });
 
@@ -149,10 +156,10 @@ export default function SellerAuth() {
   };
 
   const onRegister = async (data: SellerRegisterFormData) => {
-    if (!data.whatsappOtpCode || data.whatsappOtpCode.length !== 6) {
+    if (!data.otpCode || data.otpCode.length !== 6) {
       toast({
         title: 'Verification Code Required',
-        description: 'Please enter the 6-digit verification code sent to your WhatsApp.',
+        description: 'Please enter the 6-digit verification code sent to your email.',
         variant: 'destructive',
       });
       return;
@@ -235,11 +242,11 @@ export default function SellerAuth() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5" />
+              <Mail className="h-5 w-5" />
               Seller Authentication
             </CardTitle>
             <CardDescription>
-              Verify your WhatsApp number to continue
+              Verify your email address to continue
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -254,21 +261,21 @@ export default function SellerAuth() {
                   <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                     <FormField
                       control={loginForm.control}
-                      name="whatsappNumber"
+                      name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>WhatsApp Number</FormLabel>
+                          <FormLabel>Email Address</FormLabel>
                           <FormControl>
                             <div className="flex gap-2">
                               <Input 
-                                placeholder="+1234567890" 
+                                placeholder="you@university.edu" 
                                 {...field}
                                 disabled={showOtpField}
                               />
                               {!showOtpField && (
                                 <Button
                                   type="button"
-                                  onClick={() => sendWhatsappOtp(field.value)}
+                                  onClick={() => sendEmailOtp(field.value)}
                                   disabled={!field.value}
                                 >
                                   Send OTP
@@ -284,10 +291,20 @@ export default function SellerAuth() {
                     {showOtpField && (
                       <FormField
                         control={loginForm.control}
-                        name="whatsappOtpCode"
+                        name="otpCode"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Verification Code</FormLabel>
+                            <FormLabel className="flex justify-between items-center">
+                              Verification Code
+                              <Button 
+                                type="button" 
+                                variant="link" 
+                                className="p-0 h-auto text-xs" 
+                                onClick={() => sendEmailOtp(loginForm.getValues('email'))}
+                              >
+                                Resend Code
+                              </Button>
+                            </FormLabel>
                             <FormControl>
                               <Input 
                                 placeholder="Enter 6-digit code" 
@@ -318,21 +335,21 @@ export default function SellerAuth() {
                     <form onSubmit={registerForm.handleSubmit(() => setShowVerification(true))} className="space-y-4">
                       <FormField
                         control={registerForm.control}
-                        name="whatsappNumber"
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>WhatsApp Number</FormLabel>
+                            <FormLabel>Email Address</FormLabel>
                             <FormControl>
                               <div className="flex gap-2">
                                 <Input 
-                                  placeholder="+1234567890" 
+                                  placeholder="you@university.edu" 
                                   {...field}
                                   disabled={showOtpField}
                                 />
                                 {!showOtpField && (
                                   <Button
                                     type="button"
-                                    onClick={() => sendWhatsappOtp(field.value)}
+                                    onClick={() => sendEmailOtp(field.value)}
                                     disabled={!field.value}
                                   >
                                     Send OTP
@@ -349,10 +366,20 @@ export default function SellerAuth() {
                         <>
                           <FormField
                             control={registerForm.control}
-                            name="whatsappOtpCode"
+                            name="otpCode"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Verification Code</FormLabel>
+                                <FormLabel className="flex justify-between items-center">
+                                  Verification Code
+                                  <Button 
+                                    type="button" 
+                                    variant="link" 
+                                    className="p-0 h-auto text-xs" 
+                                    onClick={() => sendEmailOtp(registerForm.getValues('email'))}
+                                  >
+                                    Resend Code
+                                  </Button>
+                                </FormLabel>
                                 <FormControl>
                                   <Input 
                                     placeholder="Enter 6-digit code" 
@@ -393,20 +420,6 @@ export default function SellerAuth() {
                               )}
                             />
                           </div>
-
-                          <FormField
-                            control={registerForm.control}
-                            name="email"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Email</FormLabel>
-                                <FormControl>
-                                  <Input type="email" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
 
                           <FormField
                             control={registerForm.control}

@@ -1,11 +1,11 @@
 {
-  "name": "The University Hub - the student market place",
-  "short_name": "University Hub",
-  "description": "the student market place - where students buy, sell, and connect",
+  "name": "UNIVERSITY HUB",
+  "short_name": "UniHub",
+  "description": "Buy. Sell. Campus. - The modern student marketplace",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#6366f1",
+  "theme_color": "#2E5BFF",
   "orientation": "portrait-primary",
   "icons": [
     {

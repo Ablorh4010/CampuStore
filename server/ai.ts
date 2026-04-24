@@ -88,3 +88,53 @@ export async function generateTrackingInsights(order: any) {
     return { summary: "We're tracking your order and will provide updates as soon as they're available." };
   }
 }
+
+export async function generateProductSuggestions(targetProduct: any, candidates: any[]) {
+  if (!process.env.GEMINI_API_KEY || candidates.length === 0) {
+    return candidates.slice(0, 4);
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash", 
+      generationConfig: { responseMimeType: "application/json" } 
+    });
+    
+    const candidatesData = candidates.map(c => ({
+      id: c.id,
+      title: c.title,
+      price: parseFloat(c.price),
+      storeName: c.store.name
+    }));
+
+    const prompt = `You are a shopping assistant on a campus marketplace. 
+    The user is looking at this product:
+    Title: "${targetProduct.title}"
+    Price: ${targetProduct.price}
+    Category: "${targetProduct.category.name}"
+
+    Here is a list of other available products:
+    ${JSON.stringify(candidatesData)}
+
+    Identify which products from the list are the SAME items or very similar alternatives from OTHER sellers, and have the SAME or LOWER price.
+    Return ONLY a JSON array of product IDs, ordered by best value (lowest price first).
+    Keep at most 4 suggestions.
+    If no items match, return an empty array [].
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    const suggestedIds = JSON.parse(text);
+    
+    // Maintain the order returned by AI
+    const suggestedProducts = suggestedIds
+      .map((id: number) => candidates.find(c => c.id === id))
+      .filter(Boolean);
+      
+    return suggestedProducts.length > 0 ? suggestedProducts : candidates.slice(0, 4);
+  } catch (error) {
+    console.error("AI Suggestions Error:", error);
+    return candidates.slice(0, 4);
+  }
+}

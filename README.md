@@ -27,7 +27,7 @@ A Progressive Web App (PWA) designed as a mobile-installable marketplace connect
 
 ## 📋 Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 24+ and npm
 - PostgreSQL database
 - Stripe account (for payments)
 - Resend account (for email verification)
