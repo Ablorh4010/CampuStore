@@ -38,11 +38,16 @@ function Router() {
       <Route path="/mode-selection" component={ModeSelection} />
       <Route path="/" component={Home} />
       <Route path="/browse" component={Browse} />
+      <Route path="/gh/browse" component={Browse} />
       <Route path="/store/:id" component={Store} />
+      <Route path="/gh/store/:id" component={Store} />
       <Route path="/product/:id" component={Product} />
+      <Route path="/gh/product/:id" component={Product} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/gh/dashboard" component={Dashboard} />
       <Route path="/seller-settings" component={SellerSettings} />
       <Route path="/checkout" component={Checkout} />
+      <Route path="/gh/checkout" component={Checkout} />
       <Route path="/payment-success" component={PaymentSuccess} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin-portal" component={AdminPortal} />

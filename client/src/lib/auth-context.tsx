@@ -131,28 +131,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   };
 
-  const detectCountry = async () => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-      const response = await fetch('https://ipapi.co/json/', { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.country_code) {
-          setCountryCode(data.country_code);
-        }
-      } else {
-        throw new Error('IPAPI request failed');
-      }
-    } catch (error) {
-      // Silently default to GH
-      setCountryCode('GH');
-    }
-  };
-
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
@@ -166,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedToken) {
       setToken(storedToken);
     }
-    detectCountry();
+    setCountryCode('GH');
   }, []);
 
   return (

@@ -16,6 +16,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { user } = useAuth();
   const { addToCart } = useCart();
   const [imgError, setImgError] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -34,15 +35,23 @@ export default function ProductCard({ product }: ProductCardProps) {
     return calculatePriceWithFee(price).toFixed(2);
   };
 
+  const displayImage = isHovered && product.images.length > 1 && !imgError
+    ? product.images[1]
+    : product.mediaGifUrl || product.images[0];
+
   return (
     <Link href={`/product/${product.id}`}>
-      <Card className="overflow-hidden group hover-lift border-none shadow-sm bg-white rounded-[2rem] transition-all duration-500 hover:shadow-xl hover:shadow-[#2E5BFF]/5">
-        <div className="relative aspect-square overflow-hidden bg-gray-100">
+      <div 
+        className="group relative flex flex-col h-full cursor-pointer"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 rounded-2xl mb-4 transition-all duration-500">
           {!imgError ? (
             <img
-              src={product.mediaGifUrl || product.images[0]}
+              src={displayImage}
               alt={product.title}
-              className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
+              className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
               onError={() => setImgError(true)}
             />
           ) : (
@@ -51,58 +60,51 @@ export default function ProductCard({ product }: ProductCardProps) {
               <span className="text-[10px] font-black uppercase tracking-widest opacity-40">No Image</span>
             </div>
           )}
-          <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
           
           <div className="absolute top-4 left-4 flex flex-col gap-2">
             {product.mediaGifUrl && (
-              <div className="bg-[#2E5BFF]/90 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg">
+              <div className="bg-white/90 backdrop-blur-md text-black px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
                 <Video className="w-3 h-3" /> Showcase
               </div>
             )}
             {parseFloat(product.price) < 20 && (
-              <Badge className="bg-[#B2FCE4] text-[#2E5BFF] border-none font-black text-[10px] shadow-lg">STUDENT DEAL</Badge>
+              <Badge className="bg-black text-white border-none font-black text-[10px] px-3 py-1">STUDENT DEAL</Badge>
             )}
           </div>
 
           <Button
-            size="icon"
-            className="absolute bottom-4 right-4 translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 rounded-2xl h-12 w-12 bg-white text-[#2E5BFF] hover:bg-[#2E5BFF] hover:text-white shadow-2xl border-none"
+            size="sm"
+            className="absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 rounded-xl h-10 bg-black text-white hover:bg-gray-800 font-black text-xs uppercase tracking-widest"
             onClick={handleAddToCart}
           >
-            <ShoppingCart className="h-5 w-5 font-black" />
+            <ShoppingCart className="h-3 w-3 mr-2" /> Add to Bag
           </Button>
         </div>
         
-        <CardContent className="p-6">
-          <div className="flex justify-between items-start mb-2">
-             <h3 className="font-black text-gray-900 leading-tight group-hover:text-[#2E5BFF] transition-colors">
+        <div className="flex flex-col flex-1">
+          <div className="flex justify-between items-start mb-1">
+             <h3 className="font-black text-[13px] text-gray-900 leading-tight uppercase tracking-tight line-clamp-2">
                {product.title}
              </h3>
           </div>
           
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-2xl font-black text-[#2E5BFF]">
-              ${formatPriceWithFee(product.price)}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[15px] font-black text-black">
+              {formatPriceWithFee(product.price)}
             </span>
             {product.originalPrice && (
-              <span className="text-sm text-gray-300 line-through font-bold">
-                ${formatPriceWithFee(product.originalPrice)}
+              <span className="text-[12px] text-gray-400 line-through font-bold">
+                {formatPriceWithFee(product.originalPrice)}
               </span>
             )}
           </div>
           
-          <div className="flex items-center justify-between text-[11px] font-black text-gray-400 pt-4 border-t border-gray-50 uppercase tracking-widest">
-            <div className="flex items-center gap-2">
-               <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[8px]">{product.store.user.firstName?.[0]}</div>
-               <span className="text-gray-900">{sellerName}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3 w-3 text-secondary" />
-              <span>{product.store.university}</span>
-            </div>
+          <div className="mt-auto pt-3 flex items-center gap-1.5 border-t border-gray-50">
+             <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[7px] font-black uppercase">{product.store.user.firstName?.[0]}</div>
+             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{product.store.name}</span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }

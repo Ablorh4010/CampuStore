@@ -19,7 +19,6 @@ import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import { useQuery } from '@tanstack/react-query';
 import type { Category, Store as StoreType } from '@shared/schema';
-import logoImage from '@assets/generated_images/CampusStore_app_icon_7f47d6f5.png';
 
 export default function Header() {
   const [location, setLocation] = useLocation();
@@ -27,6 +26,9 @@ export default function Header() {
   const { cartCount, openCart } = useCart();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const isGh = location.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
@@ -37,24 +39,24 @@ export default function Header() {
   });
   
   // Show Sign In button only on My Store (dashboard) page
-  const shouldShowSignIn = !user && location === '/dashboard';
+  const shouldShowSignIn = !user && location === `${basePrefix}/dashboard`;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setLocation(`/browse?search=${encodeURIComponent(searchQuery)}`);
+      setLocation(`${basePrefix}/browse?search=${encodeURIComponent(searchQuery)}`);
     }
   };
 
   const { isListening, startListening } = useVoiceSearch((text) => {
     setSearchQuery(text);
-    setLocation(`/browse?search=${encodeURIComponent(text)}`);
+    setLocation(`${basePrefix}/browse?search=${encodeURIComponent(text)}`);
   });
 
   const handleProfileAction = (action: string) => {
     switch (action) {
       case 'dashboard':
-        setLocation('/dashboard');
+        setLocation(`${basePrefix}/dashboard`);
         break;
       case 'admin':
         setLocation('/admin');
@@ -72,7 +74,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
-            <Link href="/">
+            <Link href={basePrefix || "/"}>
               <div className="cursor-pointer flex items-center space-x-3 group">
                 <div className="relative">
                   <div className="absolute inset-0 bg-primary/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -133,13 +135,13 @@ export default function Header() {
                   {categories.map((category) => (
                     <DropdownMenuItem 
                       key={category.id}
-                      onClick={() => setLocation(`/browse?categoryId=${category.id}`)}
+                      onClick={() => setLocation(`${basePrefix}/browse?categoryId=${category.id}`)}
                     >
                       {category.name}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setLocation('/browse')}>
+                  <DropdownMenuItem onClick={() => setLocation(`${basePrefix}/browse`)}>
                     View All Categories
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -155,19 +157,19 @@ export default function Header() {
                   {stores.slice(0, 10).map((store) => (
                     <DropdownMenuItem 
                       key={store.id}
-                      onClick={() => setLocation(`/store/${store.id}`)}
+                      onClick={() => setLocation(`${basePrefix}/store/${store.id}`)}
                     >
                       {store.name}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setLocation('/browse')}>
+                  <DropdownMenuItem onClick={() => setLocation(`${basePrefix}/browse`)}>
                     View All Stores
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Link href="/browse">
+              <Link href={`${basePrefix}/browse`}>
                 <Button variant="ghost" size="sm" className="font-medium">
                   Latest Deals
                 </Button>
@@ -181,7 +183,7 @@ export default function Header() {
                 variant="outline" 
                 size="sm" 
                 className="font-medium flex items-center border-primary/20 hover:border-primary/50 text-primary"
-                onClick={() => setLocation(user?.isMerchant ? '/dashboard' : '/seller-auth')}
+                onClick={() => setLocation(user?.isMerchant ? `${basePrefix}/dashboard` : '/seller-auth')}
               >
                 <Store className="h-4 w-4 mr-2" />
                 Sell Items
@@ -297,14 +299,14 @@ export default function Header() {
                        <Button 
                          variant="outline" 
                          className="w-full"
-                         onClick={() => { setLocation(user?.isMerchant ? '/dashboard' : '/seller-auth'); setIsMobileMenuOpen(false); }}
+                         onClick={() => { setLocation(user?.isMerchant ? `${basePrefix}/dashboard` : '/seller-auth'); setIsMobileMenuOpen(false); }}
                        >
                          Start Selling
                        </Button>
                        <div className="h-px bg-gray-100 my-2"></div>
                        <div className="space-y-1">
                           {categories.slice(0, 5).map(cat => (
-                             <Button key={cat.id} variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation(`/browse?categoryId=${cat.id}`); setIsMobileMenuOpen(false); }}>
+                             <Button key={cat.id} variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation(`${basePrefix}/browse?categoryId=${cat.id}`); setIsMobileMenuOpen(false); }}>
                                 {cat.name}
                              </Button>
                           ))}

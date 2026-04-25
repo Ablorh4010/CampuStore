@@ -91,7 +91,7 @@ function CheckoutForm({ isBokoo, originalTotal, checkoutDetails, locationData }:
           <h3 className="font-semibold text-blue-900 text-sm">Secure Payment</h3>
           <p className="text-blue-700 text-xs mt-1">
             {isBokoo
-              ? `Bɔkɔɔ Pay Active: You are paying the first installment of $${(originalTotal / 4).toFixed(2)}.`
+              ? `Bɔkɔɔ Pay Active: You are paying the first installment of GH₵${(originalTotal / 4).toFixed(2)}.`
               : "All payment methods are processed securely through Stripe."
             }
           </p>
@@ -116,7 +116,7 @@ function CheckoutForm({ isBokoo, originalTotal, checkoutDetails, locationData }:
         ) : (
           <span className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
-            {isBokoo ? `Pay Installment 1 ($${(originalTotal / 4).toFixed(2)})` : "Complete Payment"}
+            {isBokoo ? `Pay Installment 1 (GH₵${(originalTotal / 4).toFixed(2)})` : "Complete Payment"}
           </span>
         )}
       </Button>
@@ -528,7 +528,7 @@ export default function Checkout() {
                         <p className="font-black text-sm truncate">{item.product.title}</p>
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs text-gray-400 font-bold">Qty: {item.quantity}</span>
-                          <span className="font-black text-sm">${(parseFloat(item.product.price) * item.quantity).toFixed(2)}</span>
+                          <span className="font-black text-sm">GH₵{(parseFloat(item.product.price) * item.quantity).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
@@ -540,12 +540,12 @@ export default function Checkout() {
                 <div className="space-y-3">
                   <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
                     <span>Subtotal</span>
-                    <span className="text-gray-900">${cartTotal.toFixed(2)}</span>
+                    <span className="text-gray-900">GH₵{cartTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
                     <span>Shipping</span>
                     <span className={shippingFee === 0 ? "text-green-600" : "text-gray-900"}>
-                      {shippingFee === 0 ? "FREE" : `$${shippingFee.toFixed(2)}`}
+                      {shippingFee === 0 ? "FREE" : `GH₵${shippingFee.toFixed(2)}`}
                     </span>
                   </div>
                 </div>
@@ -554,17 +554,17 @@ export default function Checkout() {
 
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-black italic">Grand Total.</span>
-                  <span className="text-3xl font-black">${grandTotal.toFixed(2)}</span>
+                  <span className="text-3xl font-black">GH₵{grandTotal.toFixed(2)}</span>
                 </div>
 
                 {isBokoo && (
                   <div className="p-6 bg-primary/5 rounded-3xl border border-primary/10">
                     <div className="flex justify-between items-center text-primary mb-2">
                       <span className="font-black italic">Due Today.</span>
-                      <span className="text-2xl font-black">${(grandTotal / 4).toFixed(2)}</span>
+                      <span className="text-2xl font-black">GH₵{(grandTotal / 4).toFixed(2)}</span>
                     </div>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-                      Remaining 3 payments of ${(grandTotal / 4).toFixed(2)} charged bi-weekly.
+                      Remaining 3 payments of GH₵{(grandTotal / 4).toFixed(2)} charged bi-weekly.
                     </p>
                   </div>
                 )}

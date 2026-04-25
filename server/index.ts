@@ -19,6 +19,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Manual clear route
+app.get('/clear-cache', (req, res) => {
+  res.setHeader('Clear-Site-Data', '"cache", "storage", "executionContexts"');
+  res.send('<h1>Cache Cleared</h1><p>Please <a href="/gh/browse">click here</a> to go to the store.</p>');
+});
+
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

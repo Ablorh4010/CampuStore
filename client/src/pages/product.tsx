@@ -12,7 +12,10 @@ import {
   ChevronRight,
   User,
   Package,
-  Sparkles
+  Sparkles,
+  Truck,
+  RotateCcw,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +23,12 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import ProductCard from '@/components/product/product-card';
 import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
@@ -82,13 +91,13 @@ export default function Product() {
     try {
       await addToCart(product.id);
       toast({
-        title: 'Added to cart',
-        description: `${product.title} has been added to your cart.`,
+        title: 'Added to Bag',
+        description: `${product.title} has been added to your bag.`,
       });
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to add item to cart.',
+        description: 'Failed to add item to bag.',
         variant: 'destructive',
       });
     }
@@ -106,7 +115,6 @@ export default function Product() {
 
     if (!product) return;
 
-    // Send initial message
     createMessageMutation.mutate({
       toId: product.store.userId,
       productId: product.id,
@@ -132,14 +140,19 @@ export default function Product() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid md:grid-cols-2 gap-8">
-          <Skeleton className="h-96 w-full" />
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-6 w-1/2" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-12 w-full" />
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid lg:grid-cols-2 gap-12">
+          <div className="flex gap-4">
+            <div className="hidden lg:flex flex-col gap-4 w-20">
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-20 rounded-xl" />)}
+            </div>
+            <Skeleton className="h-[600px] flex-1 rounded-2xl" />
+          </div>
+          <div className="space-y-8">
+            <Skeleton className="h-8 w-1/2 rounded-full" />
+            <Skeleton className="h-12 w-3/4 rounded-full" />
+            <Skeleton className="h-10 w-1/4 rounded-full" />
+            <Skeleton className="h-64 w-full rounded-3xl" />
           </div>
         </div>
       </div>
@@ -148,13 +161,13 @@ export default function Product() {
 
   if (!product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center">
-          <Package className="h-24 w-24 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Product Not Found</h1>
-          <p className="text-gray-600 mb-6">The product you're looking for doesn't exist or has been removed.</p>
+          <Package className="h-20 w-20 text-gray-200 mx-auto mb-6" />
+          <h1 className="text-2xl font-black uppercase tracking-widest text-gray-900 mb-4">Product Not Found</h1>
+          <p className="text-gray-400 font-bold uppercase text-xs mb-8">It might have been sold or removed.</p>
           <Link href="/browse">
-            <Button>Browse Products</Button>
+            <Button className="rounded-xl h-12 px-8 bg-black font-black uppercase tracking-widest text-xs">Browse Shop</Button>
           </Link>
         </div>
       </div>
@@ -171,198 +184,246 @@ export default function Product() {
   const filteredRelatedProducts = relatedProducts.filter(p => p.id !== product.id);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Product Details */}
-      <div className="grid md:grid-cols-2 gap-8 mb-12">
-        {/* Image Gallery */}
-        <div className="space-y-4">
-          <div className="relative bg-gray-100 rounded-lg overflow-hidden">
-            {product.images && product.images.length > 0 && !brokenImages[currentImageIndex] ? (
-              <>
-                <img
-                  src={product.images[currentImageIndex]}
-                  alt={product.title}
-                  className="w-full h-96 object-cover"
-                  onError={() => setBrokenImages(prev => ({ ...prev, [currentImageIndex]: true }))}
-                />
-                {product.images.length > 1 && (
-                  <>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="absolute top-1/2 left-2 transform -translate-y-1/2"
-                      onClick={prevImage}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="absolute top-1/2 right-2 transform -translate-y-1/2"
-                      onClick={nextImage}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                {savings && (
-                  <Badge className="absolute top-4 left-4 bg-accent text-white">
-                    {savings}% off
-                  </Badge>
-                )}
-              </>
-            ) : (
-              <div className="w-full h-96 flex items-center justify-center bg-gray-100">
-                <Package className="h-24 w-24 text-gray-400" />
-              </div>
-            )}
-          </div>
+    <div className="bg-white min-h-screen">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Breadcrumbs / Back */}
+        <div className="mb-8">
+           <Link href="/browse" className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-black transition-colors flex items-center gap-2">
+             <ChevronLeft className="w-3 h-3" /> Back to Market
+           </Link>
+        </div>
 
-          {/* Thumbnail Images */}
-          {product.images && product.images.length > 1 && (
-            <div className="flex space-x-2 overflow-x-auto">
+        <div className="grid lg:grid-cols-2 gap-16">
+          {/* Gallery Section */}
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Vertical Thumbnails */}
+            <div className="hidden lg:flex flex-col gap-3 w-24">
               {product.images.map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                    index === currentImageIndex ? 'border-primary' : 'border-gray-200'
+                  className={`aspect-[3/4] rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                    index === currentImageIndex ? 'border-black' : 'border-transparent hover:border-gray-200'
                   }`}
                 >
-                  <img
-                    src={image}
-                    alt={`${product.title} ${index + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={image} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Product Info */}
-        <div className="space-y-6">
-          <div>
-            <div className="flex items-center space-x-2 mb-2">
-              <Badge variant="secondary">{product.category.name}</Badge>
-              <Badge variant="outline">{product.condition}</Badge>
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.title}</h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-3xl font-bold text-primary">
-                ${formatPriceWithFee(product.price)}
-              </span>
-              {product.originalPrice && (
-                <span className="text-xl text-gray-500 line-through">
-                  ${formatPriceWithFee(product.originalPrice)}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
-            <p className="text-gray-600 leading-relaxed">{product.description}</p>
-          </div>
-
-          <Separator />
-
-          {/* Seller Info */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={product.store.user.avatar || ''} alt={sellerName} />
-                  <AvatarFallback>
-                    {product.store.user.firstName?.[0] || ''}{product.store.user.lastName?.[0] || ''}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <h4 className="font-semibold text-gray-900">{sellerName}</h4>
-                    <Badge variant="outline" className="text-xs">Seller</Badge>
+            {/* Main Image */}
+            <div className="flex-1 relative aspect-[3/4] bg-gray-50 rounded-3xl overflow-hidden group">
+               <img
+                  src={product.images[currentImageIndex]}
+                  alt={product.title}
+                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                  onError={() => setBrokenImages(prev => ({ ...prev, [currentImageIndex]: true }))}
+               />
+               
+               {product.images.length > 1 && (
+                  <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={prevImage}><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
                   </div>
-                  <Link href={`/store/${product.store.id}`}>
-                    <p className="text-sm text-primary hover:underline">{product.store.name}</p>
-                  </Link>
-                  <div className="flex items-center space-x-1 text-sm text-gray-600">
-                    <MapPin className="h-3 w-3" />
-                    <span>{product.store.university}</span>
+               )}
+
+               {savings && (
+                  <div className="absolute top-6 left-6">
+                    <Badge className="bg-black text-white border-none font-black text-xs px-4 py-1.5 rounded-lg shadow-xl uppercase tracking-widest">
+                      {savings}% Off
+                    </Badge>
+                  </div>
+               )}
+
+               {/* Mobile Thumbnails */}
+               <div className="lg:hidden absolute bottom-6 inset-x-0 flex justify-center gap-2">
+                  {product.images.map((_, i) => (
+                    <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-black w-4' : 'bg-black/20'}`} />
+                  ))}
+               </div>
+            </div>
+          </div>
+
+          {/* Info Section */}
+          <div className="flex flex-col">
+            <div className="mb-10">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{product.category.name}</span>
+                <div className="w-1 h-1 rounded-full bg-gray-200" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{product.condition}</span>
+              </div>
+              <h1 className="text-4xl font-black text-gray-900 uppercase tracking-tight leading-none mb-6">
+                {product.title}
+              </h1>
+              
+              <div className="flex items-baseline gap-4 mb-2">
+                <span className="text-3xl font-black text-black">
+                  {formatPriceWithFee(product.price)}
+                </span>
+                {product.originalPrice && (
+                  <span className="text-xl text-gray-300 line-through font-bold">
+                    {formatPriceWithFee(product.originalPrice)}
+                  </span>
+                )}
+              </div>
+              
+              {/* Installment Option - Bɔkɔɔ Pay */}
+              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 flex items-center justify-between group cursor-help transition-all hover:border-black/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white">
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Pay in 4 installments</p>
+                    <p className="text-xs font-black">4 payments of GH₵{(priceWithFee / 4).toFixed(2)} with <span className="text-primary italic">Bɔkɔɔ Pay.</span></p>
                   </div>
                 </div>
+                <ChevronDown className="w-4 h-4 text-gray-300 group-hover:text-black transition-colors" />
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button 
-              size="lg" 
-              className="w-full"
-              onClick={handleAddToCart}
-              disabled={!product.isAvailable}
-            >
-              <ShoppingCart className="mr-2 h-5 w-5" />
-              {product.isAvailable ? 'Add to Cart' : 'Sold Out'}
-            </Button>
-            
-            <div className="grid grid-cols-2 gap-3">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Inclusive of 5% service fee</p>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-4 mb-12">
               <Button 
-                variant="outline" 
-                onClick={handleContactSeller}
-                disabled={!user || createMessageMutation.isPending}
+                size="lg" 
+                className="w-full h-16 bg-black hover:bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-black/10 transition-all active:scale-[0.98]"
+                onClick={handleAddToCart}
+                disabled={!product.isAvailable}
               >
-                <MessageCircle className="mr-2 h-4 w-4" />
-                {createMessageMutation.isPending ? 'Sending...' : 'Contact'}
+                <ShoppingCart className="mr-3 h-5 w-5" />
+                {product.isAvailable ? 'Add to Bag' : 'Sold Out'}
               </Button>
-              <Button variant="outline">
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Button 
+                  variant="outline" 
+                  className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50"
+                  onClick={handleContactSeller}
+                  disabled={!user || createMessageMutation.isPending}
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  {createMessageMutation.isPending ? 'Sending...' : 'Contact Seller'}
+                </Button>
+                <Button variant="outline" className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50">
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share Item
+                </Button>
+              </div>
+            </div>
+
+            {/* Collapsible Info */}
+            <Accordion type="single" collapsible className="w-full border-t border-gray-100">
+              <AccordionItem value="description" className="border-b border-gray-100">
+                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">
+                  Description & Notes
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-500 font-medium leading-relaxed pb-6">
+                  {product.description}
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="details" className="border-b border-gray-100">
+                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">
+                  Product Details
+                </AccordionTrigger>
+                <AccordionContent className="pb-6">
+                  <div className="grid grid-cols-2 gap-y-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Category</p>
+                      <p className="text-sm font-bold">{product.category.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Condition</p>
+                      <p className="text-sm font-bold">{product.condition}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Store</p>
+                      <Link href={`/store/${product.store.id}`} className="text-sm font-bold hover:underline">{product.store.name}</Link>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Location</p>
+                      <p className="text-sm font-bold">{product.store.university}</p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="shipping" className="border-b border-gray-100">
+                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">
+                  Shipping & Pickup
+                </AccordionTrigger>
+                <AccordionContent className="pb-6 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Truck className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest mb-1">Standard Shipping</p>
+                      <p className="text-xs text-gray-500">2-4 business days across campus hubs.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest mb-1">Direct Pickup</p>
+                      <p className="text-xs text-gray-500">Available from {product.store.campus || 'Main Campus'}.</p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
+            {/* Seller Quick Card */}
+            <div className="mt-12 p-6 bg-gray-50 rounded-3xl flex items-center gap-4">
+              <Avatar className="h-14 w-14 border-2 border-white shadow-sm">
+                <AvatarImage src={product.store.user.avatar || ''} />
+                <AvatarFallback className="font-black bg-black text-white text-xs">
+                  {product.store.user.firstName?.[0]}{product.store.user.lastName?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Listed By</p>
+                <h4 className="font-black text-sm uppercase tracking-tight">{sellerName}</h4>
+                <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase">
+                  <MapPin className="h-3 w-3" />
+                  <span>{product.store.university}</span>
+                </div>
+              </div>
+              <Link href={`/store/${product.store.id}`}>
+                <Button variant="ghost" className="h-10 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] bg-white hover:bg-black hover:text-white transition-all shadow-sm">Visit Store</Button>
+              </Link>
             </div>
           </div>
-
-          {!user && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800">
-                <Link href="/auth" className="font-medium underline">Sign in</Link> to contact sellers. You can add items to cart as a guest.
-              </p>
-            </div>
-          )}
         </div>
-      </div>
 
-      {/* AI Suggestions */}
-      {suggestions.length > 0 && (
-        <section className="mb-12">
-          <div className="flex items-center space-x-2 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Better Deals for You</h2>
-            <div className="flex items-center bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
-              <Sparkles className="h-3 w-3 mr-1" />
-              AI Suggested
+        {/* AI Suggestions Section */}
+        {suggestions.length > 0 && (
+          <section className="mt-24 pt-12 border-t border-gray-100">
+            <div className="flex flex-col md:flex-row items-baseline gap-4 mb-10">
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900">Better Deals for You.</h2>
+              <div className="flex items-center bg-gray-100 text-black px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+                <Sparkles className="h-3 w-3 mr-1.5" />
+                AI Curated
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {suggestions.map((suggestion) => (
-              <ProductCard key={suggestion.id} product={suggestion} />
-            ))}
-          </div>
-        </section>
-      )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {suggestions.map((suggestion) => (
+                <ProductCard key={suggestion.id} product={suggestion} />
+              ))}
+            </div>
+          </section>
+        )}
 
-      {/* Related Products */}
-      {filteredRelatedProducts.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Related Products</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {filteredRelatedProducts.slice(0, 4).map((relatedProduct) => (
-              <ProductCard key={relatedProduct.id} product={relatedProduct} />
-            ))}
-          </div>
-        </section>
-      )}
+        {/* Related Products Section */}
+        {filteredRelatedProducts.length > 0 && (
+          <section className="mt-24">
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 mb-10">Similar Finds.</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {filteredRelatedProducts.slice(0, 4).map((relatedProduct) => (
+                <ProductCard key={relatedProduct.id} product={relatedProduct} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

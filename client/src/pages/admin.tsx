@@ -342,7 +342,7 @@ export default function AdminDashboard() {
                        </SelectTrigger>
                        <SelectContent className="max-h-[300px]">
                           {allProducts.filter(p => p.approvalStatus === 'approved').map(p => (
-                             <SelectItem key={p.id} value={p.id.toString()}>{p.title} (${p.price})</SelectItem>
+                             <SelectItem key={p.id} value={p.id.toString()}>{p.title} (GH₵{p.price})</SelectItem>
                           ))}
                        </SelectContent>
                     </Select>

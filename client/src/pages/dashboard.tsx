@@ -1,96 +1,29 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { 
-  Plus, 
-  Store as StoreIcon, 
-  Package, 
-  ShoppingCart, 
-  Users, 
-  TrendingUp,
-  Eye,
-  Edit,
-  Trash2,
-  Settings,
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  MapPin,
-  Phone,
-  Camera,
-  Loader2,
-  Lock,
-  Video,
-  XCircle,
-  ArrowRight,
-  Truck
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import StoreForm from '@/components/modals/store-form';
-import ProductForm from '@/components/modals/product-form';
-import TrackingModal from '@/components/modals/tracking-modal';
-import { IdScanCapture, FacialCapture } from '@/components/verification';
 import { useAuth } from '@/lib/auth-context';
 import { queryClient, apiRequest } from '@/lib/queryClient';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Plus, Package, ShoppingCart, TrendingUp, Settings, 
+  Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
+  Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
+  Sparkles, Wallet, Smartphone, ChevronRight
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Link, useLocation } from 'wouter';
-import type { Store, Product, OrderWithDetails } from '@shared/schema';
-
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useLocation, Link } from 'wouter';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { Sparkles } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import type { ProductWithStore, Store, OrderWithDetails, CampusActivity } from '@shared/schema';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, countryCode } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [showStoreForm, setShowStoreForm] = useState(false);
-  const [showProductForm, setShowProductForm] = useState(false);
-  const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<OrderWithDetails | null>(null);
-
-  // Verification state
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || '');
-  const [latitude, setLatitude] = useState<string | null>(null);
-  const [longitude, setLongitude] = useState<string | null>(null);
-  const [address, setAddress] = useState<string | null>(null);
-  const [idScanFile, setIdScanFile] = useState<File | null>(null);
-  const [faceScanFile, setFaceScanFile] = useState<File | null>(null);
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
-
-  const { data: userStores = [], isLoading: storesLoading } = useQuery<Store[]>({
-    queryKey: ['/api/stores/user', user?.id],
-    enabled: !!user?.id,
-  });
-
-  const { data: storeProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ['/api/products/store', userStores[0]?.id],
-    enabled: !!userStores[0]?.id,
-  });
-
-  const { data: orders = [], isLoading: ordersLoading } = useQuery<OrderWithDetails[]>({
-    queryKey: ['/api/orders/seller', user?.id],
-    enabled: !!user?.id,
-  });
-
-  const { data: buyerOrders = [], isLoading: buyerOrdersLoading } = useQuery<OrderWithDetails[]>({
-    queryKey: ['/api/orders/buyer', user?.id],
-    enabled: !!user?.id,
-  });
-
-  // Tracking insights state
+  const [activeTab, setActiveTab] = useState('overview');
   const [viewingTracking, setViewingTracking] = useState<OrderWithDetails | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
@@ -109,21 +42,34 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    if (viewingTracking) {
-      fetchAiInsight(viewingTracking.id);
-    } else {
-      setAiInsight(null);
-    }
-  }, [viewingTracking]);
+  const { data: userStores = [], isLoading: storesLoading } = useQuery<Store[]>({
+    queryKey: ['/api/stores/user'],
+    enabled: !!user,
+  });
 
-  // Auto-open store form if onboarding
+  const primaryStore = userStores[0];
+
+  const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
+    queryKey: ['/api/products/store', primaryStore?.id],
+    enabled: !!primaryStore,
+  });
+
+  const { data: orders = [] } = useQuery<OrderWithDetails[]>({
+    queryKey: ['/api/orders/seller', user?.id],
+    enabled: !!user,
+  });
+
+  const { data: purchases = [] } = useQuery<OrderWithDetails[]>({
+    queryKey: ['/api/orders/buyer', user?.id],
+    enabled: !!user,
+  });
+
+  // Redirect to seller auth if no store
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('onboarding') === 'true' && userStores.length === 0 && !storesLoading) {
-      setShowStoreForm(true);
+    if (!storesLoading && userStores.length === 0) {
+      setLocation('/seller-auth');
     }
-  }, [userStores.length, storesLoading]);
+  }, [userStores.length, storesLoading, setLocation]);
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: number) => {
@@ -133,571 +79,236 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/products/store'] });
       toast({ title: "Product Deleted", description: "Listing has been removed from your store." });
     },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
   });
-
-  const verificationMutation = useMutation({
-    mutationFn: async () => {
-      if (!idScanFile || !faceScanFile) throw new Error("Please capture both ID and Face");
-      
-      const formData = new FormData();
-      formData.append('idScan', idScanFile);
-      formData.append('faceScan', faceScanFile);
-      formData.append('phoneNumber', phoneNumber);
-      if (latitude) formData.append('latitude', latitude);
-      if (longitude) formData.append('longitude', longitude);
-      if (address) formData.append('address', address);
-
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/upload/seller-verification', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to submit verification");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      toast({ 
-        title: "Application Received!", 
-        description: "The University Hub team will review your application and send a notification soon on the status of your store.",
-        duration: 10000,
-      });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
-    }
-  });
-
-  const handleGetLocation = () => {
-    setIsGettingLocation(true);
-    if (!navigator.geolocation) {
-      toast({ title: "Geolocation error", description: "Browser doesn't support geolocation", variant: "destructive" });
-      setIsGettingLocation(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude.toString());
-        setLongitude(pos.coords.longitude.toString());
-        setAddress("Current Location Captured");
-        setIsGettingLocation(false);
-        toast({ title: "Location Captured", description: "Your live location has been pinned." });
-      },
-      () => {
-        toast({ title: "Location Denied", description: "Please allow location access to continue.", variant: "destructive" });
-        setIsGettingLocation(false);
-      }
-    );
-  };
-
-  if (!user) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
-         <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-         <p className="mt-4 text-gray-500 font-medium">Checking session...</p>
-      </div>
-    );
-  }
-
-  const primaryStore = userStores[0];
-  const needsVerification = primaryStore && (primaryStore.approvalStatus === 'waiting_verification' || user.verificationStatus === 'unverified' || user.verificationStatus === 'rejected');
-  const isPendingAdmin = primaryStore && primaryStore.approvalStatus === 'pending';
-  const isApproved = primaryStore && primaryStore.approvalStatus === 'approved';
 
   if (storesLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-         <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-         <p className="mt-4 text-gray-500 font-medium">Loading store details...</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (userStores.length === 0) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center max-w-md mx-auto">
-          <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-            <StoreIcon className="h-12 w-12 text-primary" />
-          </div>
-          <h1 className="text-4xl font-black text-gray-900 mb-4 tracking-tighter">Become a Seller</h1>
-          <p className="text-lg text-gray-600 mb-10 leading-relaxed">
-            Ready to turn your campus gear into cash? Create your student store today.
-          </p>
-          <Button size="lg" className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 transition-all hover:scale-105" onClick={() => setShowStoreForm(true)}>
-            <Plus className="mr-2 h-6 w-6" /> Create My Store
-          </Button>
-        </div>
-        <StoreForm isOpen={showStoreForm} onClose={() => setShowStoreForm(false)} />
-      </div>
-    );
-  }
+  if (!primaryStore) return null;
 
-  // Multi-step Onboarding UI
-  if (needsVerification) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="mb-10 text-center">
-           <Badge className="mb-4 bg-yellow-500 hover:bg-yellow-600 border-none px-4 py-1 rounded-full uppercase tracking-wider font-bold">Step 2: Verification</Badge>
-           <h1 className="text-4xl font-black text-gray-900 tracking-tight">Verify Your Identity</h1>
-           <p className="text-gray-500 mt-2">To protect our campus community, all sellers must complete a one-time identity verification.</p>
-        </div>
-
-        {user.verificationStatus === 'rejected' && (
-          <Alert variant="destructive" className="mb-8 rounded-2xl border-2">
-            <AlertCircle className="h-5 w-5" />
-            <AlertTitle className="font-bold">Verification Correction Needed</AlertTitle>
-            <AlertDescription className="mt-2 text-sm italic">
-              <strong>Admin Feedback:</strong> {user.verificationNotes || "Please re-upload clearer images of your ID and face."}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid gap-8">
-           {/* Section 1: Contact & Location */}
-           <Card className="rounded-3xl shadow-sm border-2">
-             <CardHeader>
-               <CardTitle className="text-xl font-bold flex items-center gap-2">
-                 <Phone className="w-5 h-5 text-primary" /> 
-                 1. Contact & Location
-               </CardTitle>
-             </CardHeader>
-             <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="font-bold">Phone Number (MTN/Telecel)</Label>
-                  <Input 
-                    id="phone" 
-                    placeholder="+233..." 
-                    value={phoneNumber} 
-                    onChange={(e) => setPhoneNumber(e.target.value)} 
-                    className="h-12 rounded-xl border-2"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold">Current Live Location</Label>
-                  <div className="flex gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={handleGetLocation} 
-                      disabled={isGettingLocation}
-                      className="h-12 rounded-xl flex-1 border-2 font-bold"
-                    >
-                      {isGettingLocation ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MapPin className="w-4 h-4 mr-2" />}
-                      {latitude ? "Location Pinned ✓" : "Capture Live Location"}
-                    </Button>
-                    {latitude && (
-                      <div className="flex-1 bg-green-50 text-green-700 rounded-xl px-4 flex items-center text-xs font-mono font-bold border border-green-200">
-                        {latitude.substring(0,8)}, {longitude?.substring(0,8)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-             </CardContent>
-           </Card>
-
-           {/* Section 2: Visual Evidence */}
-           <div className="grid md:grid-cols-2 gap-8">
-              <IdScanCapture 
-                onCapture={setIdScanFile} 
-                onRemove={() => setIdScanFile(null)} 
-                title="2. ID Document"
-                description="Snap a clear live photo of your Student ID or National ID card."
-              />
-              <FacialCapture 
-                onCapture={setFaceScanFile} 
-                onRemove={() => setFaceScanFile(null)} 
-                title="3. Face Capture"
-                description="Take a live selfie holding your ID if possible for faster approval."
-              />
-           </div>
-
-           <div className="mt-8">
-              <Button 
-                size="lg" 
-                className="w-full h-16 rounded-2xl font-black text-xl shadow-2xl shadow-primary/20 transition-all hover:scale-[1.02]"
-                disabled={!idScanFile || !faceScanFile || !latitude || !phoneNumber || verificationMutation.isPending}
-                onClick={() => verificationMutation.mutate()}
-              >
-                {verificationMutation.isPending ? (
-                  <><Loader2 className="w-6 h-6 animate-spin mr-2" /> Submitting Documents...</>
-                ) : (
-                  <><ShieldCheck className="w-6 h-6 mr-2" /> Submit for Admin Approval</>
-                )}
-              </Button>
-              <p className="text-center text-xs text-gray-400 mt-4 font-medium uppercase tracking-widest">Secure encrypted verification powered by The University Hub</p>
-           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Waiting for Admin UI
-  if (isPendingAdmin) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-32 text-center">
-         <div className="bg-primary/5 w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-10 relative">
-            <Loader2 className="w-16 h-16 text-primary animate-[spin_3s_linear_infinite]" />
-            <ShieldCheck className="w-8 h-8 text-primary absolute" />
-         </div>
-         <h1 className="text-4xl font-black text-gray-900 tracking-tighter mb-4">Pending Admin Review</h1>
-         <p className="text-xl text-gray-500 leading-relaxed">
-           University Hub has received your application! Our team is reviewing your store <strong>"{primaryStore.name}"</strong> and will send you a notification soon on the success of your application.
-         </p>
-         <div className="mt-12 p-6 bg-white rounded-3xl border-2 border-gray-100 shadow-sm flex items-center justify-center gap-4">
-            <Badge className="bg-yellow-500 font-bold px-3 py-1">TIMELINE</Badge>
-            <p className="text-sm font-bold text-gray-400">Approval usually takes 12-24 hours</p>
-         </div>
-         <Button variant="ghost" className="mt-8 font-bold" onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] })}>
-           Refresh Status
-         </Button>
-      </div>
-    );
-  }
-
-  // Full Dashboard (Approved)
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-12 gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <h1 className="text-4xl font-black text-gray-900 tracking-tighter">
+    <div className="min-h-screen bg-white py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+          <div className="animate-reveal-up">
+            <Badge className="mb-4 bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
               Store Dashboard
-            </h1>
-            <Badge className="bg-green-500 px-3 font-bold border-none shadow-sm flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3" /> VERIFIED
             </Badge>
+            <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+              Welcome back, <br /><span className="text-primary italic">{user?.firstName}.</span>
+            </h1>
           </div>
-          <p className="text-lg text-gray-500 font-medium">{primaryStore.name} • {primaryStore.university}</p>
+          <div className="flex items-center gap-3">
+             <Link href="/seller-settings">
+               <Button variant="outline" className="rounded-xl border-2 font-black uppercase tracking-widest text-[10px] h-12 px-6">
+                 <Settings className="w-4 h-4 mr-2" /> Store Settings
+               </Button>
+             </Link>
+             <Link href="/browse">
+               <Button className="rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-black/10">
+                 <Plus className="w-4 h-4 mr-2" /> New Listing
+               </Button>
+             </Link>
+          </div>
         </div>
-        
-        <div className="flex gap-3">
-          <Button size="lg" className="h-12 rounded-xl font-bold px-6 shadow-lg shadow-primary/10" onClick={() => setShowProductForm(true)}>
-            <Plus className="mr-2 h-5 w-5" /> Add New Product
-          </Button>
-          <Link href="/seller-settings">
-            <Button variant="outline" className="h-12 w-12 p-0 rounded-xl border-2">
-              <Settings className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
-      </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {[
-          { label: 'Total Sales', val: orders.length, icon: ShoppingCart, color: 'text-blue-600', bg: 'bg-blue-100' },
-          { label: 'Inventory', val: storeProducts.length, icon: Package, color: 'text-purple-600', bg: 'bg-purple-100' },
-          { label: 'Profile Views', val: storeProducts.reduce((s, p) => s + (p.viewCount || 0), 0), icon: Eye, color: 'text-amber-600', bg: 'bg-amber-100' },
-          { label: 'Rating', val: `${parseFloat(primaryStore.rating).toFixed(1)}/5`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-100' }
-        ].map((stat, i) => (
-          <Card key={i} className="rounded-[2rem] border-none shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-            <CardContent className="p-8">
-              <div className={`${stat.bg} w-12 h-12 rounded-2xl flex items-center justify-center mb-4`}>
-                <stat.icon className={`w-6 h-6 ${stat.color}`} />
-              </div>
-              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
-              <h3 className="text-3xl font-black text-gray-900 mt-1">{stat.val}</h3>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Tabs defaultValue={userStores.length > 0 ? "products" : "purchases"} className="space-y-8">
-        <TabsList className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 h-14 inline-flex items-center">
-          <TabsTrigger value="purchases" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Purchases</TabsTrigger>
-          {userStores.length > 0 && (
-            <>
-              <TabsTrigger value="products" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Inventory</TabsTrigger>
-              <TabsTrigger value="orders" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Sales</TabsTrigger>
-              <TabsTrigger value="store" className="rounded-xl px-8 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">Store Settings</TabsTrigger>
-            </>
-          )}
-        </TabsList>
-
-        <TabsContent value="purchases">
-          <div className="space-y-4">
-             {buyerOrders.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-3xl border">
-                   <Package className="w-12 h-12 mx-auto text-gray-200 mb-4" />
-                   <h3 className="text-xl font-bold">No Purchases Yet</h3>
-                   <p className="text-gray-500">Items you buy will appear here with their tracking status.</p>
-                   <Link href="/browse">
-                     <Button className="mt-6 rounded-xl font-bold">Start Shopping</Button>
-                   </Link>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {[
+            { label: 'Total Sales', val: orders.length, icon: ShoppingCart, color: 'text-blue-600', bg: 'bg-blue-100' },
+            { label: 'Inventory', val: storeProducts.length, icon: Package, color: 'text-purple-600', bg: 'bg-purple-100' },
+            { label: 'Profile Views', val: storeProducts.reduce((s, p) => s + (p.viewCount || 0), 0), icon: Eye, color: 'text-amber-600', bg: 'bg-amber-100' },
+            { label: 'Rating', val: `${parseFloat(primaryStore.rating).toFixed(1)}/5`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-100' }
+          ].map((stat, i) => (
+            <Card key={i} className="rounded-[2rem] border-none shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              <CardContent className="p-8">
+                <div className={`${stat.bg} w-12 h-12 rounded-2xl flex items-center justify-center mb-4`}>
+                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
-             ) : (
-                buyerOrders.map(order => (
-                  <Card key={order.id} className="rounded-3xl border-none shadow-sm hover:shadow-md transition-shadow">
-                    <CardContent className="p-6 flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                          <img src={order.product.images[0]} className="w-16 h-16 rounded-2xl object-cover" />
-                          <div>
-                            <h4 className="font-black text-lg">{order.product.title}</h4>
-                            <p className="text-sm font-medium text-gray-500">Seller: {order.seller.firstName} • {new Date(order.createdAt!).toLocaleDateString()}</p>
-                          </div>
-                       </div>
-                       <div className="flex items-center gap-4">
-                          <div className="text-right">
-                             <p className="font-black text-xl">${parseFloat(order.totalAmount).toFixed(2)}</p>
-                             <div className="flex flex-col items-end gap-1">
-                               <Badge className="bg-blue-100 text-blue-700 border-none font-bold">{order.deliveryStatus?.toUpperCase() || 'PENDING'}</Badge>
-                               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{order.shippingMode?.replace(/_/g, ' ')}</span>
+                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                <h3 className="text-3xl font-black text-gray-900 mt-1">{stat.val}</h3>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          <TabsList className="inline-flex h-14 items-center justify-center rounded-2xl bg-gray-50 p-1 border">
+            <TabsTrigger value="overview" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Overview</TabsTrigger>
+            <TabsTrigger value="listings" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Inventory</TabsTrigger>
+            <TabsTrigger value="sales" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Sales</TabsTrigger>
+            <TabsTrigger value="purchases" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Orders</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-0">
+             <div className="grid lg:grid-cols-3 gap-8">
+                <Card className="lg:col-span-2 rounded-[2.5rem] border-none shadow-sm bg-gray-50/50">
+                   <CardHeader className="p-8 pb-0">
+                      <CardTitle className="text-xl font-black uppercase tracking-tighter">Recent Orders.</CardTitle>
+                   </CardHeader>
+                   <CardContent className="p-8">
+                      {orders.length === 0 ? (
+                        <div className="text-center py-20">
+                           <ShoppingCart className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                           <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No orders yet</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                           {orders.slice(0, 5).map(order => (
+                             <div key={order.id} className="flex items-center justify-between p-6 bg-white rounded-3xl shadow-sm border border-gray-100 group hover:border-primary/20 transition-all">
+                                <div className="flex items-center gap-4">
+                                   <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50">
+                                      <img src={order.product.images[0]} className="w-full h-full object-cover" alt="" />
+                                   </div>
+                                   <div>
+                                      <h4 className="font-black text-sm uppercase tracking-tight">{order.product.title}</h4>
+                                      <p className="text-sm font-medium text-gray-500">Seller: {order.seller.firstName} • {new Date(order.createdAt!).toLocaleDateString()}</p>
+                                   </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                   <div className="text-right">
+                                      <p className="font-black text-xl">GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
+                                      <div className="flex flex-col items-end gap-1">
+                                        <Badge className="bg-blue-100 text-blue-700 border-none font-bold">{order.deliveryStatus?.toUpperCase() || 'PENDING'}</Badge>
+                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{order.shippingMode?.replace(/_/g, ' ')}</span>
+                                      </div>
+                                   </div>
+                                   <Button variant="ghost" size="icon" className="rounded-full" onClick={() => { setViewingTracking(order); fetchAiInsight(order.id); }}>
+                                      <ChevronRight className="w-5 h-5 text-gray-300" />
+                                   </Button>
+                                </div>
                              </div>
-                          </div>
+                           ))}
+                        </div>
+                      )}
+                   </CardContent>
+                </Card>
+
+                <div className="space-y-8">
+                   <Card className="rounded-[2.5rem] bg-black text-white p-10 border-none shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl"></div>
+                      <h3 className="text-2xl font-black uppercase tracking-tighter mb-4">Quick <br />Promote.</h3>
+                      <p className="text-white/60 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Feature your top items on the home page for only GH₵5/day.</p>
+                      <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary hover:text-white transition-all">Select Listing</Button>
+                   </Card>
+
+                   <Card className="rounded-[2.5rem] border-2 border-dashed border-gray-100 p-8 text-center bg-white">
+                      <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                         <MessageCircle className="w-8 h-8 text-gray-200" />
+                      </div>
+                      <h4 className="font-black uppercase tracking-widest text-xs mb-2">Campus Inbox</h4>
+                      <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Connect with buyers directly on hub chat.</p>
+                   </Card>
+                </div>
+             </div>
+          </TabsContent>
+
+          <TabsContent value="listings" className="mt-0">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {storeProducts.map(product => (
+                  <Card key={product.id} className="rounded-3xl border-none shadow-sm overflow-hidden group">
+                    <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+                       <img src={product.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
+                       <div className="absolute top-4 right-4 flex gap-2">
                           <Button 
-                            variant="outline" 
-                            className="rounded-xl font-bold h-12 px-6 border-2"
-                            onClick={() => setViewingTracking(order)}
+                            variant="destructive" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-lg shadow-xl"
+                            onClick={() => deleteProductMutation.mutate(product.id)}
                           >
-                            <Truck className="w-4 h-4 mr-2" /> Track Order
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                        </div>
+                    </div>
+                    <CardContent className="p-6">
+                       <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h4 className="font-black text-sm uppercase tracking-tight">{product.title}</h4>
+                            {!product.isAvailable && (
+                               <Badge variant="destructive" className="text-[10px] mt-1">SOLD OUT</Badge>
+                            )}
+                            {product.approvalStatus === 'pending' && (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-[10px] mt-1">
+                                 PENDING APPROVAL
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-primary font-black">GH₵{parseFloat(product.price).toFixed(2)}</p>
+                       </div>
+                       <Badge variant="outline" className="rounded-lg font-bold border-2">{product.condition.toUpperCase()}</Badge>
                     </CardContent>
                   </Card>
-                ))
-             )}
-          </div>
-        </TabsContent>
+                ))}
+             </div>
+          </TabsContent>
 
-        <TabsContent value="products">
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-             <Card className="rounded-[2.5rem] border-4 border-dashed border-gray-100 bg-transparent flex flex-col items-center justify-center py-20 cursor-pointer hover:border-primary/50 transition-colors group" onClick={() => setShowProductForm(true)}>
-                <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                  <Plus className="w-8 h-8" />
-                </div>
-                <p className="font-bold text-gray-400 group-hover:text-primary">Add Product</p>
-             </Card>
-             {storeProducts.map((product) => (
-               <Card key={product.id} className="rounded-[2.5rem] overflow-hidden border-none shadow-sm hover:shadow-xl transition-all group bg-white">
-                  <div className="relative h-56 overflow-hidden">
-                    <img src={product.mediaGifUrl || product.images[0]} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
-                    <div className="absolute inset-0 bg-black/5 group-hover:bg-transparent transition-colors"></div>
-                    {product.mediaGifUrl && (
-                      <div className="absolute top-4 left-4 bg-primary/80 backdrop-blur-sm text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                        <Video className="w-3 h-3" /> Showcase
-                      </div>
-                    )}
-                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <Button size="icon" variant="secondary" className="rounded-full shadow-lg h-10 w-10"><Edit className="w-4 h-4" /></Button>
-                       <Button 
-                         size="icon" 
-                         variant="destructive" 
-                         className="rounded-full shadow-lg h-10 w-10"
-                         onClick={(e) => {
-                           e.preventDefault();
-                           if (confirm('Are you sure you want to delete this product?')) {
-                             deleteProductMutation.mutate(product.id);
-                           }
-                         }}
-                       >
-                         <Trash2 className="w-4 h-4" />
-                       </Button>
-                    </div>
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                       <div className="flex-1 min-w-0 mr-2">
-                          <h3 className="font-black text-xl line-clamp-1">{product.title}</h3>
-                          {product.approvalStatus === 'pending' && (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-[10px] mt-1">
-                               PENDING APPROVAL
-                            </Badge>
-                          )}
-                       </div>
-                       <p className="text-primary font-black">${parseFloat(product.price).toFixed(2)}</p>
-                    </div>
-                    <Badge variant="outline" className="rounded-lg font-bold border-2">{product.condition.toUpperCase()}</Badge>
-                  </CardContent>
-               </Card>
-             ))}
-           </div>
-        </TabsContent>
-
-        <TabsContent value="store">
-           <Card className="rounded-[2rem] border-none shadow-sm overflow-hidden">
-             <CardContent className="p-10">
-                <div className="flex justify-between items-start mb-8">
-                   <div>
-                      <h3 className="text-3xl font-black text-gray-900">{primaryStore.name}</h3>
-                      <p className="text-gray-500 font-medium mt-1">{primaryStore.description}</p>
-                   </div>
-                   <Button variant="outline" className="rounded-xl border-2 font-bold h-12 px-6" onClick={() => setShowStoreForm(true)}>
-                      <Edit className="w-4 h-4 mr-2" /> Edit Store Profile
-                   </Button>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                      <p className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Campus & Location</p>
-                      <div className="space-y-3">
-                         <div className="flex items-center gap-2 text-gray-700 font-bold">
-                            <MapPin className="w-4 h-4 text-primary" /> {primaryStore.university}
-                         </div>
-                         <p className="text-sm text-gray-500 ml-6">{primaryStore.campus || 'Main Campus'}</p>
-                      </div>
-                   </div>
-                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                      <p className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Store Status</p>
-                      <div className="flex items-center gap-3">
-                         <Badge className={primaryStore.approvalStatus === 'approved' ? 'bg-green-500' : 'bg-yellow-500'}>
-                            {primaryStore.approvalStatus.toUpperCase()}
-                         </Badge>
-                         {primaryStore.isActive ? (
-                            <span className="text-sm font-bold text-green-600 flex items-center gap-1">
-                               <CheckCircle2 className="w-4 h-4" /> Active
-                            </span>
-                         ) : (
-                            <span className="text-sm font-bold text-red-600 flex items-center gap-1">
-                               <XCircle className="w-4 h-4" /> Paused
-                            </span>
-                         )}
-                      </div>
-                   </div>
-                   <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                      <p className="text-xs font-black uppercase text-gray-400 mb-3 tracking-widest">Store Identity</p>
-                      <div className="flex items-center gap-3">
-                         <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                            <AvatarImage src={primaryStore.logoUrl || ''} />
-                            <AvatarFallback>{primaryStore.name[0]}</AvatarFallback>
-                         </Avatar>
-                         <p className="font-bold text-gray-800">Store Profile Picture</p>
-                      </div>
-                   </div>
-                </div>
-             </CardContent>
-           </Card>
-        </TabsContent>
-
-        <TabsContent value="orders">
-          <div className="space-y-4">
-             {orders.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-3xl border">
-                   <ShoppingCart className="w-12 h-12 mx-auto text-gray-200 mb-4" />
-                   <h3 className="text-xl font-bold">No Sales Yet</h3>
-                   <p className="text-gray-500">Your orders will appear here when customers buy your products.</p>
-                </div>
-             ) : (
-                orders.map(order => (
-                  <Card key={order.id} className="rounded-3xl border-none shadow-sm hover:shadow-md transition-shadow">
-                    <CardContent className="p-6 flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                          <div className="bg-gray-100 w-16 h-16 rounded-2xl flex items-center justify-center font-black text-gray-400">#ORD</div>
+          <TabsContent value="purchases" className="mt-0">
+             <div className="space-y-4">
+                {purchases.map(order => (
+                  <div key={order.id} className="flex items-center justify-between p-8 bg-gray-50 rounded-[2.5rem] group hover:bg-white hover:shadow-xl hover:shadow-primary/5 transition-all border border-transparent hover:border-primary/10">
+                       <div className="flex items-center gap-6">
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white shadow-sm">
+                             <img src={order.product.images[0]} className="w-full h-full object-cover" alt="" />
+                          </div>
                           <div>
-                            <h4 className="font-black text-lg">{order.product.title}</h4>
+                            <div className="flex items-center gap-2 mb-1">
+                               <Badge className="bg-primary/5 text-primary border-none font-black text-[9px] uppercase">{order.product.category.name}</Badge>
+                               <span className="text-[10px] font-bold text-gray-400">Order #{order.id}</span>
+                            </div>
+                            <h4 className="font-black text-lg uppercase tracking-tight">{order.product.title}</h4>
                             <p className="text-sm font-medium text-gray-500">Buyer: {order.buyer.firstName} • {new Date(order.createdAt!).toLocaleDateString()}</p>
                           </div>
                        </div>
                        <div className="flex items-center gap-4">
                           <div className="text-right">
-                             <p className="font-black text-xl">${parseFloat(order.totalAmount).toFixed(2)}</p>
+                             <p className="font-black text-xl">GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
                              <div className="flex flex-col items-end gap-1">
                                <Badge className="bg-primary/10 text-primary border-none font-bold">{order.status.toUpperCase()}</Badge>
                                <Badge variant="outline" className="text-[10px]">{order.deliveryStatus?.toUpperCase() || 'PENDING'}</Badge>
                              </div>
                           </div>
-                          <div className="flex flex-col gap-2">
-                             <Button 
-                               variant="outline" 
-                               size="sm" 
-                               className="rounded-xl font-bold h-9 border-2"
-                               onClick={() => setSelectedOrderForTracking(order)}
-                             >
-                               <Truck className="w-4 h-4 mr-1" /> Track
-                             </Button>
-                             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9"><ArrowRight className="w-5 h-5" /></Button>
-                          </div>
+                          <Button className="rounded-xl h-12 px-6 font-black uppercase tracking-widest text-[10px]" onClick={() => { setViewingTracking(order); fetchAiInsight(order.id); }}>Track Order</Button>
                        </div>
-                    </CardContent>
-                  </Card>
-                ))
-             )}
-          </div>
-        </TabsContent>
-      </Tabs>
+                  </div>
+                ))}
+             </div>
+          </TabsContent>
+        </Tabs>
 
-      <StoreForm 
-        isOpen={showStoreForm} 
-        onClose={() => setShowStoreForm(false)} 
-        store={primaryStore}
-      />
-      <ProductForm 
-        isOpen={showProductForm} 
-        onClose={() => setShowProductForm(false)}
-        userStores={userStores}
-      />
-      {selectedOrderForTracking && (
-        <TrackingModal
-          isOpen={!!selectedOrderForTracking}
-          onClose={() => setSelectedOrderForTracking(null)}
-          orderId={selectedOrderForTracking.id}
-          initialData={{
-            deliveryStatus: selectedOrderForTracking.deliveryStatus as any,
-            trackingNumber: selectedOrderForTracking.trackingNumber || '',
-            carrier: selectedOrderForTracking.carrier || 'Ghana Post',
-            estimatedDeliveryDate: selectedOrderForTracking.estimatedDeliveryDate as any,
-            trackingHistory: selectedOrderForTracking.trackingHistory || '',
-          }}
-        />
-      )}
-
-      {/* Buyer Tracking View Dialog */}
-      <Dialog open={!!viewingTracking} onOpenChange={() => setViewingTracking(null)}>
-        <DialogContent className="max-w-md rounded-[2.5rem] p-8">
-           <DialogHeader>
-              <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
-                 <Truck className="w-6 h-6 text-primary" /> Track Your Order
-              </DialogTitle>
-              <DialogDescription className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">
-                 Order #{viewingTracking?.id} • {viewingTracking?.product.title}
-              </DialogDescription>
-           </DialogHeader>
-
-           <div className="mt-6 space-y-6">
-              {/* AI Insight Box */}
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-3xl border border-blue-100 shadow-sm relative overflow-hidden">
-                 <div className="absolute top-0 right-0 p-2 opacity-10">
-                    <Sparkles className="w-12 h-12" />
+        {/* Tracking Dialog */}
+        <Dialog open={!!viewingTracking} onOpenChange={(open) => !open && setViewingTracking(null)}>
+           <DialogContent className="max-w-2xl rounded-[2.5rem] border-none p-10">
+              <DialogHeader>
+                 <DialogTitle className="text-3xl font-black uppercase tracking-tighter">Order Tracking.</DialogTitle>
+                 <DialogDescription className="font-bold text-gray-400">Stay updated on your item's journey.</DialogDescription>
+              </DialogHeader>
+              
+              <div className="bg-gray-50 rounded-3xl p-8 mb-8">
+                 <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center text-white">
+                       <Smartphone className="w-6 h-6" />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Smart Status</p>
+                       <h4 className="font-black uppercase tracking-tight">AI Generated Tracking Insight</h4>
+                    </div>
                  </div>
-                 <h4 className="text-blue-800 font-black text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <Sparkles className="w-3 h-3" /> AI Delivery Assistant
-                 </h4>
+                 
                  {isGeneratingInsight ? (
-                   <div className="flex items-center gap-2 text-blue-600 font-medium italic animate-pulse">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Thinking...
-                   </div>
+                    <div className="flex items-center gap-3 text-primary animate-pulse">
+                       <Sparkles className="w-4 h-4" />
+                       <p className="text-xs font-black uppercase tracking-widest">Analyzing shipment patterns...</p>
+                    </div>
                  ) : (
-                   <p className="text-blue-900 font-medium leading-relaxed italic">
-                      "{aiInsight || 'Setting up tracking insights...'}"
-                   </p>
-                 )}
-              </div>
-
-              <div className="space-y-4">
-                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <p className="text-sm font-bold text-gray-400">Carrier</p>
-                    <p className="font-black text-gray-900">{viewingTracking?.carrier || 'Ghana Post'}</p>
-                 </div>
-                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <p className="text-sm font-bold text-gray-400">Tracking Number</p>
-                    <p className="font-black text-gray-900">{viewingTracking?.trackingNumber || 'Pending Assignment'}</p>
-                 </div>
-                 <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                    <p className="text-sm font-bold text-gray-400">Estimated Delivery</p>
-                    <p className="font-black text-gray-900">
-                       {viewingTracking?.estimatedDeliveryDate ? new Date(viewingTracking.estimatedDeliveryDate).toLocaleDateString() : 'TBD'}
+                    <p className="text-sm font-medium text-gray-600 leading-relaxed italic">
+                       "{aiInsight || 'No insight available for this order status.'}"
                     </p>
-                 </div>
+                 )}
               </div>
 
               <Separator />
@@ -710,14 +321,15 @@ export default function Dashboard() {
                        {viewingTracking?.trackingHistory || 'Your order has been received and is being processed by the seller.'}
                     </p>
                  </div>
+                 <div className="relative opacity-40">
+                    <div className="absolute -left-[1.35rem] top-1 w-4 h-4 rounded-full border-4 border-white shadow-sm bg-gray-200"></div>
+                    <p className="font-black text-sm uppercase tracking-wider">Out for Delivery</p>
+                    <p className="text-xs text-gray-500 font-medium mt-1">The item will be delivered to your campus location soon.</p>
+                 </div>
               </div>
-
-              <Button className="w-full h-14 rounded-2xl font-bold text-lg" onClick={() => setViewingTracking(null)}>
-                 Close Tracking
-              </Button>
-           </div>
-        </DialogContent>
-      </Dialog>
+           </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

@@ -11,5 +11,5 @@ export function calculatePriceWithFee(price: string | number): number {
 }
 
 export function formatPriceWithFee(price: string | number): string {
-  return calculatePriceWithFee(price).toFixed(2);
+  return `GH₵${calculatePriceWithFee(price).toFixed(2)}`;
 }
