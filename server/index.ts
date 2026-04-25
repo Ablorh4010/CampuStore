@@ -13,7 +13,11 @@ app.use('/uploads', express.static('uploads'));
 
 // Cache control for PWA assets
 app.use((req, res, next) => {
-  if (req.path === '/sw.js' || req.path === '/manifest.json') {
+  if (req.path === '/' || req.path === '/index.html' || req.path.startsWith('/gh')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  } else if (req.path === '/sw.js' || req.path === '/manifest.json') {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   }
   next();

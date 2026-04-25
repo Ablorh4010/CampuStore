@@ -7,7 +7,7 @@ import {
   insertOrderSchema, insertMessageSchema, insertCartItemSchema,
   users, orders
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import multer from "multer";
 import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
@@ -1259,19 +1259,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Order routes
-  app.post("/api/orders", authenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/orders", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
-      const orderData = insertOrderSchema.parse(req.body);
-      
-      // Ensure buyerId matches authenticated user
-      if (orderData.buyerId !== req.userId) {
-        return res.status(403).json({ message: "Cannot create order for another user" });
+      const { cartItems, paymentMode, isBokoo, details, totalAmount } = req.body;
+      const userId = req.userId;
+
+      if (!cartItems || cartItems.length === 0) {
+        return res.status(400).json({ message: "Cart is empty" });
       }
 
-      const order = await storage.createOrder(orderData);
-      res.json(order);
+      // Create orders for each item
+      const createdOrders = [];
+      for (const item of cartItems) {
+        // Fetch product to get sellerId (which is store user id)
+        const productWithStore = await storage.getProductWithStore(item.productId);
+        if (!productWithStore) continue;
+
+        const order = await storage.createOrder({
+          buyerId: userId || 1, // Default to system user for guest orders
+          sellerId: productWithStore.store.userId,
+          productId: item.productId,
+          quantity: item.quantity,
+          totalAmount: totalAmount ? totalAmount.toString() : productWithStore.price,
+          status: 'pending',
+          shippingMode: 'standard',
+          buyerAddress: details?.address || '',
+          buyerUniversity: details?.university || '',
+          buyerPhone: details?.phoneNumber || '',
+          buyerEmail: details?.email || '',
+        });
+        createdOrders.push(order);
+      }
+
+      res.json({ message: "Order placed successfully", orders: createdOrders });
     } catch (error) {
-      res.status(400).json({ message: "Invalid order data" });
+      console.error('Order creation error:', error);
+      res.status(500).json({ message: "Failed to create order" });
     }
   });
 
@@ -2022,15 +2045,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid amount" });
       }
 
-      if (!stripe) {
-        return res.status(500).json({ message: "Payment service not configured" });
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripe || !stripeKey || stripeKey.includes('placeholder')) {
+        return res.status(400).json({ message: "Payment service not fully configured yet. Please try Mobile Money or Bank Transfer." });
       }
 
       const userId = req.userId;
 
       const paymentIntent = await stripe!.paymentIntents.create({
         amount: Math.round(amount * 100),
-        currency: "usd",
+        currency: "ghs",
         automatic_payment_methods: {
           enabled: true,
         },
@@ -2048,7 +2072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error: any) {
       console.error('Stripe payment intent error:', error);
-      res.status(500).json({ message: "Error creating payment intent: " + error.message });
+      res.status(400).json({ message: "Payment Gateway Error: " + error.message + ". Try an alternative payment mode." });
     }
   });
   // Push notification routes

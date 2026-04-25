@@ -74,7 +74,7 @@ export default function Home() {
   });
 
   const handleGetStarted = () => {
-    setLocation('/browse');
+    setLocation('/gh/browse');
   };
 
   const currentDeal = deals[currentIndex];
@@ -149,7 +149,7 @@ export default function Home() {
                        </div>
                     </div>
 
-                    <Link href={`/product/${currentDeal.productId}`}>
+                    <Link href={`/gh/product/${currentDeal.productId}`}>
                       <Button className="w-full h-12 rounded-xl bg-primary text-white font-black shadow-lg">
                          Shop This Deal
                       </Button>
@@ -180,7 +180,7 @@ export default function Home() {
                  </h2>
                  <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">New listings from your university hub</p>
               </div>
-              <Link href="/browse">
+              <Link href="/gh/browse">
                  <Button variant="ghost" className="font-black uppercase tracking-widest text-xs hover:bg-white px-8 h-12 rounded-xl group transition-all">
                     Explore All <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                  </Button>
@@ -223,7 +223,7 @@ export default function Home() {
            </div>
            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
              {categories.map((category) => (
-               <Link key={category.id} href={`/browse?categoryId=${category.id}`}>
+               <Link key={category.id} href={`/gh/browse?categoryId=${category.id}`}>
                  <div className="flex flex-col items-center p-8 rounded-[2.5rem] bg-gray-50 hover:bg-white hover:shadow-xl transition-all group cursor-pointer border border-transparent hover:border-primary/5">
                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-sm transition-all group-hover:scale-110 group-hover:bg-[#2E5BFF] group-hover:text-white">
                      {category.icon === 'fas fa-book' ? '📚' : category.icon === 'fas fa-laptop' ? '💻' : category.icon === 'fas fa-tshirt' ? '👕' : '📦'}

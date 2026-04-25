@@ -15,7 +15,9 @@ import {
   Sparkles,
   Truck,
   RotateCcw,
-  ShieldCheck
+  ShieldCheck,
+  Wallet,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +61,12 @@ export default function Product() {
 
   const { data: relatedProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products', { categoryId: product?.categoryId, limit: 4 }],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (product?.categoryId) params.append('categoryId', product.categoryId.toString());
+      params.append('limit', '4');
+      return fetch(`/api/products?${params.toString()}`).then(res => res.json());
+    },
     enabled: !!product?.categoryId,
   });
 
