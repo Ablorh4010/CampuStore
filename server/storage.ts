@@ -3,7 +3,7 @@ import {
   events, eventRsvps, clubs, clubMemberships, auctions, auctionBids,
   studyGroups, studyGroupMemberships, userFollows, sellerReviews,
   badges, userBadges, userPoints, pointsHistory,
-  weeklyDeals, campusActivity,
+  weeklyDeals, campusActivity, appConfig,
   type User, type InsertUser, type Store, type InsertStore, type Category,
   type Product, type InsertProduct, type Order, type InsertOrder,
   type Message, type InsertMessage, type CartItem, type InsertCartItem,
@@ -38,6 +38,7 @@ export interface IStorage {
   getUserByResetToken(token: string): Promise<User | undefined>;
   resetPassword(token: string, newPassword: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
+  getAdminUsers(): Promise<User[]>;
   deleteUser(id: number): Promise<boolean>;
   getAnalytics(): Promise<{
     totalUsers: number;
@@ -55,8 +56,11 @@ export interface IStorage {
   getFeaturedStores(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]>;
   getPendingStores(): Promise<StoreWithUser[]>;
   getAllStoresForAdmin(): Promise<StoreWithUser[]>;
+  getPendingLogoChanges(): Promise<StoreWithUser[]>;
   updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined>;
   updateStoreApprovalStatus(id: number, status: string): Promise<Store | undefined>;
+  approveLogoChange(id: number): Promise<Store | undefined>;
+  rejectLogoChange(id: number): Promise<Store | undefined>;
   deleteStore(id: number): Promise<boolean>;
 
   // Categories
@@ -89,10 +93,12 @@ export interface IStorage {
   // Orders
   createOrder(order: InsertOrder): Promise<Order>;
   getOrderById(id: number): Promise<Order | undefined>;
+  getOrderWithDetails(id: number): Promise<OrderWithDetails | undefined>;
   getOrdersByBuyerId(buyerId: number): Promise<OrderWithDetails[]>;
   getOrdersBySellerId(sellerId: number): Promise<OrderWithDetails[]>;
+  updateOrder(id: number, data: Partial<Order>): Promise<Order | undefined>;
   updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
-  updateOrderTracking(id: number, data: {
+  updateOrderTracking(id: number, trackingData: {
     trackingNumber?: string;
     carrier?: string;
     estimatedDeliveryDate?: Date | string;
@@ -122,6 +128,9 @@ export interface IStorage {
   getCampusActivities(): Promise<CampusActivityWithUser[]>;
   createCampusActivity(activity: InsertCampusActivity): Promise<CampusActivity>;
   deleteCampusActivity(id: number): Promise<boolean>;
+  // App Config
+  getAppConfig(key: string): Promise<string | undefined>;
+  setAppConfig(key: string, value: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -266,6 +275,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).orderBy(desc(users.createdAt));
   }
 
+  async getAdminUsers(): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.isAdmin, true));
+  }
+
   async deleteUser(id: number): Promise<boolean> {
     const result = await db.delete(users).where(eq(users.id, id));
     return (result.rowCount || 0) > 0;
@@ -361,6 +374,7 @@ export class DatabaseStorage implements IStorage {
         name: stores.name,
         description: stores.description,
         logoUrl: stores.logoUrl,
+        pendingLogoUrl: stores.pendingLogoUrl,
         university: stores.university,
         campus: stores.campus,
         city: stores.city,
@@ -426,6 +440,7 @@ export class DatabaseStorage implements IStorage {
         name: stores.name,
         description: stores.description,
         logoUrl: stores.logoUrl,
+        pendingLogoUrl: stores.pendingLogoUrl,
         university: stores.university,
         campus: stores.campus,
         city: stores.city,
@@ -484,6 +499,7 @@ export class DatabaseStorage implements IStorage {
         name: stores.name,
         description: stores.description,
         logoUrl: stores.logoUrl,
+        pendingLogoUrl: stores.pendingLogoUrl,
         university: stores.university,
         campus: stores.campus,
         city: stores.city,
@@ -513,6 +529,7 @@ export class DatabaseStorage implements IStorage {
       name: row.name,
       description: row.description,
       logoUrl: row.logoUrl,
+      pendingLogoUrl: row.pendingLogoUrl,
       university: row.university,
       campus: row.campus,
       city: row.city,
@@ -532,6 +549,90 @@ export class DatabaseStorage implements IStorage {
       },
       productCount: row.productCount
     })) as any[];
+  }
+
+  async getPendingLogoChanges(): Promise<StoreWithUser[]> {
+    const results = await db
+      .select({
+        id: stores.id,
+        userId: stores.userId,
+        name: stores.name,
+        description: stores.description,
+        logoUrl: stores.logoUrl,
+        pendingLogoUrl: stores.pendingLogoUrl,
+        university: stores.university,
+        campus: stores.campus,
+        city: stores.city,
+        rating: stores.rating,
+        reviewCount: stores.reviewCount,
+        isActive: stores.isActive,
+        approvalStatus: stores.approvalStatus,
+        createdAt: stores.createdAt,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+        userAvatar: users.avatar,
+        userEmail: users.email,
+        userPhoneNumber: users.phoneNumber,
+        userIdScanUrl: users.idScanUrl,
+        userFaceScanUrl: users.faceScanUrl,
+        productCount: sql<number>`COUNT(${products.id})::int`
+      })
+      .from(stores)
+      .leftJoin(users, eq(stores.userId, users.id))
+      .leftJoin(products, eq(stores.id, products.storeId))
+      .where(sql`${stores.pendingLogoUrl} IS NOT NULL`)
+      .groupBy(stores.id, users.id);
+
+    return results.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      name: row.name,
+      description: row.description,
+      logoUrl: row.logoUrl,
+      pendingLogoUrl: row.pendingLogoUrl,
+      university: row.university,
+      campus: row.campus,
+      city: row.city,
+      rating: row.rating,
+      reviewCount: row.reviewCount,
+      isActive: row.isActive,
+      approvalStatus: row.approvalStatus,
+      createdAt: row.createdAt,
+      user: {
+        firstName: row.userFirstName,
+        lastName: row.userLastName,
+        avatar: row.userAvatar,
+        email: row.userEmail,
+        phoneNumber: row.userPhoneNumber,
+        idScanUrl: row.userIdScanUrl,
+        faceScanUrl: row.userFaceScanUrl,
+      },
+      productCount: row.productCount
+    })) as any[];
+  }
+
+  async approveLogoChange(id: number): Promise<Store | undefined> {
+    const store = await this.getStoreById(id);
+    if (!store || !store.pendingLogoUrl) return undefined;
+
+    const [updatedStore] = await db
+      .update(stores)
+      .set({ 
+        logoUrl: store.pendingLogoUrl,
+        pendingLogoUrl: null 
+      })
+      .where(eq(stores.id, id))
+      .returning();
+    return updatedStore;
+  }
+
+  async rejectLogoChange(id: number): Promise<Store | undefined> {
+    const [updatedStore] = await db
+      .update(stores)
+      .set({ pendingLogoUrl: null })
+      .where(eq(stores.id, id))
+      .returning();
+    return updatedStore;
   }
 
   async updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined> {
@@ -829,24 +930,63 @@ export class DatabaseStorage implements IStorage {
 
   async getOrderById(id: number): Promise<Order | undefined> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
-    return order || undefined;
+    return order;
+  }
+
+  async getOrderWithDetails(id: number): Promise<OrderWithDetails | undefined> {
+    const [result] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, id))
+      .leftJoin(products, eq(orders.productId, products.id))
+      .leftJoin(users, eq(orders.buyerId, users.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id));
+
+    if (!result) return undefined;
+
+    const seller = await this.getUserById(result.orders.sellerId);
+    if (!seller) return undefined;
+
+    return {
+      ...result.orders,
+      product: {
+        ...result.products!,
+        category: result.categories!
+      },
+      buyer: {
+        firstName: result.users?.firstName || '',
+        lastName: result.users?.lastName || '',
+        email: result.users?.email || '',
+      },
+      seller: {
+        firstName: seller.firstName,
+        lastName: seller.lastName,
+        email: seller.email,
+      }
+    };
   }
 
   async getOrdersByBuyerId(buyerId: number): Promise<OrderWithDetails[]> {
+
     const results = await db
       .select({
         order: orders,
         product: products,
-        seller: users
+        seller: users,
+        category: categories
       })
       .from(orders)
       .leftJoin(products, eq(orders.productId, products.id))
       .leftJoin(users, eq(orders.sellerId, users.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(orders.buyerId, buyerId));
 
     return results.map(result => ({
       ...result.order,
-      product: result.product!,
+      product: {
+        ...result.product!,
+        category: result.category!
+      },
       buyer: { firstName: '', lastName: '', email: '' }, 
       seller: {
         firstName: result.seller!.firstName,
@@ -861,16 +1001,21 @@ export class DatabaseStorage implements IStorage {
       .select({
         order: orders,
         product: products,
-        buyer: users
+        buyer: users,
+        category: categories
       })
       .from(orders)
       .leftJoin(products, eq(orders.productId, products.id))
       .leftJoin(users, eq(orders.buyerId, users.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(orders.sellerId, sellerId));
 
     return results.map(result => ({
       ...result.order,
-      product: result.product!,
+      product: {
+        ...result.product!,
+        category: result.category!
+      },
       seller: { firstName: '', lastName: '', email: '' },
       buyer: {
         firstName: result.buyer!.firstName,
@@ -878,6 +1023,15 @@ export class DatabaseStorage implements IStorage {
         email: result.buyer!.email,
       }
     }));
+  }
+
+  async updateOrder(id: number, data: Partial<Order>): Promise<Order | undefined> {
+    const [updatedOrder] = await db
+      .update(orders)
+      .set(data)
+      .where(eq(orders.id, id))
+      .returning();
+    return updatedOrder;
   }
 
   async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
@@ -1055,6 +1209,20 @@ export class DatabaseStorage implements IStorage {
   async deleteCampusActivity(id: number): Promise<boolean> {
     const result = await db.delete(campusActivity).where(eq(campusActivity.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  async getAppConfig(key: string): Promise<string | undefined> {
+    const [config] = await db.select().from(appConfig).where(eq(appConfig.key, key));
+    return config?.value;
+  }
+
+  async setAppConfig(key: string, value: string): Promise<void> {
+    const existing = await this.getAppConfig(key);
+    if (existing) {
+      await db.update(appConfig).set({ value, updatedAt: new Date() }).where(eq(appConfig.key, key));
+    } else {
+      await db.insert(appConfig).values({ key, value });
+    }
   }
 }
 

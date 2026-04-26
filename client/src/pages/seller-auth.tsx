@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { IdScanCapture, FacialCapture } from '@/components/verification';
@@ -27,8 +28,16 @@ const sellerRegisterSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  university: z.string().min(1, 'University is required'),
+  sellerVerificationType: z.enum(['student', 'business']).default('student'),
+  university: z.string().optional(),
+  businessName: z.string().optional(),
   city: z.string().min(1, 'City is required'),
+}).refine((data) => data.sellerVerificationType === 'business' || !!data.university, {
+  message: 'University is required for student accounts',
+  path: ['university'],
+}).refine((data) => data.sellerVerificationType === 'student' || !!data.businessName, {
+  message: 'Business name is required for business accounts',
+  path: ['businessName'],
 }).refine((data) => !data.otpCode || data.otpCode.length === 6, {
   message: 'Verification code must be 6 digits',
   path: ['otpCode'],
@@ -196,6 +205,8 @@ export default function SellerAuth() {
       const formData = new FormData();
       formData.append('idScan', idFile);
       formData.append('faceScan', faceFile);
+      formData.append('sellerVerificationType', data.sellerVerificationType);
+      if (data.businessName) formData.append('businessName', data.businessName);
 
       const uploadResponse = await fetch('/api/upload/verification', {
         method: 'POST',
@@ -437,17 +448,55 @@ export default function SellerAuth() {
 
                           <FormField
                             control={registerForm.control}
-                            name="university"
+                            name="sellerVerificationType"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>University</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
+                                <FormLabel>I am a...</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="student">University Student</SelectItem>
+                                    <SelectItem value="business">Business / External Seller</SelectItem>
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
+
+                          {registerForm.watch('sellerVerificationType') === 'student' ? (
+                            <FormField
+                              control={registerForm.control}
+                              name="university"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>University</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="e.g. University of Ghana" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          ) : (
+                            <FormField
+                              control={registerForm.control}
+                              name="businessName"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Business / Store Name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="e.g. Kay's Electronics" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
 
                           <FormField
                             control={registerForm.control}

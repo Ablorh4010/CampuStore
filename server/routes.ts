@@ -5,6 +5,7 @@ import { db } from "./db";
 import { 
   insertUserSchema, insertStoreSchema, insertProductSchema, 
   insertOrderSchema, insertMessageSchema, insertCartItemSchema,
+  insertWeeklyDealSchema, insertCampusActivitySchema,
   users, orders
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
@@ -511,6 +512,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI integrations
+  app.post("/api/ai/generate-description", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { title, category } = req.body;
+      if (!title) return res.status(400).json({ message: "Title is required" });
+      
+      const { generateProductDescription } = await import('./ai');
+      const description = await generateProductDescription(title, category);
+      res.json({ description });
+    } catch (error) {
+      console.error("AI Description Error:", error);
+      res.status(500).json({ message: "Failed to generate AI description" });
+    }
+  });
+
   app.post("/api/ai/generate-store-profile", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { name, university, city } = req.body;
@@ -672,26 +687,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Verification document upload (ID and face scan)
+  app.put("/api/orders/:id/seller-approval", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { approval } = req.body;
+      const order = await storage.getOrderById(id);
+      
+      if (!order) return res.status(404).json({ message: "Order not found" });
+      if (order.sellerId !== req.userId) return res.status(403).json({ message: "Unauthorized" });
+
+      const updatedOrder = await storage.updateOrder(id, { 
+        sellerApproval: approval,
+        fulfillmentStatus: approval === 'approved' ? 'seller_approved' : 'order_received',
+        status: approval === 'rejected' ? 'rejected' : order.status
+      });
+
+      // Notify Admin
+      const adminUsers = await storage.getAdminUsers();
+      for (const admin of adminUsers) {
+        if (admin.email) {
+          await sendEmail(admin.email, 'Order Approved by Seller', `
+            <h1>Order #${id} Approved</h1>
+            <p>Seller has approved order #${id}. Final admin approval required.</p>
+          `);
+        }
+      }
+
+      res.json(updatedOrder);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update seller approval" });
+    }
+  });
+
+  app.put("/api/admin/orders/:id/approval", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, estimatedDeliveryDate } = req.body;
+      const order = await storage.getOrderWithDetails(id);
+      
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      const updatedOrder = await storage.updateOrder(id, { 
+        adminApproval: status,
+        fulfillmentStatus: status === 'approved' ? 'admin_approved' : 'seller_approved',
+        status: status === 'approved' ? 'confirmed' : order.status,
+        estimatedDeliveryDate: estimatedDeliveryDate ? new Date(estimatedDeliveryDate) : null
+      });
+
+      if (status === 'approved') {
+        // Notify Buyer
+        await sendEmail(order.buyer.email, 'Order Confirmed!', `
+          <h1>Your order #${id} has been confirmed!</h1>
+          <p>Estimated Delivery: ${new Date(estimatedDeliveryDate).toLocaleDateString()}</p>
+          <p>A Kaydem Logistics agent will be assigned to your delivery.</p>
+        `);
+
+        // Notify Seller
+        await sendEmail(order.seller.email, 'Order Confirmed by Hub', `
+          <h1>Order #${id} is ready for fulfillment</h1>
+          <p>Please prepare the item for pickup. Estimated delivery to buyer: ${new Date(estimatedDeliveryDate).toLocaleDateString()}</p>
+        `);
+      }
+
+      res.json(updatedOrder);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update admin approval" });
+    }
+  });
+
+  app.put("/api/orders/:id/fulfillment-step", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { step } = req.body; // logistics_handover, in_transit, delivered
+      
+      const updatedOrder = await storage.updateOrder(id, { 
+        fulfillmentStatus: step,
+        deliveryStatus: step === 'delivered' ? 'delivered' : 'pending'
+      });
+      
+      res.json(updatedOrder);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update fulfillment step" });
+    }
+  });
+
+  app.put("/api/orders/:id/buyer-confirmation", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { confirmation } = req.body; // received, rejected
+      const order = await storage.getOrderWithDetails(id);
+      
+      if (!order) return res.status(404).json({ message: "Order not found" });
+      if (order.buyerId !== req.userId) return res.status(403).json({ message: "Unauthorized" });
+
+      const updatedOrder = await storage.updateOrder(id, { 
+        buyerConfirmation: confirmation,
+        buyerConfirmationAt: new Date(),
+        fulfillmentStatus: confirmation === 'received' ? 'confirmed' : order.fulfillmentStatus,
+        status: confirmation === 'received' ? 'completed' : 'rejected'
+      });
+
+      if (confirmation === 'received') {
+        await sendEmail(order.buyer.email, 'Thank You!', `<h1>Thank you for shopping with us!</h1><p>Your order #${id} has been successfully delivered and confirmed.</p>`);
+        
+        // Notify Seller and Admin of success
+        await sendEmail(order.seller.email, 'Delivery Successful!', `<p>Order #${id} has been confirmed by the buyer. Your payout is pending admin approval.</p>`);
+      } else {
+        // Notify Seller and Admin of rejection
+        const adminUsers = await storage.getAdminUsers();
+        const notificationMsg = `<h1>Order #${id} Rejected</h1><p>The buyer has rejected the product for order #${id}. Please investigate.</p>`;
+        
+        await sendEmail(order.seller.email, 'Order Rejected by Buyer', notificationMsg);
+        for (const admin of adminUsers) {
+          if (admin.email) await sendEmail(admin.email, 'Order Rejection Alert', notificationMsg);
+        }
+      }
+
+      res.json(updatedOrder);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to process buyer confirmation" });
+    }
+  });
+
   app.post("/api/upload/verification", authenticateToken, imageUpload.fields([
     { name: 'idScan', maxCount: 1 },
+    { name: 'idScanBack', maxCount: 1 },
     { name: 'faceScan', maxCount: 1 }
   ]), async (req: AuthRequest, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const { 
+        idType, 
+        whatsappBusinessNumber, 
+        socialMediaPresence, 
+        sellerVerificationType, 
+        sellerAddress, 
+        latitude, 
+        longitude 
+      } = req.body;
       
       if (!files || (!files.idScan && !files.faceScan)) {
         return res.status(400).json({ message: "No verification documents uploaded" });
       }
 
       const idScanUrl = files.idScan ? `/uploads/${files.idScan[0].filename}` : undefined;
+      const idScanUrlBack = files.idScanBack ? `/uploads/${files.idScanBack[0].filename}` : undefined;
       const faceScanUrl = files.faceScan ? `/uploads/${files.faceScan[0].filename}` : undefined;
 
       // Update user verification status to pending (for sellers)
       await storage.updateUser(req.userId!, {
         idScanUrl,
+        idScanUrlBack,
         faceScanUrl,
+        idType,
+        whatsappBusinessNumber,
+        socialMediaPresence,
+        sellerVerificationType,
+        sellerAddress,
+        sellerLatitude: latitude,
+        sellerLongitude: longitude,
         verificationStatus: 'pending'
       });
+
+      // Notify Admin
+      const adminUsers = await storage.getAdminUsers();
+      for (const admin of adminUsers) {
+        if (admin.email) {
+          await sendEmail(admin.email, 'New Seller Verification Request', `
+            <h1>New Verification Request</h1>
+            <p>User ID: ${req.userId}</p>
+            <p>Verification Type: ${sellerVerificationType}</p>
+            <p>Please check the admin dashboard for details.</p>
+          `);
+        }
+      }
 
       res.json({ 
         idScanUrl, 
@@ -703,6 +872,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: error instanceof Error ? error.message : 'Failed to upload verification documents'
       });
+    }
+  });
+
+  // Store logo change request
+  app.post("/api/stores/:id/request-logo-change", authenticateToken, imageUpload.single('logo'), async (req: AuthRequest, res) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const store = await storage.getStoreById(storeId);
+      
+      if (!store) return res.status(404).json({ message: "Store not found" });
+      if (store.userId !== req.userId) return res.status(403).json({ message: "Unauthorized" });
+      
+      if (!req.file) return res.status(400).json({ message: "No logo uploaded" });
+      
+      const pendingLogoUrl = `/uploads/${req.file.filename}`;
+      await storage.updateStore(storeId, { pendingLogoUrl });
+      
+      // Notify Admin
+      const adminUsers = await storage.getAdminUsers();
+      for (const admin of adminUsers) {
+        if (admin.email) {
+          await sendEmail(admin.email, 'Store Logo Change Request', `
+            <h1>Store Logo Change Request</h1>
+            <p>Store: ${store.name}</p>
+            <p>Please check the admin dashboard to approve the new logo.</p>
+          `);
+        }
+      }
+      
+      res.json({ pendingLogoUrl, message: "Logo change request submitted. Pending admin approval." });
+    } catch (error) {
+      console.error('Logo change request error:', error);
+      res.status(500).json({ message: "Failed to submit logo change request" });
     }
   });
 
@@ -1261,7 +1463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Order routes
   app.post("/api/orders", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
-      const { cartItems, paymentMode, isBokoo, details, totalAmount } = req.body;
+      const { cartItems, paymentMode, isBokoo, details, totalAmount, codFee } = req.body;
       const userId = req.userId;
 
       if (!cartItems || cartItems.length === 0) {
@@ -1281,6 +1483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           productId: item.productId,
           quantity: item.quantity,
           totalAmount: totalAmount ? totalAmount.toString() : productWithStore.price,
+          codFee: codFee ? codFee.toString() : null,
           status: 'pending',
           shippingMode: 'standard',
           buyerAddress: details?.address || '',
@@ -1631,12 +1834,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/stores/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
-      const pendingStores = await storage.getPendingStores();
-      res.json(pendingStores);
+      const stores = await storage.getPendingStores();
+      res.json(stores);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch pending stores" });
     }
   });
+
+  app.get("/api/admin/users/pending-verification", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const pendingUsers = allUsers.filter(u => u.verificationStatus === 'pending');
+      res.json(pendingUsers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending verifications" });
+    }
+  });
+
+  app.get("/api/admin/logo-changes", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const stores = await storage.getPendingLogoChanges();
+      res.json(stores);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending logo changes" });
+    }
+  });
+
+  app.get("/api/admin/orders/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const allOrders = await db.select().from(orders).where(eq(orders.sellerApproval, 'approved'));
+      const ordersWithDetails = [];
+      for (const order of allOrders) {
+        const details = await storage.getOrderWithDetails(order.id);
+        if (details && details.adminApproval === 'pending') {
+          ordersWithDetails.push(details);
+        }
+      }
+      res.json(ordersWithDetails);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending orders" });
+    }
+  });
+
+  app.get("/api/admin/payouts/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const allOrders = await db.select().from(orders).where(eq(orders.payoutStatus, 'pending'));
+      const ordersWithDetails = [];
+      for (const order of allOrders) {
+        const details = await storage.getOrderWithDetails(order.id);
+        if (details && details.status === 'completed') {
+          ordersWithDetails.push(details);
+        }
+      }
+      res.json(ordersWithDetails);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending payouts" });
+    }
+  });
+
+  app.put("/api/admin/orders/:id/payout", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body; // processed, cancelled
+      
+      const updatedOrder = await storage.updateOrder(id, { 
+        payoutStatus: status,
+        payoutProcessedAt: status === 'processed' ? new Date() : null
+      });
+      
+      res.json(updatedOrder);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update payout status" });
+    }
+  });
+
+  app.put("/api/admin/stores/:id/logo-approval", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+
+      let store;
+      if (status === 'approved') {
+        store = await storage.approveLogoChange(id);
+      } else {
+        store = await storage.rejectLogoChange(id);
+      }
+
+      if (!store) return res.status(404).json({ message: "Store not found" });
+      res.json(store);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update logo status" });
+    }
+  });
+
+  app.put("/api/admin/users/:id/verify", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status, feedback } = req.body;
+      
+      const user = await storage.updateUser(id, {
+        verificationStatus: status === 'verified' ? 'verified' : 'rejected',
+        verificationNotes: feedback,
+        verifiedAt: status === 'verified' ? new Date() : null
+      });
+      
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      if (status === 'verified') {
+        try {
+          const { uploadVerificationToDrive } = await import('./google-drive');
+          uploadVerificationToDrive(user).catch(err => console.error('Drive backup failed:', err));
+        } catch (e) {
+          console.error('Failed to import google-drive service:', e);
+        }
+      }
+
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update verification status" });
+    }
+  });
+
+  // PayStack & Config Routes
+  app.get("/api/admin/config/:key", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    const value = await storage.getAppConfig(req.params.key);
+    res.json({ value });
+  });
+
+  app.post("/api/admin/config", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    const { key, value } = req.body;
+    await storage.setAppConfig(key, value);
+    res.json({ success: true });
+  });
+
+  app.post("/api/paystack/initialize", tryAuthenticate, async (req: AuthRequest, res) => {
+    try {
+      const { amount, email, metadata } = req.body;
+      
+      // PayStack uses minor units (pesewas for GHS)
+      const paystackAmount = Math.round(amount * 100);
+      
+      const response = await fetch('https://api.paystack.co/transaction/initialize', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: paystackAmount,
+          email,
+          currency: "GHS",
+          channels: ["mobile_money", "card"],
+          metadata
+        })
+      });
+
+      const data = await response.json();
+      if (!data.status) throw new Error(data.message);
+      
+      res.json(data.data);
+    } catch (error) {
+      console.error('PayStack initialize error:', error);
+      res.status(500).json({ message: "Failed to initialize payment" });
+    }
+  });
+
+  app.get("/api/paystack/verify/:reference", tryAuthenticate, async (req: AuthRequest, res) => {
+    try {
+      const { reference } = req.params;
+      
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+        }
+      });
+
+      const data = await response.json();
+      if (!data.status || data.data.status !== 'success') {
+        return res.status(400).json({ message: "Payment verification failed" });
+      }
+
+      // Payment successful, create orders
+      const { metadata } = data.data;
+      const cartItems = metadata.cartItems;
+      const userId = metadata.userId ? parseInt(metadata.userId) : null;
+      const guestDetails = metadata.guestDetails;
+      const codFee = metadata.codFee;
+
+      const createdOrders = [];
+      for (const item of cartItems) {
+        const product = await storage.getProductById(item.productId);
+        if (!product) continue;
+        const store = await storage.getStoreById(product.storeId);
+        if (!store) continue;
+
+        const order = await storage.createOrder({
+          buyerId: userId || 0,
+          sellerId: store.userId,
+          productId: product.id,
+          quantity: item.quantity,
+          totalAmount: (parseFloat(product.price.toString()) * item.quantity).toString(),
+          codFee: codFee ? codFee.toString() : null,
+          status: 'confirmed',
+          paymentReference: reference,
+          paymentGateway: 'paystack',
+          shippingMode: 'standard',
+          buyerAddress: guestDetails?.address || '',
+          buyerEmail: guestDetails?.email || data.data.customer.email,
+          payoutStatus: 'pending'
+        });
+        createdOrders.push(order);
+      }
+
+      // Clear cart if user is logged in
+      if (userId) await storage.clearCart(userId);
+
+      res.json({ message: "Payment verified and orders created", orders: createdOrders });
+    } catch (error) {
+      console.error('PayStack verify error:', error);
+      res.status(500).json({ message: "Failed to verify payment" });
+    }
+  });
+
 
   app.get("/api/admin/stores", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
@@ -1687,10 +2106,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If store is approved, also mark user as verified
       if (status === 'approved') {
-        await storage.updateUser(store.userId, {
+        const user = await storage.updateUser(store.userId, {
           verificationStatus: 'verified',
           verifiedAt: new Date()
         });
+        
+        if (user) {
+          try {
+            const { uploadVerificationToDrive } = await import('./google-drive');
+            uploadVerificationToDrive(user).catch(err => console.error('Drive backup failed:', err));
+          } catch (e) {
+            console.error('Failed to import google-drive service:', e);
+          }
+        }
       } else if (status === 'rejected') {
         await storage.updateUser(store.userId, {
           verificationStatus: 'rejected',

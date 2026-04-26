@@ -89,6 +89,28 @@ export async function generateTrackingInsights(order: any) {
   }
 }
 
+export async function generateProductDescription(title: string, category: string) {
+  if (!process.env.GEMINI_API_KEY) {
+    return `Premium ${title} from our ${category} collection. High quality and great value for students.`;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const prompt = `You are an expert e-commerce copywriter for a Ghanaian campus marketplace. 
+    Product Title: "${title}"
+    Category: "${category}"
+    
+    Write a professional, persuasive, and concise product description (2-4 sentences) that highlights the benefits for students. Use a modern, energetic tone. Include emojis where appropriate.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().trim();
+  } catch (error) {
+    console.error("AI Description Error:", error);
+    return `Premium ${title} from our ${category} collection. High quality and great value for students.`;
+  }
+}
+
 export async function generateProductSuggestions(targetProduct: any, candidates: any[]) {
   if (!process.env.GEMINI_API_KEY || candidates.length === 0) {
     return candidates.slice(0, 4);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,11 +31,57 @@ export default function SellerSettings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: userStores = [] } = useQuery<any[]>({
+    queryKey: ['/api/stores/user', user?.id],
+    enabled: !!user,
+  });
+
+  const primaryStore = userStores[0];
+
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>(user?.paymentMethod || 'bank');
   const [idScanFile, setIdScanFile] = useState<File | null>(null);
+  const [idScanBackFile, setIdScanBackFile] = useState<File | null>(null);
   const [faceScanFile, setFaceScanFile] = useState<File | null>(null);
   const [idScanPreview, setIdScanPreview] = useState<string | null>(null);
+  const [idScanBackPreview, setIdScanBackPreview] = useState<string | null>(null);
   const [faceScanPreview, setFaceScanPreview] = useState<string | null>(null);
+  
+  // New verification fields state
+  const [idType, setIdType] = useState<string>('national_id');
+  const [whatsappBusinessNumber, setWhatsappBusinessNumber] = useState<string>('');
+  const [socialMediaPresence, setSocialMediaPresence] = useState<string>('');
+  const [sellerVerificationType, setSellerVerificationType] = useState<string>('student');
+  const [sellerAddress, setSellerAddress] = useState<string>('');
+  const [location, setLocation] = useState<{lat: string, lng: string} | null>(null);
+  
+  // Store logo change state
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  const captureLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            lat: position.coords.latitude.toString(),
+            lng: position.coords.longitude.toString()
+          });
+          toast({
+            title: 'Location captured',
+            description: 'Your live location has been successfully captured.',
+          });
+        },
+        (error) => {
+          toast({
+            title: 'Location error',
+            description: 'Could not capture your live location. Please ensure location services are enabled.',
+            variant: 'destructive',
+          });
+        }
+      );
+    }
+  };
 
   const form = useForm<PaymentDetailsData>({
     resolver: zodResolver(paymentDetailsSchema),
@@ -76,10 +122,28 @@ export default function SellerSettings() {
       if (!idScanFile || !faceScanFile) {
         throw new Error('Please upload both ID and face scan');
       }
+      
+      if (idType !== 'passport' && !idScanBackFile) {
+        throw new Error('Please upload the back of your ID');
+      }
+
+      if (!location) {
+        throw new Error('Please capture your live location');
+      }
 
       const formData = new FormData();
       formData.append('idScan', idScanFile);
+      if (idScanBackFile) {
+        formData.append('idScanBack', idScanBackFile);
+      }
       formData.append('faceScan', faceScanFile);
+      formData.append('idType', idType);
+      formData.append('whatsappBusinessNumber', whatsappBusinessNumber);
+      formData.append('socialMediaPresence', socialMediaPresence);
+      formData.append('sellerVerificationType', sellerVerificationType);
+      formData.append('sellerAddress', sellerAddress);
+      formData.append('latitude', location.lat);
+      formData.append('longitude', location.lng);
 
       const response = await apiRequest('POST', '/api/upload/verification', formData);
       return response.json();
@@ -91,8 +155,10 @@ export default function SellerSettings() {
         description: 'Your documents are being reviewed. You will be notified once verified.',
       });
       setIdScanFile(null);
+      setIdScanBackFile(null);
       setFaceScanFile(null);
       setIdScanPreview(null);
+      setIdScanBackPreview(null);
       setFaceScanPreview(null);
     },
     onError: (error) => {
@@ -120,6 +186,18 @@ export default function SellerSettings() {
     }
   };
 
+  const handleIdScanBackChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIdScanBackFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setIdScanBackPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleFaceScanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -134,6 +212,46 @@ export default function SellerSettings() {
 
   const handleVerificationSubmit = () => {
     verificationMutation.mutate();
+  };
+
+  const logoMutation = useMutation({
+    mutationFn: async (storeId: number) => {
+      if (!logoFile) throw new Error('Please select an image');
+      
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+      
+      const response = await apiRequest('POST', `/api/stores/${storeId}/request-logo-change`, formData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
+      toast({
+        title: 'Logo change requested',
+        description: 'Your new store logo has been submitted for admin approval.',
+      });
+      setLogoFile(null);
+      setLogoPreview(null);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to submit logo change request.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const getVerificationStatusBadge = () => {
@@ -384,6 +502,57 @@ export default function SellerSettings() {
         </CardContent>
       </Card>
 
+      {/* Store Logo Change */}
+      {primaryStore && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Store Profile Picture</CardTitle>
+            <CardDescription>
+              Update your store's logo. Changes require admin approval.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 rounded-2xl overflow-hidden border bg-gray-50 flex-shrink-0">
+                <img 
+                  src={logoPreview || primaryStore.logoUrl || '/placeholder-logo.png'} 
+                  className="w-full h-full object-cover" 
+                  alt="Store Logo" 
+                />
+              </div>
+              <div className="flex-grow space-y-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoChange}
+                  data-testid="input-store-logo"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Recommended: Square image, at least 400x400px.
+                </p>
+              </div>
+            </div>
+
+            {primaryStore.pendingLogoUrl && (
+              <Alert>
+                <Clock className="h-4 w-4" />
+                <AlertDescription>
+                  You have a logo change request pending approval.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <Button
+              onClick={() => logoMutation.mutate(primaryStore.id)}
+              disabled={!logoFile || logoMutation.isPending}
+              className="w-full"
+            >
+              {logoMutation.isPending ? 'Uploading...' : 'Request Logo Change'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Seller Verification Form */}
       <Card>
         <CardHeader>
@@ -405,24 +574,138 @@ export default function SellerSettings() {
           </Alert>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              ID Scan (Government-issued ID)
-            </label>
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleIdScanChange}
-              disabled={user?.verificationStatus === 'verified'}
-              data-testid="input-id-scan"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Verification Type</label>
+              <Select value={sellerVerificationType} onValueChange={setSellerVerificationType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">University Student</SelectItem>
+                  <SelectItem value="business">Store / Business</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                {sellerVerificationType === 'student' ? 'University Name' : 'Business / Store Name'}
+              </label>
+              <Input 
+                placeholder={sellerVerificationType === 'student' ? 'e.g. University of Ghana' : 'e.g. Kay Store'} 
+                value={sellerVerificationType === 'student' ? (user?.university || '') : (primaryStore?.name || '')}
+                disabled
+              />
+              <p className="text-[10px] text-muted-foreground">
+                This is pulled from your profile.
+              </p>
+            </div>
+          </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">ID Type</label>
+              <Select value={idType} onValueChange={setIdType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select ID type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="national_id">National ID</SelectItem>
+                  <SelectItem value="driving_license">Driving License</SelectItem>
+                  <SelectItem value="passport">Passport</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">WhatsApp Business Number</label>
+              <Input 
+                placeholder="e.g. +233240000000" 
+                value={whatsappBusinessNumber}
+                onChange={(e) => setWhatsappBusinessNumber(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Social Media Presence (URL)</label>
+              <Input 
+                placeholder="Instagram, Facebook, or LinkedIn URL" 
+                value={socialMediaPresence}
+                onChange={(e) => setSocialMediaPresence(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Store Address / Location</label>
+            <Input 
+              placeholder="Enter your physical store or residential address" 
+              value={sellerAddress}
+              onChange={(e) => setSellerAddress(e.target.value)}
             />
-            {idScanPreview && (
-              <div className="mt-2">
-                <img
-                  src={idScanPreview}
-                  alt="ID Scan Preview"
-                  className="w-full max-w-md h-48 object-cover rounded border"
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium mb-2">Live Location</label>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={captureLocation}
+                className={location ? "border-green-500 text-green-500" : ""}
+              >
+                {location ? "Location Captured ✓" : "Capture Live Location"}
+              </Button>
+              {location && (
+                <span className="text-xs text-gray-500">
+                  {location.lat.substring(0, 8)}, {location.lng.substring(0, 8)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                ID Scan (Front{idType !== 'passport' ? ' side' : ''})
+              </label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleIdScanChange}
+                disabled={user?.verificationStatus === 'verified'}
+                data-testid="input-id-scan"
+              />
+              {idScanPreview && (
+                <div className="mt-2">
+                  <img
+                    src={idScanPreview}
+                    alt="ID Scan Preview"
+                    className="w-full max-w-md h-48 object-cover rounded border"
+                  />
+                </div>
+              )}
+            </div>
+
+            {idType !== 'passport' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  ID Scan (Back side)
+                </label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleIdScanBackChange}
+                  disabled={user?.verificationStatus === 'verified'}
+                  data-testid="input-id-scan-back"
                 />
+                {idScanBackPreview && (
+                  <div className="mt-2">
+                    <img
+                      src={idScanBackPreview}
+                      alt="ID Scan Back Preview"
+                      className="w-full max-w-md h-48 object-cover rounded border"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -453,7 +736,7 @@ export default function SellerSettings() {
           {user?.verificationStatus !== 'verified' && (
             <Button
               onClick={handleVerificationSubmit}
-              disabled={!idScanFile || !faceScanFile || verificationMutation.isPending}
+              disabled={!idScanFile || (idType !== 'passport' && !idScanBackFile) || !faceScanFile || !location || verificationMutation.isPending}
               className="w-full"
               data-testid="button-submit-verification"
             >

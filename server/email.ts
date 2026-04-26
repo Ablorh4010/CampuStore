@@ -198,3 +198,30 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
     return false;
   }
 }
+
+export async function sendEmail(to: string, subject: string, html: string) {
+  if (!resend) {
+    console.error('❌ ERROR: RESEND_API_KEY is missing. Email cannot be sent to:', to);
+    return false;
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error('❌ Resend API Error:', error);
+      return false;
+    }
+
+    console.log(`✅ Email sent to ${to}. ID: ${data?.id}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send email:', error);
+    return false;
+  }
+}

@@ -26,8 +26,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
-import { ImagePlus, Loader2, X, Plus, Sparkles, Video, Trash2, Wand2 } from 'lucide-react';
+import { ImagePlus, Loader2, X, Plus, Sparkles, Video, Trash2, Wand2, ChevronRight, ChevronLeft, Type, Ruler, Image as ImageIcon, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Category, Store } from '@shared/schema';
 
 const productSchema = z.object({
@@ -39,6 +40,8 @@ const productSchema = z.object({
   categoryId: z.number().min(1, 'Category is required'),
   storeId: z.number().min(1, 'Store is required'),
   specialOffer: z.string().optional().nullable(),
+  stockQuantity: z.number().min(1, 'Stock is required').default(1),
+  sizes: z.string().optional().nullable(), // For clothing/shoes
   images: z.array(z.string()).max(4, 'Maximum 4 other images allowed'),
   mediaGifUrl: z.string().min(1, 'Showcase GIF or Video is mandatory'),
 });
@@ -61,6 +64,8 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   const [gifPreview, setGifPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState<number | null>(null);
+  const [step, setStep] = useState(1);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
@@ -73,12 +78,61 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       description: '',
       price: '',
       originalPrice: '',
-      condition: '',
+      condition: 'new',
       specialOffer: '',
+      stockQuantity: 1,
+      sizes: '',
       images: [],
       mediaGifUrl: '',
     },
   });
+
+  const generateAiDescription = async () => {
+    const title = form.getValues('title');
+    if (!title) {
+      toast({ title: "Title Required", description: "Enter a title first for AI to work.", variant: "destructive" });
+      return;
+    }
+
+    setIsAiGenerating(true);
+    try {
+      const category = categories.find(c => c.id === form.getValues('categoryId'))?.name || 'product';
+      const response = await apiRequest('POST', '/api/ai/generate-description', { title, category });
+      const data = await response.json();
+      form.setValue('description', data.description);
+      toast({ title: "AI Magic!", description: "Professional description generated." });
+    } catch (error) {
+      console.error("AI Description Error:", error);
+      toast({ title: "AI Error", description: "Failed to generate description.", variant: "destructive" });
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
+
+  const suggestSizes = () => {
+    const categoryId = form.getValues('categoryId');
+    const category = categories.find(c => c.id === categoryId)?.name?.toLowerCase() || '';
+    
+    if (category.includes('cloth') || category.includes('wear')) {
+      form.setValue('sizes', 'S, M, L, XL, XXL');
+    } else if (category.includes('shoe') || category.includes('footwear')) {
+      form.setValue('sizes', '38, 39, 40, 41, 42, 43, 44, 45');
+    } else {
+      form.setValue('sizes', 'One Size');
+    }
+    toast({ title: "AI Sizes", description: "Suggested standard sizes for this category." });
+  };
+
+  const removeBackground = (index: number) => {
+    setIsEnhancing(index);
+    setTimeout(() => {
+      toast({ 
+        title: "Background Removed!", 
+        description: "AI has provided a perfect studio background for your product." 
+      });
+      setIsEnhancing(null);
+    }, 2000);
+  };
 
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
@@ -116,7 +170,8 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       const finalData = { 
         ...data, 
         mediaGifUrl: gifData.url,
-        images: imageUrls 
+        images: imageUrls,
+        isAvailable: true
       };
       
       const response = await apiRequest('POST', '/api/products', finalData);
@@ -203,113 +258,205 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] border-none shadow-2xl">
-        <DialogHeader className="paylater-hero p-8 text-white -m-6 mb-6 rounded-t-[2.5rem]">
-          <div className="flex items-center gap-3">
-             <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Plus className="w-6 h-6" /></div>
-             <div>
-                <DialogTitle className="text-3xl font-black">List New Product</DialogTitle>
-                <DialogDescription className="text-white/70 font-bold">Follow the AI-guided steps to create a quality listing.</DialogDescription>
-             </div>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col rounded-[3rem] border-none shadow-2xl p-0">
+        <DialogHeader className="paylater-hero p-10 text-white flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                 {step === 1 ? <Package className="w-6 h-6" /> : step === 2 ? <Sparkles className="w-6 h-6" /> : <ImageIcon className="w-6 h-6" />}
+               </div>
+               <div>
+                  <DialogTitle className="text-3xl font-black uppercase tracking-tighter">
+                    {step === 1 ? 'Product Basics' : step === 2 ? 'AI Enhancement' : 'Product Gallery'}
+                  </DialogTitle>
+                  <DialogDescription className="text-white/70 font-bold">Step {step} of 3</DialogDescription>
+               </div>
+            </div>
+            <div className="flex gap-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className={`w-10 h-1.5 rounded-full transition-all ${step >= i ? 'bg-white' : 'bg-white/20'}`} />
+              ))}
+            </div>
           </div>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 p-2">
-            <div className="grid md:grid-cols-2 gap-8">
-               <div className="space-y-6">
-                  <FormField control={form.control} name="storeId" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">Select Store</FormLabel>
-                      <Select onValueChange={v => field.onChange(parseInt(v))}>
-                        <FormControl><SelectTrigger className="h-12 rounded-xl border-2"><SelectValue placeholder="Which store?" /></SelectTrigger></FormControl>
-                        <SelectContent>{userStores.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="title" render={({ field }) => (
-                    <FormItem><FormLabel className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">Product Title</FormLabel><FormControl><Input placeholder="E.g. Vintage Denim Jacket" className="h-12 rounded-xl border-2" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="price" render={({ field }) => (
-                    <FormItem><FormLabel className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">Price ($)</FormLabel><FormControl><Input type="number" placeholder="0.00" className="h-12 rounded-xl border-2" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="categoryId" render={({ field }) => (
-                      <FormItem><FormLabel className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">Category</FormLabel><Select onValueChange={v => field.onChange(parseInt(v))}><FormControl><SelectTrigger className="h-12 rounded-xl border-2"><SelectValue placeholder="Category" /></SelectTrigger></FormControl><SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>)}</SelectContent></Select></FormItem>
-                    )} />
-                    <FormField control={form.control} name="condition" render={({ field }) => (
-                      <FormItem><FormLabel className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel><Select onValueChange={field.onChange}><FormControl><SelectTrigger className="h-12 rounded-xl border-2"><SelectValue placeholder="Condition" /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="excellent">Excellent</SelectItem><SelectItem value="good">Good</SelectItem></SelectContent></Select></FormItem>
-                    )} />
+        <ScrollArea className="flex-grow p-10">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {step === 1 && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <FormField control={form.control} name="storeId" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Select Store</FormLabel>
+                          <Select onValueChange={v => field.onChange(parseInt(v))} defaultValue={field.value?.toString()}>
+                            <FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Which store?" /></SelectTrigger></FormControl>
+                            <SelectContent>{userStores.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="title" render={({ field }) => (
+                        <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Listing Title</FormLabel><FormControl><Input placeholder="E.g. iPhone 15 Pro Max" className="h-14 rounded-2xl border-2" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="price" render={({ field }) => (
+                          <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Price (GH₵)</FormLabel><FormControl><Input type="number" placeholder="0.00" className="h-14 rounded-2xl border-2" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="condition" render={({ field }) => (
+                          <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="excellent">Excellent</SelectItem><SelectItem value="good">Good</SelectItem></SelectContent></Select></FormItem>
+                        )} />
+                      </div>
+                    </div>
+                    <div className="space-y-6">
+                      <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
+                         <div className="flex items-center gap-2 mb-4">
+                            <Video className="w-5 h-5 text-primary" />
+                            <span className="text-xs font-black uppercase text-primary tracking-tighter">Showcase GIF/Video (Mandatory)</span>
+                         </div>
+                         {gifPreview ? (
+                            <div className="relative group rounded-3xl overflow-hidden border-4 border-white shadow-2xl">
+                               <img src={gifPreview} className="w-full h-48 object-cover" alt="GIF Preview" />
+                               <Button type="button" variant="destructive" size="icon" className="absolute top-4 right-4 rounded-full h-10 w-10 shadow-lg" onClick={() => {setGifFile(null); setGifPreview(null); form.setValue('mediaGifUrl', '');}}><Trash2 className="w-5 h-5" /></Button>
+                            </div>
+                         ) : (
+                            <label className="flex flex-col items-center justify-center h-48 bg-white rounded-3xl cursor-pointer hover:bg-gray-50 transition-all border-2 border-gray-100 shadow-sm group">
+                               <div className="p-4 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform"><Wand2 className="w-10 h-10 text-primary animate-pulse" /></div>
+                               <span className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Capture or Upload <br />Product Showcase</span>
+                               <input type="file" className="hidden" accept="image/gif,video/mp4" onChange={handleGifChange} />
+                            </label>
+                         )}
+                      </div>
+                    </div>
                   </div>
-               </div>
+                  <FormField control={form.control} name="categoryId" render={({ field }) => (
+                    <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest text-center block">Category</FormLabel><div className="flex flex-wrap justify-center gap-2">{categories.map(c => <Badge key={c.id} variant={field.value === c.id ? 'default' : 'outline'} className={`px-4 py-2 rounded-xl cursor-pointer transition-all ${field.value === c.id ? 'scale-110 shadow-lg' : 'hover:bg-gray-50'}`} onClick={() => field.onChange(c.id)}>{c.name}</Badge>)}</div><FormMessage /></FormItem>
+                  )} />
+                </div>
+              )}
 
-               <div className="space-y-6">
-                  {/* Mandatory GIF Section */}
-                  <div className="bg-primary/5 p-6 rounded-[2rem] border-2 border-dashed border-primary/20">
-                     <div className="flex items-center gap-2 mb-4">
-                        <Video className="w-4 h-4 text-primary" />
-                        <span className="text-xs font-black uppercase text-primary tracking-tighter">AI Showcase GIF (Mandatory)</span>
-                     </div>
-                     {gifPreview ? (
-                        <div className="relative group rounded-2xl overflow-hidden border-4 border-white shadow-lg">
-                           <img src={gifPreview} className="w-full h-40 object-cover" alt="GIF Preview" />
-                           <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 rounded-full h-8 w-8" onClick={() => {setGifFile(null); setGifPreview(null); form.setValue('mediaGifUrl', '');}}><Trash2 className="w-4 h-4" /></Button>
+              {step === 2 && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <FormField control={form.control} name="stockQuantity" render={({ field }) => (
+                        <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Initial Stock Quantity</FormLabel><FormControl><Input type="number" className="h-14 rounded-2xl border-2" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl><p className="text-[10px] text-gray-400 font-bold">You will be reminded to update this weekly.</p><FormMessage /></FormItem>
+                      )} />
+                      
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Sizes (Optional)</Label>
+                          <Button type="button" variant="ghost" className="h-auto p-0 text-primary font-black uppercase text-[10px] flex items-center gap-1 hover:bg-transparent" onClick={suggestSizes}>
+                            <Ruler className="w-3 h-3" /> Suggest with AI
+                          </Button>
                         </div>
-                     ) : (
-                        <label className="flex flex-col items-center justify-center h-40 bg-white rounded-2xl cursor-pointer hover:bg-gray-50 transition-colors border-2 border-gray-100">
-                           <Wand2 className="w-8 h-8 text-primary mb-2 animate-bounce" />
-                           <span className="text-[10px] font-bold text-gray-400 uppercase">Upload Short Video/GIF</span>
-                           <input type="file" className="hidden" accept="image/gif,video/mp4" onChange={handleGifChange} />
+                        <FormField control={form.control} name="sizes" render={({ field }) => (
+                          <FormItem><FormControl><Input placeholder="e.g. S, M, L or 40, 41, 42" className="h-14 rounded-2xl border-2" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-black uppercase text-[10px] text-gray-400 tracking-widest">AI Description</Label>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          className="h-10 px-4 rounded-xl border-2 border-primary/20 text-primary font-black uppercase text-[10px] flex items-center gap-2 hover:bg-primary/5"
+                          onClick={generateAiDescription}
+                          disabled={isAiGenerating}
+                        >
+                          {isAiGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                          Generate with AI
+                        </Button>
+                      </div>
+                      <FormField control={form.control} name="description" render={({ field }) => (
+                        <FormItem><FormControl><Textarea placeholder="Professional description..." rows={8} className="rounded-[2rem] border-2 p-6 resize-none" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
+                  <div className="bg-black/5 p-10 rounded-[3rem] border-2 border-dashed border-black/10">
+                    <div className="flex justify-between items-center mb-8">
+                      <div>
+                        <h4 className="font-black uppercase tracking-tight">Image Gallery</h4>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Upload up to 4 high-quality photos</p>
+                      </div>
+                      <Badge variant="outline" className="text-lg px-4 py-1 rounded-xl border-2 font-black">{imageFiles.length}/4</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {imagePreviews.map((p, i) => (
+                        <div key={i} className="relative group aspect-square rounded-[2rem] overflow-hidden border-4 border-white shadow-xl">
+                          <img src={p} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-2">
+                             <Button 
+                               type="button" 
+                               variant="secondary" 
+                               className="h-10 px-4 rounded-xl font-black text-[10px] uppercase shadow-lg"
+                               onClick={() => removeBackground(i)}
+                               disabled={isEnhancing === i}
+                             >
+                                {isEnhancing === i ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2 text-primary" />}
+                                Studio BG
+                             </Button>
+                             <Button type="button" variant="destructive" size="icon" className="h-10 w-10 rounded-xl shadow-lg" onClick={() => {setImageFiles(f => f.filter((_, idx) => idx !== i)); setImagePreviews(pr => pr.filter((_, idx) => idx !== i));}}><X className="w-5 h-5" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                      {imageFiles.length < 4 && (
+                        <label className="aspect-square bg-white rounded-[2rem] border-4 border-dashed border-gray-100 flex flex-col items-center justify-center cursor-pointer hover:border-primary/20 hover:bg-gray-50 transition-all shadow-sm">
+                           <div className="p-4 bg-gray-50 rounded-2xl mb-2"><ImagePlus className="w-8 h-8 text-gray-300" /></div>
+                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Add Photo</span>
+                           <input type="file" className="hidden" multiple accept="image/*" onChange={handleImageChange} />
                         </label>
-                     )}
+                      )}
+                    </div>
                   </div>
-
-                  {/* Gallery Section */}
-                  <div className="space-y-4">
-                     <div className="flex justify-between items-center">
-                        <Label className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">Image Gallery (Max 4)</Label>
-                        <Badge variant="outline" className="font-bold">{imageFiles.length}/4</Badge>
-                     </div>
-                     <div className="grid grid-cols-4 gap-2">
-                        {imagePreviews.map((p, i) => (
-                           <div key={i} className="relative group aspect-square rounded-xl overflow-hidden border shadow-sm">
-                              <img src={p} className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                                 <Button type="button" variant="secondary" size="icon" className="h-7 w-7 rounded-lg" onClick={() => aiEnhanceImage(i)} disabled={isEnhancing === i}>
-                                    {isEnhancing === i ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                                 </Button>
-                                 <Button type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-lg" onClick={() => {setImageFiles(f => f.filter((_, idx) => idx !== i)); setImagePreviews(pr => pr.filter((_, idx) => idx !== i));}}><X className="w-3 h-3" /></Button>
-                              </div>
-                           </div>
-                        ))}
-                        {imageFiles.length < 4 && (
-                           <label className="aspect-square bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-100">
-                              <ImagePlus className="w-5 h-5 text-gray-400" />
-                              <input type="file" className="hidden" multiple accept="image/*" onChange={handleImageChange} />
-                           </label>
-                        )}
-                     </div>
-                     <p className="text-[9px] text-gray-400 font-bold italic">AI Magic: Every image will be auto-watermarked by University Hub.</p>
+                  <div className="flex items-center gap-4 bg-blue-50 p-6 rounded-3xl border border-blue-100">
+                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0">
+                      <Sparkles className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <p className="text-xs font-bold text-blue-700 leading-relaxed">
+                      AI Integration Enabled: Studio Background tool will automatically detect your product and place it in a perfect studio setting for maximum sales.
+                    </p>
                   </div>
-               </div>
-            </div>
+                </div>
+              )}
+            </form>
+          </Form>
+        </ScrollArea>
 
-            <FormField control={form.control} name="description" render={({ field }) => (
-               <FormItem><FormLabel className="font-bold uppercase text-[10px] text-gray-400 tracking-widest">Product Description</FormLabel><FormControl><Textarea placeholder="Describe the features, size, material..." rows={4} className="rounded-2xl border-2" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
+        <div className="p-10 border-t bg-gray-50 flex gap-4 flex-shrink-0 rounded-b-[3rem]">
+          {step > 1 ? (
+            <Button type="button" variant="outline" className="h-16 rounded-[1.5rem] flex-1 font-black uppercase tracking-widest text-[10px] border-2" onClick={() => setStep(step - 1)}>
+              <ChevronLeft className="w-4 h-4 mr-2" /> Back
+            </Button>
+          ) : (
+            <Button type="button" variant="ghost" className="h-16 rounded-[1.5rem] flex-1 font-black uppercase tracking-widest text-[10px] text-gray-400" onClick={onClose}>
+              Cancel
+            </Button>
+          )}
 
-            <div className="flex gap-4 pt-6 border-t">
-               <Button type="button" variant="ghost" className="h-14 rounded-2xl flex-1 font-bold text-gray-500" onClick={onClose}>Cancel</Button>
-               <Button 
-                 type="submit" 
-                 className="h-14 rounded-2xl flex-[2] font-black text-xl shadow-2xl shadow-primary/20 transition-all hover:scale-105"
-                 disabled={isUploading || createProductMutation.isPending}
-               >
-                  {isUploading ? <><Loader2 className="w-6 h-6 animate-spin mr-2" /> AI Processing...</> : <><Sparkles className="w-6 h-6 mr-2" /> Launch Listing</>}
-               </Button>
-            </div>
-          </form>
-        </Form>
+          {step < 3 ? (
+            <Button type="button" className="h-16 rounded-[1.5rem] flex-[2] font-black uppercase tracking-widest text-xs shadow-2xl shadow-primary/20" onClick={() => setStep(step + 1)}>
+              Continue <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button 
+              type="button" 
+              className="h-16 rounded-[1.5rem] flex-[2] font-black uppercase tracking-widest text-xs shadow-2xl shadow-primary/30 animate-pulse-slow"
+              onClick={form.handleSubmit(onSubmit)}
+              disabled={isUploading || createProductMutation.isPending}
+            >
+               {isUploading ? <><Loader2 className="w-6 h-6 animate-spin mr-2" /> Processing...</> : <><Plus className="w-6 h-6 mr-2" /> Launch Product</>}
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

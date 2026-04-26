@@ -35,8 +35,16 @@ export const users = pgTable("users", {
   
   // Seller verification
   verificationStatus: text("verification_status").notNull().default("unverified"), // unverified, pending, verified, rejected
+  idType: text("id_type"), // passport, national_id, driving_license
   idScanUrl: text("id_scan_url"),
+  idScanUrlBack: text("id_scan_url_back"),
   faceScanUrl: text("face_scan_url"),
+  sellerLatitude: text("seller_latitude"),
+  sellerLongitude: text("seller_longitude"),
+  sellerAddress: text("seller_address"),
+  whatsappBusinessNumber: text("whatsapp_business_number"),
+  socialMediaPresence: text("social_media_presence"),
+  sellerVerificationType: text("seller_verification_type"), // student, business
   verificationNotes: text("verification_notes"),
   verifiedAt: timestamp("verified_at"),
   
@@ -56,7 +64,8 @@ export const stores = pgTable("stores", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   logoUrl: text("logo_url"), // Store profile picture
-  university: text("university").notNull(),
+  pendingLogoUrl: text("pending_logo_url"), // For admin approval
+  university: text("university"),
   campus: text("campus"),
   city: text("city").notNull(),
   rating: decimal("rating", { precision: 3, scale: 2 }).notNull().default("0"),
@@ -93,6 +102,8 @@ export const products = pgTable("products", {
   images: text("images").array().notNull(), // At most 4 images
   mediaGifUrl: text("media_gif_url").notNull(), // Mandatory short quality GIF/Video
   specialOffer: text("special_offer"),
+  stockQuantity: integer("stock_quantity").notNull().default(1),
+  sizes: text("sizes"), // e.g. "S,M,L" or "40,41,42"
   isAvailable: boolean("is_available").notNull().default(true),
   approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
   viewCount: integer("view_count").notNull().default(0),
@@ -106,10 +117,17 @@ export const orders = pgTable("orders", {
   productId: integer("product_id").notNull().references(() => products.id),
   quantity: integer("quantity").notNull().default(1),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  codFee: decimal("cod_fee", { precision: 10, scale: 2 }), // 10% fee for COD
   status: text("status").notNull().default("pending"), // pending, confirmed, completed, cancelled, rejected
+  sellerApproval: text("seller_approval").notNull().default("pending"), // pending, approved, rejected
+  adminApproval: text("admin_approval").notNull().default("pending"), // pending, approved, rejected
+  fulfillmentStatus: text("fulfillment_status").notNull().default("order_received"), // order_received, seller_approved, admin_approved, logistics_handover, in_transit, delivered, confirmed
+  deliveryStatus: text("delivery_status").default("pending"), 
   shippingMode: text("shipping_mode"), // seller_delivery, affordcampus_pickup, ems, ghana_post_standard, express_delivery
-  deliveryStatus: text("delivery_status").default("pending"), // pending, in_transit, delivered, rejected
+  shippingStatus: text("shipping_status").default("pending"),
   trackingNumber: text("tracking_number"),
+  paymentReference: text("payment_reference"),
+  paymentGateway: text("payment_gateway").default("stripe"), // stripe, paystack, manual
   carrier: text("carrier"), // Ghana Post, FedEx, etc.
   estimatedDeliveryDate: timestamp("estimated_delivery_date"),
   trackingHistory: text("tracking_history"), // Text summary of updates
@@ -346,6 +364,13 @@ export const campusActivity = pgTable("campus_activity", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const appConfig = pgTable("app_config", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(), // e.g., 'admin_momo_number'
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -421,7 +446,6 @@ export const insertOtpSchema = createInsertSchema(otpCodes).omit({
   createdAt: true,
 });
 
-// Event schemas
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
   createdAt: true,
@@ -432,7 +456,6 @@ export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
   createdAt: true,
 });
 
-// Club schemas
 export const insertClubSchema = createInsertSchema(clubs).omit({
   id: true,
   isVerified: true,
@@ -445,7 +468,6 @@ export const insertClubMembershipSchema = createInsertSchema(clubMemberships).om
   joinedAt: true,
 });
 
-// Auction schemas
 export const insertAuctionSchema = createInsertSchema(auctions).omit({
   id: true,
   currentBid: true,
@@ -461,7 +483,6 @@ export const insertAuctionBidSchema = createInsertSchema(auctionBids).omit({
   createdAt: true,
 });
 
-// Study group schemas
 export const insertStudyGroupSchema = createInsertSchema(studyGroups).omit({
   id: true,
   memberCount: true,
@@ -473,7 +494,6 @@ export const insertStudyGroupMembershipSchema = createInsertSchema(studyGroupMem
   joinedAt: true,
 });
 
-// Social schemas
 export const insertUserFollowSchema = createInsertSchema(userFollows).omit({
   id: true,
   createdAt: true,
@@ -484,7 +504,6 @@ export const insertSellerReviewSchema = createInsertSchema(sellerReviews).omit({
   createdAt: true,
 });
 
-// Gamification schemas
 export const insertBadgeSchema = createInsertSchema(badges).omit({
   id: true,
   createdAt: true,
@@ -510,6 +529,8 @@ export const insertCampusActivitySchema = createInsertSchema(campusActivity).omi
   createdAt: true,
 });
 
+export const insertAppConfigSchema = createInsertSchema(appConfig);
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -527,7 +548,6 @@ export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type OtpCode = typeof otpCodes.$inferSelect;
 export type InsertOtp = z.infer<typeof insertOtpSchema>;
 
-// New feature types
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type EventRsvp = typeof eventRsvps.$inferSelect;
@@ -566,6 +586,9 @@ export type InsertWeeklyDeal = z.infer<typeof insertWeeklyDealSchema>;
 export type CampusActivity = typeof campusActivity.$inferSelect;
 export type InsertCampusActivity = z.infer<typeof insertCampusActivitySchema>;
 
+export type AppConfig = typeof appConfig.$inferSelect;
+export type InsertAppConfig = z.infer<typeof insertAppConfigSchema>;
+
 // Extended types for API responses
 export type ProductWithStore = Product & {
   store: Store & { user: Pick<User, 'firstName' | 'lastName' | 'avatar'> };
@@ -586,7 +609,7 @@ export type StoreWithUser = Store & {
 };
 
 export type OrderWithDetails = Order & {
-  product: Product;
+  product: Product & { category: Category };
   buyer: Pick<User, 'firstName' | 'lastName' | 'email'>;
   seller: Pick<User, 'firstName' | 'lastName' | 'email'>;
 };

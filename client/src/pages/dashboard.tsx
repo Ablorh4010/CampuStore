@@ -10,13 +10,15 @@ import {
   Plus, Package, ShoppingCart, TrendingUp, Settings, 
   Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
   Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
-  Sparkles, Wallet, Smartphone, ChevronRight
+  Sparkles, Wallet, Smartphone, ChevronRight, Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import ProductForm from '@/components/modals/product-form';
 import type { ProductWithStore, Store, OrderWithDetails, CampusActivity } from '@shared/schema';
 
 export default function Dashboard() {
@@ -27,6 +29,7 @@ export default function Dashboard() {
   const [viewingTracking, setViewingTracking] = useState<OrderWithDetails | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
 
   const fetchAiInsight = async (orderId: number) => {
     setIsGeneratingInsight(true);
@@ -81,6 +84,26 @@ export default function Dashboard() {
     },
   });
 
+  const updateOrderApprovalMutation = useMutation({
+    mutationFn: async ({ orderId, approval }: { orderId: number, approval: string }) => {
+      return apiRequest('PUT', `/api/orders/${orderId}/seller-approval`, { approval });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/seller'] });
+      toast({ title: "Order Confirmed", description: "Sent to admin for final approval." });
+    },
+  });
+
+  const updateBuyerConfirmationMutation = useMutation({
+    mutationFn: async ({ orderId, confirmation }: { orderId: number, confirmation: string }) => {
+      return apiRequest('PUT', `/api/orders/${orderId}/buyer-confirmation`, { confirmation });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders/buyer'] });
+      toast({ title: "Success", description: "Order status updated." });
+    },
+  });
+
   if (storesLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -95,13 +118,32 @@ export default function Dashboard() {
     <div className="min-h-screen bg-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-          <div className="animate-reveal-up">
-            <Badge className="mb-4 bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
-              Store Dashboard
-            </Badge>
-            <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">
-              Welcome back, <br /><span className="text-primary italic">{user?.firstName}.</span>
-            </h1>
+          <div className="flex items-center gap-6 animate-reveal-up">
+            <div className="w-24 h-24 rounded-[2rem] overflow-hidden border-4 border-gray-50 shadow-xl flex-shrink-0">
+               <img 
+                 src={primaryStore.logoUrl || '/placeholder-logo.png'} 
+                 className="w-full h-full object-cover" 
+                 alt={primaryStore.name} 
+               />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
+                  Store Dashboard
+                </Badge>
+                {primaryStore.approvalStatus === 'pending' && (
+                  <Badge className="bg-yellow-100 text-yellow-700 border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
+                    Approval Pending
+                  </Badge>
+                )}
+              </div>
+              <h1 className="text-4xl font-black text-gray-900 tracking-tighter uppercase leading-none">
+                {primaryStore.name}
+              </h1>
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mt-1">
+                Managed by {user?.firstName} {user?.lastName}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
              <Link href="/seller-settings">
@@ -109,13 +151,23 @@ export default function Dashboard() {
                  <Settings className="w-4 h-4 mr-2" /> Store Settings
                </Button>
              </Link>
-             <Link href="/browse">
-               <Button className="rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-black/10">
-                 <Plus className="w-4 h-4 mr-2" /> New Listing
-               </Button>
-             </Link>
+             <Button 
+               onClick={() => setIsProductFormOpen(true)}
+               className="rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-black/10"
+             >
+               <Plus className="w-4 h-4 mr-2" /> New Listing
+             </Button>
           </div>
         </div>
+
+        {/* Weekly Stock Reminder */}
+        <Alert className="mb-8 rounded-[2rem] border-primary/20 bg-primary/5 py-6">
+          <Clock className="h-5 w-5 text-primary" />
+          <AlertTitle className="font-black uppercase tracking-widest text-[10px] text-primary mb-1">Weekly Stock Update</AlertTitle>
+          <AlertDescription className="font-bold text-gray-700">
+            Please ensure all your product quantities are accurate. Regular updates help avoid order cancellations.
+          </AlertDescription>
+        </Alert>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -141,8 +193,8 @@ export default function Dashboard() {
           <TabsList className="inline-flex h-14 items-center justify-center rounded-2xl bg-gray-50 p-1 border">
             <TabsTrigger value="overview" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Overview</TabsTrigger>
             <TabsTrigger value="listings" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Inventory</TabsTrigger>
-            <TabsTrigger value="sales" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Sales</TabsTrigger>
-            <TabsTrigger value="purchases" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Orders</TabsTrigger>
+            <TabsTrigger value="sales" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Orders Received</TabsTrigger>
+            <TabsTrigger value="purchases" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">My Purchases</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-0">
@@ -229,21 +281,117 @@ export default function Dashboard() {
                        <div className="flex justify-between items-start mb-4">
                           <div>
                             <h4 className="font-black text-sm uppercase tracking-tight">{product.title}</h4>
-                            {!product.isAvailable && (
-                               <Badge variant="destructive" className="text-[10px] mt-1">SOLD OUT</Badge>
-                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                               <Badge className="bg-gray-100 text-gray-700 border-none text-[9px] font-bold uppercase tracking-widest">Stock: {product.stockQuantity}</Badge>
+                               {!product.isAvailable && (
+                                  <Badge variant="destructive" className="text-[9px] font-bold">SOLD OUT</Badge>
+                               )}
+                            </div>
                             {product.approvalStatus === 'pending' && (
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-[10px] mt-1">
-                                 PENDING APPROVAL
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-[9px] font-bold mt-1">
+                                 PENDING Hub APPROVAL
                               </Badge>
                             )}
                           </div>
                           <p className="text-primary font-black">GH₵{parseFloat(product.price).toFixed(2)}</p>
                        </div>
-                       <Badge variant="outline" className="rounded-lg font-bold border-2">{product.condition.toUpperCase()}</Badge>
+                       <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="rounded-lg font-bold border-2 text-[9px]">{product.condition.toUpperCase()}</Badge>
+                          {product.sizes && <Badge variant="outline" className="rounded-lg font-bold border-2 text-[9px]">SIZES: {product.sizes}</Badge>}
+                       </div>
                     </CardContent>
                   </Card>
                 ))}
+                {storeProducts.length === 0 && (
+                   <div className="col-span-full text-center py-20 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                      <Package className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                      <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No listings yet.</p>
+                   </div>
+                )}
+             </div>
+          </TabsContent>
+
+          <TabsContent value="sales" className="mt-0 space-y-8">
+             {/* Fulfillment Guide */}
+             <Card className="rounded-[2.5rem] border-none bg-black text-white p-10 overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl"></div>
+                <div className="relative">
+                   <div className="flex items-center gap-3 mb-6">
+                      <div className="p-3 bg-white/10 rounded-2xl"><Info className="w-6 h-6 text-primary" /></div>
+                      <h3 className="text-2xl font-black uppercase tracking-tighter">Fulfillment Protocol.</h3>
+                   </div>
+                   <div className="grid md:grid-cols-4 gap-6">
+                      {[
+                        { step: "01", title: "Order Received", desc: "Buyer places order and pays hub." },
+                        { step: "02", title: "Seller Approval", desc: "You confirm stock and readiness." },
+                        { step: "03", title: "Admin Review", desc: "Final check & logistics prep." },
+                        { step: "04", title: "Kaydem Logistics", desc: "Agent picks up & delivers to buyer." }
+                      ].map((item, i) => (
+                        <div key={i} className="space-y-2">
+                           <p className="text-primary font-black text-xs tracking-widest">{item.step}</p>
+                           <h4 className="font-bold text-sm uppercase">{item.title}</h4>
+                           <p className="text-white/40 text-[10px] font-medium leading-relaxed uppercase tracking-wider">{item.desc}</p>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+             </Card>
+
+             <div className="space-y-4">
+                {orders.map(order => (
+                  <div key={order.id} className="flex items-center justify-between p-8 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-primary/5 transition-all">
+                       <div className="flex items-center gap-6">
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-50 border shadow-sm">
+                             <img src={order.product.images[0]} className="w-full h-full object-cover" alt="" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                               <Badge className="bg-primary/5 text-primary border-none font-black text-[9px] uppercase">{order.product.category.name}</Badge>
+                               <span className="text-[10px] font-bold text-gray-400">Order #{order.id}</span>
+                            </div>
+                            <h4 className="font-black text-lg uppercase tracking-tight">{order.product.title}</h4>
+                            <p className="text-sm font-medium text-gray-500">Buyer: {order.buyer.firstName} • {new Date(order.createdAt!).toLocaleDateString()}</p>
+                            <div className="flex items-center gap-3 mt-2">
+                               <div className="flex items-center gap-1">
+                                  <div className={`w-2 h-2 rounded-full ${order.sellerApproval === 'approved' ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`}></div>
+                                  <span className="text-[10px] font-black uppercase text-gray-400">Seller: {order.sellerApproval}</span>
+                               </div>
+                               <div className="flex items-center gap-1">
+                                  <div className={`w-2 h-2 rounded-full ${order.adminApproval === 'approved' ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                                  <span className="text-[10px] font-black uppercase text-gray-400">Admin: {order.adminApproval}</span>
+                               </div>
+                            </div>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-4">
+                          <div className="text-right">
+                             <p className="font-black text-2xl">GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
+                             {order.payoutStatus && (
+                               <Badge className={order.payoutStatus === 'processed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}>
+                                 PAYOUT: {order.payoutStatus.toUpperCase()}
+                               </Badge>
+                             )}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                             {order.sellerApproval === 'pending' && (
+                                <Button 
+                                  className="rounded-xl bg-green-500 hover:bg-green-600 h-10 px-6 font-black uppercase tracking-widest text-[10px]"
+                                  onClick={() => updateOrderApprovalMutation.mutate({ orderId: order.id, approval: 'approved' })}
+                                >
+                                  Confirm Order
+                                </Button>
+                             )}
+                             <Button variant="outline" className="rounded-xl h-10 px-6 font-black uppercase tracking-widest text-[10px]" onClick={() => { setViewingTracking(order); fetchAiInsight(order.id); }}>Details</Button>
+                          </div>
+                       </div>
+                  </div>
+                ))}
+                {orders.length === 0 && (
+                   <div className="text-center py-20 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
+                      <Package className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                      <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No sales yet.</p>
+                   </div>
+                )}
              </div>
           </TabsContent>
 
@@ -272,7 +420,26 @@ export default function Dashboard() {
                                <Badge variant="outline" className="text-[10px]">{order.deliveryStatus?.toUpperCase() || 'PENDING'}</Badge>
                              </div>
                           </div>
-                          <Button className="rounded-xl h-12 px-6 font-black uppercase tracking-widest text-[10px]" onClick={() => { setViewingTracking(order); fetchAiInsight(order.id); }}>Track Order</Button>
+                          <div className="flex flex-col gap-2">
+                             <Button className="rounded-xl h-10 px-6 font-black uppercase tracking-widest text-[10px]" onClick={() => { setViewingTracking(order); fetchAiInsight(order.id); }}>Track</Button>
+                             {order.deliveryStatus === 'delivered' && order.status === 'confirmed' && (
+                               <div className="flex gap-2 mt-2">
+                                  <Button 
+                                    className="bg-green-500 hover:bg-green-600 h-8 px-4 text-[9px] font-black uppercase rounded-lg"
+                                    onClick={() => updateBuyerConfirmationMutation.mutate({ orderId: order.id, confirmation: 'received' })}
+                                  >
+                                    Accept
+                                  </Button>
+                                  <Button 
+                                    variant="destructive" 
+                                    className="h-8 px-4 text-[9px] font-black uppercase rounded-lg"
+                                    onClick={() => updateBuyerConfirmationMutation.mutate({ orderId: order.id, confirmation: 'rejected' })}
+                                  >
+                                    Reject
+                                  </Button>
+                               </div>
+                             )}
+                          </div>
                        </div>
                   </div>
                 ))}
@@ -329,6 +496,12 @@ export default function Dashboard() {
               </div>
            </DialogContent>
         </Dialog>
+
+        <ProductForm 
+          isOpen={isProductFormOpen} 
+          onClose={() => setIsProductFormOpen(false)} 
+          userStores={userStores} 
+        />
       </div>
     </div>
   );
