@@ -116,6 +116,38 @@ export default function Checkout() {
     queryKey: ['/api/admin/config/admin_momo_number'],
   });
 
+  const paystackChargeMutation = useMutation({
+    mutationFn: async () => {
+      const amount = isBokoo ? grandTotal / 4 : grandTotal;
+      const response = await apiRequest("POST", "/api/paystack/charge-momo", {
+        amount,
+        email: details.email,
+        phoneNumber: details.phoneNumber,
+        metadata: {
+          userId: user?.id,
+          cartItems: cartItems.map((item: any) => ({ productId: item.product.id, quantity: item.quantity })),
+          isBokoo,
+          guestDetails: !user ? details : undefined,
+          codFee: codFee > 0 ? codFee : undefined
+        }
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // If charge is successful, we might need to poll for status or it might be done
+      if (data.status === 'success' || data.status === 'send_otp' || data.status === 'pay_offline') {
+        toast({ title: "MoMo Prompt Sent", description: "Please check your phone for the payment prompt." });
+        // Start verification with the reference
+        paystackVerifyMutation.mutate(data.reference);
+      } else {
+        toast({ title: "Payment Error", description: data.message || "Could not process MoMo payment.", variant: "destructive" });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Payment Error", description: error.message || "Could not initialize MoMo payment. Please try again.", variant: "destructive" });
+    }
+  });
+
   const paystackInitializeMutation = useMutation({
     mutationFn: async () => {
       const amount = isBokoo ? grandTotal / 4 : grandTotal;
@@ -229,7 +261,9 @@ export default function Checkout() {
   };
 
   const handlePayment = () => {
-    if (paymentMode === 'momo' || paymentMode === 'card') {
+    if (paymentMode === 'momo') {
+      paystackChargeMutation.mutate();
+    } else if (paymentMode === 'card') {
       paystackInitializeMutation.mutate();
     } else {
       handleManualOrder();
@@ -357,10 +391,10 @@ export default function Checkout() {
                     <Button 
                       onClick={handlePayment} 
                       className="w-full h-16 rounded-2xl bg-black text-white font-black text-lg shadow-xl shadow-black/10"
-                      disabled={isLoading || paystackInitializeMutation.isPending || paystackVerifyMutation.isPending}
+                      disabled={isLoading || paystackInitializeMutation.isPending || paystackChargeMutation.isPending || paystackVerifyMutation.isPending}
                     >
-                      {paystackInitializeMutation.isPending || paystackVerifyMutation.isPending ? (
-                        <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Initializing...</>
+                      {paystackInitializeMutation.isPending || paystackChargeMutation.isPending || paystackVerifyMutation.isPending ? (
+                        <><Loader2 className="w-5 h-5 animate-spin mr-2" /> {paystackVerifyMutation.isPending ? "Verifying..." : "Initializing..."}</>
                       ) : (
                         `Pay GH₵${(isBokoo ? grandTotal / 4 : grandTotal).toFixed(2)}`
                       )}

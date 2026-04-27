@@ -1967,6 +1967,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  // Paystack Direct MoMo Charge
+  app.post("/api/paystack/charge-momo", tryAuthenticate, async (req: AuthRequest, res) => {
+    try {
+      const { amount, email, phoneNumber, metadata } = req.body;
+      
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number is required for MoMo payment" });
+      }
+
+      // Format phone number (remove spaces, ensure it's a valid string)
+      const cleanPhone = phoneNumber.replace(/\s+/g, '');
+      
+      // Basic provider detection for Ghana
+      let provider = 'mtn'; // default
+      if (cleanPhone.startsWith('020') || cleanPhone.startsWith('050') || cleanPhone.startsWith('23320') || cleanPhone.startsWith('23350')) {
+        provider = 'vod'; // Telecel (formerly Vodafone)
+      } else if (cleanPhone.startsWith('026') || cleanPhone.startsWith('056') || cleanPhone.startsWith('027') || cleanPhone.startsWith('057')) {
+        provider = 'tgo'; // AT (formerly AirtelTigo)
+      }
+
+      const paystackAmount = Math.round(amount * 100);
+      
+      const response = await fetch('https://api.paystack.co/charge', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: paystackAmount,
+          email,
+          currency: "GHS",
+          mobile_money: {
+            phone: cleanPhone,
+            provider: provider
+          },
+          metadata
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!data.status) {
+        return res.status(400).json({ message: data.message || "Failed to initiate charge" });
+      }
+
+      res.json(data.data);
+    } catch (error) {
+      console.error('PayStack MoMo charge error:', error);
+      res.status(500).json({ message: "Failed to initiate MoMo payment" });
+    }
+  });
+
   app.post("/api/paystack/initialize", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
       const { amount, email, metadata } = req.body;
