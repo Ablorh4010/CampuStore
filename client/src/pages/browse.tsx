@@ -79,12 +79,12 @@ export default function Browse() {
     setLocation(`/browse?${params.toString()}`);
   };
 
-  const sortedProducts = [...products].sort((a, b) => {
+  const sortedProducts = Array.isArray(products) ? [...products].sort((a, b) => {
     if (sortBy === 'price-low') return parseFloat(a.price) - parseFloat(b.price);
     if (sortBy === 'price-high') return parseFloat(b.price) - parseFloat(a.price);
     if (sortBy === 'popular') return (b.viewCount || 0) - (a.viewCount || 0);
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-  });
+  }) : [];
 
   const filteredProducts = sortedProducts.filter(product => {
     if (selectedCategory && product.categoryId !== selectedCategory) return false;
@@ -97,7 +97,7 @@ export default function Browse() {
     return true;
   });
 
-  const filteredStores = stores.filter(store => {
+  const filteredStores = Array.isArray(stores) ? stores.filter(store => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return store.name.toLowerCase().includes(query) ||
@@ -105,7 +105,7 @@ export default function Browse() {
              store.university.toLowerCase().includes(query);
     }
     return true;
-  });
+  }) : [];
 
   return (
     <div className="min-h-screen bg-white">

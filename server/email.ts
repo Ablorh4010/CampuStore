@@ -225,3 +225,94 @@ export async function sendEmail(to: string, subject: string, html: string) {
     return false;
   }
 }
+
+export async function sendPurchaseConfirmationEmail(
+  email: string, 
+  buyerName: string, 
+  orderId: number, 
+  deliveryMethod: string,
+  trackingUrl: string,
+  isCOD: boolean = false,
+  totalAmount: string = "0"
+) {
+  if (!resend) {
+    console.error('❌ ERROR: RESEND_API_KEY is missing. Purchase confirmation email cannot be sent to:', email);
+    return false;
+  }
+
+  const deliveryDays = deliveryMethod === 'ems' ? '1-14 days' : '1-5 days';
+  const deliveryPartner = deliveryMethod === 'ems' ? 'Ghana Post EMS' : 'Express by Kaydem Logistics';
+
+  const codSection = isCOD ? `
+    <div style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 20px; margin: 25px 0;">
+      <h3 style="color: #9a3412; margin-top: 0; font-size: 18px;">💵 Cash on Delivery (COD)</h3>
+      <p style="margin: 5px 0; color: #4b5563;">You have chosen to pay on delivery. Please ensure you have the exact amount of <strong>GH₵${parseFloat(totalAmount).toFixed(2)}</strong> ready for our delivery agent.</p>
+      <p style="margin: 5px 0; color: #4b5563; font-size: 13px; font-style: italic;">* Payment should only be made to a Kaydem Logistics account or directly to the assigned Kaydem delivery agent.</p>
+    </div>
+  ` : '';
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: 'Thank You for Your Purchase! - The University Hub',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #000000 0%, #333333 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">The University Hub</h1>
+            </div>
+            
+            <div style="background-color: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #1f2937; margin-top: 0;">Thank You for Your Purchase!</h2>
+              <p style="color: #4b5563; font-size: 16px;">Hi ${buyerName},</p>
+              <p style="color: #4b5563; font-size: 16px;">We're excited to let you know that your order <strong>#${orderId}</strong> was successful. Thank you for choosing The University Hub!</p>
+              
+              ${codSection}
+
+              <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="color: #1f2937; margin-top: 0; font-size: 18px;">Delivery Information</h3>
+                <p style="margin: 5px 0; color: #4b5563;"><strong>Method:</strong> ${deliveryPartner}</p>
+                <p style="margin: 5px 0; color: #4b5563;"><strong>Estimated Delivery:</strong> ${deliveryDays} (starting as soon as the seller approves your sale)</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="color: #4b5563; margin-bottom: 15px;">You can track your order anytime using the link below:</p>
+                <a href="${trackingUrl}" style="background-color: #000000; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">
+                  Track My Order
+                </a>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 14px; margin-top: 25px;">
+                <strong>Next Steps:</strong> We have notified the seller. Once they approve the sale, your order will be dispatched via ${deliveryPartner}.
+              </p>
+              
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
+              
+              <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+                The University Hub - Student Marketplace<br>
+                This is an automated email. Please do not reply.
+              </p>
+            </div>
+          </body>
+        </html>
+      `
+    });
+    
+    if (error) {
+      console.error('❌ Resend API Error (Purchase Confirmation):', error);
+      return false;
+    }
+
+    console.log(`✅ Purchase confirmation email sent to ${email}. ID: ${data?.id}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send purchase confirmation email:', error);
+    return false;
+  }
+}

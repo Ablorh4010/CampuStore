@@ -12,7 +12,9 @@ import { eq, sql } from "drizzle-orm";
 import multer from "multer";
 import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
+import crypto from 'crypto';
 import { generateToken, authenticateToken, tryAuthenticate, requireAdmin, type AuthRequest } from "./auth";
+import { sendOrderConfirmation } from "./notifications";
 import path from "path";
 import Stripe from "stripe";
 import rateLimit from "express-rate-limit";
@@ -102,6 +104,119 @@ const imageUpload = multer({
     }
   }
 });
+
+const inMemoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  }
+});
+
+async function createPaystackPlan(amount: number, name: string) {
+  try {
+    const response = await fetch('https://api.paystack.co/plan', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: name,
+        amount: Math.round(amount * 100),
+        interval: 'monthly',
+        currency: 'GHS',
+        invoice_limit: 4, // 4 installments total
+        description: 'Bɔkɔɔ Pay Installment Plan'
+      })
+    });
+    const data = await response.json();
+    return data.status ? data.data.plan_code : null;
+  } catch (error) {
+    console.error('Error creating Paystack plan:', error);
+    return null;
+  }
+}
+
+async function finalizePaystackOrder(data: any) {
+  const { reference, metadata, customer } = data;
+  
+  // Check if orders already exist for this reference to avoid duplicates
+  const existingOrders = await storage.getOrdersByReference(reference);
+  if (existingOrders.length > 0) {
+    console.log(`Orders already exist for reference ${reference}, skipping creation.`);
+    return existingOrders;
+  }
+
+  const cartItems = metadata.cartItems;
+  const userId = metadata.userId ? parseInt(metadata.userId) : null;
+  const guestDetails = metadata.guestDetails;
+  const codFee = metadata.codFee;
+
+  const createdOrders = [];
+  const buyerInfo = userId ? await storage.getUserById(userId) : null;
+  const buyerEmail = guestDetails?.email || customer.email || buyerInfo?.email;
+  const buyerName = buyerInfo ? `${buyerInfo.firstName} ${buyerInfo.lastName}` : (guestDetails ? `${guestDetails.firstName} ${guestDetails.lastName}` : "Customer");
+
+  for (const item of cartItems) {
+    const product = await storage.getProductById(item.productId);
+    if (!product) continue;
+    const store = await storage.getStoreById(product.storeId);
+    if (!store) continue;
+
+    const order = await storage.createOrder({
+      buyerId: userId || 0,
+      sellerId: store.userId,
+      productId: product.id,
+      quantity: item.quantity,
+      totalAmount: (parseFloat(product.price.toString()) * item.quantity).toString(),
+      codFee: codFee ? codFee.toString() : null,
+      status: 'confirmed',
+      paymentReference: reference,
+      paymentGateway: 'paystack',
+      shippingMode: (metadata.shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
+      buyerAddress: guestDetails?.address || buyerInfo?.address || 'Provided at checkout',
+      buyerEmail: buyerEmail,
+      payoutStatus: 'pending'
+    });
+    
+    createdOrders.push(order);
+
+    // Send confirmation email
+    try {
+      const buyerForEmail = buyerInfo || { firstName: buyerName.split(' ')[0], email: buyerEmail };
+      await sendOrderConfirmation(order, buyerForEmail, product);
+    } catch (emailErr) {
+      console.error('Failed to send confirmation email for order:', order.id, emailErr);
+    }
+  }
+
+  // Clear cart if user is logged in
+  if (userId) {
+    console.log(`Clearing cart for user ${userId} after successful payment.`);
+    await storage.clearCart(userId);
+  }
+
+  // Send secondary "Thank You" email with tracking info
+  try {
+    const { sendPurchaseConfirmationEmail } = await import('./email');
+    const trackingUrl = `${process.env.APP_URL || 'https://uniexchangehub.com'}/gh/orders`;
+    const buyerNameForEmail = buyerInfo ? `${buyerInfo.firstName} ${buyerInfo.lastName}` : (guestDetails ? `${guestDetails.firstName} ${guestDetails.lastName}` : "Customer");
+    
+    await sendPurchaseConfirmationEmail(
+      buyerEmail,
+      buyerNameForEmail,
+      createdOrders[0]?.id || 0,
+      (metadata.shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
+      trackingUrl,
+      false, // isCOD is false for Paystack
+      createdOrders[0]?.totalAmount || "0"
+    );
+  } catch (emailErr) {
+    console.error('Failed to send secondary purchase confirmation email:', emailErr);
+  }
+
+  return createdOrders;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -417,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send email with reset link
       const { sendPasswordResetEmail } = await import('./email');
-      const baseUrl = process.env.NODE_ENV === 'production' ? 'https://uniexchangehub.com' : `${req.protocol}://${req.get('host')}`;
+      const baseUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://uniexchangehub.com' : `${req.protocol}://${req.get('host')}`);
       const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
       await sendPasswordResetEmail(email, resetUrl);
@@ -1463,7 +1578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Order routes
   app.post("/api/orders", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
-      const { cartItems, paymentMode, isBokoo, details, totalAmount, codFee } = req.body;
+      const { cartItems, paymentMode, isBokoo, details, totalAmount, codFee, shippingMode, shippingFee } = req.body;
       const userId = req.userId;
 
       if (!cartItems || cartItems.length === 0) {
@@ -1485,7 +1600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalAmount: totalAmount ? totalAmount.toString() : productWithStore.price,
           codFee: codFee ? codFee.toString() : null,
           status: 'pending',
-          shippingMode: 'standard',
+          shippingMode: (shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
           buyerAddress: details?.address || '',
           buyerUniversity: details?.university || '',
           buyerPhone: details?.phoneNumber || '',
@@ -1494,10 +1609,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdOrders.push(order);
       }
 
+      // Send secondary "Thank You" email with tracking info
+      try {
+        const { sendPurchaseConfirmationEmail } = await import('./email');
+        const trackingUrl = `${process.env.APP_URL || 'https://uniexchangehub.com'}/gh/orders`;
+        const buyerName = details ? `${details.firstName} ${details.lastName}` : "Customer";
+        
+        await sendPurchaseConfirmationEmail(
+          details?.email || '',
+          buyerName,
+          createdOrders[0]?.id || 0,
+          (shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
+          trackingUrl,
+          paymentMode === 'cod',
+          totalAmount ? totalAmount.toString() : "0"
+        );
+      } catch (emailErr) {
+        console.error('Failed to send secondary purchase confirmation email:', emailErr);
+      }
+
       res.json({ message: "Order placed successfully", orders: createdOrders });
     } catch (error) {
       console.error('Order creation error:', error);
       res.status(500).json({ message: "Failed to create order" });
+    }
+  });
+
+  app.post("/api/buyer-verification", authenticateToken, inMemoryUpload.fields([
+    { name: 'buyerId', maxCount: 1 },
+    { name: 'buyerFace', maxCount: 1 }
+  ]), async (req: AuthRequest, res) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      const userId = req.userId!;
+
+      if (!files.buyerId || !files.buyerFace) {
+        return res.status(400).json({ message: "Both ID and face scan are required" });
+      }
+
+      const { uploadToDrive } = await import('./google-drive');
+      
+      const idUrl = await uploadToDrive(files.buyerId[0], `buyer_${userId}_id_${Date.now()}`);
+      const faceUrl = await uploadToDrive(files.buyerFace[0], `buyer_${userId}_face_${Date.now()}`);
+
+      const updatedUser = await storage.updateUser(userId, {
+        buyerIdScanUrl: idUrl,
+        buyerFaceScanUrl: faceUrl,
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Buyer verification upload error:', error);
+      res.status(500).json({ message: "Failed to upload verification documents" });
     }
   });
 
@@ -1851,6 +2014,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/users/pending-buyer-verification", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      // Users who have uploaded verification but haven't been approved yet
+      const pendingBuyers = allUsers.filter(u => u.buyerIdScanUrl && u.buyerFaceScanUrl && !u.buyerVerifiedAt);
+      res.json(pendingBuyers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending buyer verifications" });
+    }
+  });
+
+  app.put("/api/admin/users/:userId/approve-buyer", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.updateUser(userId, { buyerVerifiedAt: new Date() });
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to approve buyer verification" });
+    }
+  });
+
   app.get("/api/admin/logo-changes", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const stores = await storage.getPendingLogoChanges();
@@ -1956,7 +2140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PayStack & Config Routes
-  app.get("/api/admin/config/:key", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+  app.get("/api/admin/config/:key", async (req, res) => {
     const value = await storage.getAppConfig(req.params.key);
     res.json({ value });
   });
@@ -1976,19 +2160,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Phone number is required for MoMo payment" });
       }
 
-      // Format phone number (remove spaces, ensure it's a valid string)
-      const cleanPhone = phoneNumber.replace(/\s+/g, '');
+      // Format phone number for Paystack (Ghana international format 233...)
+      let cleanPhone = phoneNumber.replace(/\s+/g, '').replace(/\+/g, '');
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = '233' + cleanPhone.substring(1);
+      } else if (!cleanPhone.startsWith('233') && cleanPhone.length === 9) {
+        cleanPhone = '233' + cleanPhone;
+      }
       
       // Basic provider detection for Ghana
       let provider = 'mtn'; // default
-      if (cleanPhone.startsWith('020') || cleanPhone.startsWith('050') || cleanPhone.startsWith('23320') || cleanPhone.startsWith('23350')) {
+      if (cleanPhone.includes('23320') || cleanPhone.includes('23350')) {
         provider = 'vod'; // Telecel (formerly Vodafone)
-      } else if (cleanPhone.startsWith('026') || cleanPhone.startsWith('056') || cleanPhone.startsWith('027') || cleanPhone.startsWith('057')) {
+      } else if (cleanPhone.includes('23326') || cleanPhone.includes('23356') || cleanPhone.includes('23327') || cleanPhone.includes('23357')) {
         provider = 'tgo'; // AT (formerly AirtelTigo)
       }
 
       const paystackAmount = Math.round(amount * 100);
       
+      const key = process.env.PAYSTACK_SECRET_KEY;
+      console.log('Initiating Paystack MoMo charge:', { 
+        email, 
+        cleanPhone, 
+        provider, 
+        amount: paystackAmount,
+        keyPrefix: key ? key.substring(0, 7) : 'undefined'
+      });
+
       const response = await fetch('https://api.paystack.co/charge', {
         method: 'POST',
         headers: {
@@ -2008,6 +2206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const data = await response.json();
+      console.log('Paystack charge response:', JSON.stringify(data, null, 2));
       
       if (!data.status) {
         return res.status(400).json({ message: data.message || "Failed to initiate charge" });
@@ -2024,6 +2223,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { amount, email, metadata } = req.body;
       
+      let planCode = null;
+      if (metadata.isBokoo) {
+        // Create a unique plan for this installment purchase
+        planCode = await createPaystackPlan(amount, `Bɔkɔɔ Installment - ${email} - ${Date.now()}`);
+      }
+
       // PayStack uses minor units (pesewas for GHS)
       const paystackAmount = Math.round(amount * 100);
       
@@ -2038,6 +2243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email,
           currency: "GHS",
           channels: ["mobile_money", "card"],
+          plan: planCode || undefined,
           metadata
         })
       });
@@ -2052,9 +2258,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Paystack Webhook Handler
+  app.post("/api/paystack/webhook", async (req, res) => {
+    try {
+      // Validate Paystack signature
+      const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY!)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+
+      if (hash !== req.headers['x-paystack-signature']) {
+        return res.status(401).send('Invalid signature');
+      }
+
+      const event = req.body;
+      console.log('Received Paystack Webhook Event:', event.event);
+
+      if (event.event === 'charge.success') {
+        console.log(`Processing successful payment via webhook for reference: ${event.data.reference}`);
+        await finalizePaystackOrder(event.data);
+      }
+
+      res.status(200).send('Webhook processed');
+    } catch (error) {
+      console.error('Paystack Webhook error:', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
   app.get("/api/paystack/verify/:reference", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
       const { reference } = req.params;
+      console.log(`Verifying Paystack transaction: ${reference}`);
       
       const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
         headers: {
@@ -2064,45 +2298,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const data = await response.json();
       if (!data.status || data.data.status !== 'success') {
+        console.error('Paystack verification failed:', data);
         return res.status(400).json({ message: "Payment verification failed" });
       }
 
-      // Payment successful, create orders
-      const { metadata } = data.data;
-      const cartItems = metadata.cartItems;
-      const userId = metadata.userId ? parseInt(metadata.userId) : null;
-      const guestDetails = metadata.guestDetails;
-      const codFee = metadata.codFee;
+      // Finalize order (helper handles deduplication)
+      const createdOrders = await finalizePaystackOrder(data.data);
 
-      const createdOrders = [];
-      for (const item of cartItems) {
-        const product = await storage.getProductById(item.productId);
-        if (!product) continue;
-        const store = await storage.getStoreById(product.storeId);
-        if (!store) continue;
-
-        const order = await storage.createOrder({
-          buyerId: userId || 0,
-          sellerId: store.userId,
-          productId: product.id,
-          quantity: item.quantity,
-          totalAmount: (parseFloat(product.price.toString()) * item.quantity).toString(),
-          codFee: codFee ? codFee.toString() : null,
-          status: 'confirmed',
-          paymentReference: reference,
-          paymentGateway: 'paystack',
-          shippingMode: 'standard',
-          buyerAddress: guestDetails?.address || '',
-          buyerEmail: guestDetails?.email || data.data.customer.email,
-          payoutStatus: 'pending'
-        });
-        createdOrders.push(order);
-      }
-
-      // Clear cart if user is logged in
-      if (userId) await storage.clearCart(userId);
-
-      res.json({ message: "Payment verified and orders created", orders: createdOrders });
+      res.json({ message: "Payment verified and orders processed", orders: createdOrders });
     } catch (error) {
       console.error('PayStack verify error:', error);
       res.status(500).json({ message: "Failed to verify payment" });

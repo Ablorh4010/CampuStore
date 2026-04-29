@@ -93,6 +93,7 @@ export interface IStorage {
   // Orders
   createOrder(order: InsertOrder): Promise<Order>;
   getOrderById(id: number): Promise<Order | undefined>;
+  getOrdersByReference(reference: string): Promise<Order[]>;
   getOrderWithDetails(id: number): Promise<OrderWithDetails | undefined>;
   getOrdersByBuyerId(buyerId: number): Promise<OrderWithDetails[]>;
   getOrdersBySellerId(sellerId: number): Promise<OrderWithDetails[]>;
@@ -357,17 +358,7 @@ export class DatabaseStorage implements IStorage {
   async getStoresWithUser(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<StoreWithUser[]> {
     const conditions = [eq(stores.isActive, true), eq(stores.approvalStatus, 'approved')];
     
-    if (filters?.userUniversity) {
-      conditions.push(eq(stores.university, filters.userUniversity));
-    }
-    if (filters?.userCity) {
-      conditions.push(eq(stores.city, filters.userCity));
-    }
-    if (filters?.userCampus) {
-      conditions.push(eq(stores.campus, filters.userCampus));
-    }
-
-    const results = await db
+    let baseQuery = db
       .select({
         id: stores.id,
         userId: stores.userId,
@@ -397,6 +388,21 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(products, eq(stores.id, products.storeId))
       .where(and(...conditions))
       .groupBy(stores.id, users.id);
+
+    if (filters?.userUniversity || filters?.userCity || filters?.userCampus) {
+      baseQuery = baseQuery.orderBy(
+        sql`CASE 
+          WHEN ${stores.campus} = ${filters?.userCampus || ''} THEN 1
+          WHEN ${stores.university} = ${filters?.userUniversity || ''} THEN 2
+          WHEN ${stores.city} = ${filters?.userCity || ''} THEN 3
+          ELSE 4
+        END`, desc(stores.createdAt)
+      ) as any;
+    } else {
+      baseQuery = baseQuery.orderBy(desc(stores.createdAt)) as any;
+    }
+
+    const results = await baseQuery;
 
     return results.map(row => ({
       id: row.id,
@@ -771,27 +777,9 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
-    // Location-based filtering with priority
-    if (filters?.userUniversity || filters?.userCity || filters?.userCampus) {
-      const locationConditions = [];
-
-      if (filters.userCampus) {
-        locationConditions.push(eq(stores.campus, filters.userCampus));
-      }
-
-      if (filters.userUniversity) {
-        locationConditions.push(eq(stores.university, filters.userUniversity));
-      }
-
-      if (filters.userCity) {
-        locationConditions.push(eq(stores.city, filters.userCity));
-      }
-
-      if (locationConditions.length > 0) {
-        conditions.push(or(...locationConditions)!);
-      }
-    }
-
+    // Location-based filtering with priority (Non-strict to avoid empty pages)
+    // We only apply strict filtering if explicitly requested, but here we want to show everything with local items first
+    
     let baseQuery = db
       .select({
         product: products,
@@ -805,7 +793,6 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(and(...conditions));
 
-    // Order by location proximity
     if (filters?.userUniversity || filters?.userCity || filters?.userCampus) {
       baseQuery = baseQuery.orderBy(
         sql`CASE 
@@ -813,7 +800,7 @@ export class DatabaseStorage implements IStorage {
           WHEN ${stores.university} = ${filters?.userUniversity || ''} THEN 2
           WHEN ${stores.city} = ${filters?.userCity || ''} THEN 3
           ELSE 4
-        END, ${desc(products.createdAt)}`
+        END`, desc(products.createdAt)
       ) as any;
     } else {
       baseQuery = baseQuery.orderBy(desc(products.createdAt)) as any;
@@ -825,18 +812,20 @@ export class DatabaseStorage implements IStorage {
 
     const results = await baseQuery;
 
-    return results.map(result => ({
-      ...result.product,
-      store: {
-        ...result.store!,
-        user: {
-          firstName: result.user!.firstName,
-          lastName: result.user!.lastName,
-          avatar: result.user!.avatar,
-        }
-      },
-      category: result.category!
-    }));
+    return results
+      .filter(result => result.product && result.store && result.user && result.category)
+      .map(result => ({
+        ...result.product,
+        store: {
+          ...result.store!,
+          user: {
+            firstName: result.user!.firstName,
+            lastName: result.user!.lastName,
+            avatar: result.user!.avatar,
+          }
+        },
+        category: result.category!
+      }));
   }
 
   async getFeaturedProducts(filters?: { userUniversity?: string; userCity?: string; userCampus?: string }): Promise<ProductWithStore[]> {
@@ -931,6 +920,10 @@ export class DatabaseStorage implements IStorage {
   async getOrderById(id: number): Promise<Order | undefined> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
     return order;
+  }
+
+  async getOrdersByReference(reference: string): Promise<Order[]> {
+    return await db.select().from(orders).where(eq(orders.paymentReference, reference));
   }
 
   async getOrderWithDetails(id: number): Promise<OrderWithDetails | undefined> {

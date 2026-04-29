@@ -37,6 +37,8 @@ function Router() {
     <Switch>
       <Route path="/mode-selection" component={ModeSelection} />
       <Route path="/" component={Home} />
+      <Route path="/gh" component={Home} />
+      <Route path="/gh/" component={Home} />
       <Route path="/browse" component={Browse} />
       <Route path="/gh/browse" component={Browse} />
       <Route path="/store/:id" component={Store} />

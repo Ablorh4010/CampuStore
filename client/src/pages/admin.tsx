@@ -122,6 +122,11 @@ export default function AdminDashboard() {
     enabled: !!user?.isAdmin
   });
 
+  const { data: pendingBuyerVerifications = [] } = useQuery<User[]>({
+    queryKey: ['/api/admin/users/pending-buyer-verification'],
+    enabled: !!user?.isAdmin
+  });
+
   const { data: allStores = [] } = useQuery<StoreWithUser[]>({
     queryKey: ['/api/admin/stores'],
     enabled: !!user?.isAdmin
@@ -224,6 +229,15 @@ export default function AdminDashboard() {
     },
   });
 
+  const approveBuyerMutation = useMutation({
+    mutationFn: (userId: number) =>
+      apiRequest('PUT', `/api/admin/users/${userId}/approve-buyer`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending-buyer-verification'] });
+      toast({ title: 'Success', description: 'Buyer installment plan approved' });
+    },
+  });
+
   const updateLogoStatusMutation = useMutation({
     mutationFn: ({ storeId, status }: { storeId: number; status: string }) =>
       apiRequest('PUT', `/api/admin/stores/${storeId}/logo-approval`, { status }),
@@ -312,6 +326,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="payouts" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
               Payouts
             </TabsTrigger>
+            <TabsTrigger value="installment-approvals" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+              Installment Approvals
+            </TabsTrigger>
             <TabsTrigger value="settings" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
               App Settings
             </TabsTrigger>
@@ -348,7 +365,7 @@ export default function AdminDashboard() {
                     <div key={u.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                          {u.firstName[0]}{u.lastName[0]}
+                          {u.firstName?.[0]}{u.lastName?.[0]}
                         </div>
                         <div>
                           <p className="font-black text-sm">{u.firstName} {u.lastName}</p>
@@ -672,6 +689,73 @@ export default function AdminDashboard() {
              ))}
              {pendingPayouts.length === 0 && (
                 <p className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending payouts.</p>
+             )}
+          </TabsContent>
+
+          <TabsContent value="installment-approvals" className="mt-0 space-y-6">
+             {pendingBuyerVerifications.map(u => (
+               <Card key={u.id} className="rounded-[2rem] border-none shadow-sm bg-white p-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <div className="space-y-4">
+                        <div>
+                           <h4 className="font-black text-2xl tracking-tighter uppercase">{u.firstName} {u.lastName}</h4>
+                           <p className="text-sm font-bold text-primary uppercase tracking-widest">BUYER INSTALLMENT VERIFICATION</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                           <div className="space-y-1">
+                              <p className="font-black text-gray-400 uppercase">Email</p>
+                              <p className="font-bold">{u.email}</p>
+                           </div>
+                           <div className="space-y-1">
+                              <p className="font-black text-gray-400 uppercase">Phone</p>
+                              <p className="font-bold">{u.phoneNumber}</p>
+                           </div>
+                           <div className="space-y-1">
+                              <p className="font-black text-gray-400 uppercase">University</p>
+                              <p className="font-bold uppercase">{u.university || 'N/A'}</p>
+                           </div>
+                           <div className="space-y-1">
+                              <p className="font-black text-gray-400 uppercase">Campus</p>
+                              <p className="font-bold uppercase">{u.campus || 'N/A'}</p>
+                           </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-4">
+                           <Button 
+                             className="flex-grow rounded-xl bg-black text-white font-bold h-12 shadow-lg shadow-black/10"
+                             onClick={() => approveBuyerMutation.mutate(u.id)}
+                             disabled={approveBuyerMutation.isPending}
+                           >
+                             {approveBuyerMutation.isPending ? <Loader2 className="animate-spin" /> : "Approve Installment Plan"}
+                           </Button>
+                           <Button variant="outline" className="flex-grow rounded-xl font-bold border-2 h-12">Reject</Button>
+                        </div>
+                     </div>
+                     
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center flex items-center justify-center gap-1">
+                              <ExternalLink className="w-3 h-3" /> Buyer ID Scan
+                           </p>
+                           <div className="aspect-[4/3] rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50 group">
+                              <img src={u.buyerIdScanUrl!} className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition-transform" onClick={() => window.open(u.buyerIdScanUrl!, '_blank')} alt="" />
+                           </div>
+                        </div>
+                        <div className="space-y-2">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center flex items-center justify-center gap-1">
+                              <Video className="w-3 h-3" /> Live Face Scan
+                           </p>
+                           <div className="aspect-[4/3] rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50 group">
+                              <img src={u.buyerFaceScanUrl!} className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition-transform" onClick={() => window.open(u.buyerFaceScanUrl!, '_blank')} alt="" />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </Card>
+             ))}
+             {pendingBuyerVerifications.length === 0 && (
+                <p className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending installment approvals.</p>
              )}
           </TabsContent>
 

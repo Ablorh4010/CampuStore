@@ -1,108 +1,51 @@
 import { google } from 'googleapis';
-import fs from 'fs';
-import path from 'path';
-import type { User } from '@shared/schema';
+import { Readable } from 'stream';
 
-// Required environment variables:
-// GOOGLE_DRIVE_CLIENT_ID
-// GOOGLE_DRIVE_CLIENT_SECRET
-// GOOGLE_DRIVE_REFRESH_TOKEN
-// GOOGLE_DRIVE_FOLDER_ID (The parent folder where all verifications will be stored)
+// Google Drive Folder ID for verifications - should be in .env
+const FOLDER_ID = process.env.GOOGLE_DRIVE_VERIFICATION_FOLDER_ID;
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_DRIVE_CLIENT_ID,
-  process.env.GOOGLE_DRIVE_CLIENT_SECRET,
-  'https://developers.google.com/oauthplayground'
-);
+const auth = new google.auth.GoogleAuth({
+  credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : undefined,
+  scopes: ['https://www.googleapis.com/auth/drive.file'],
+});
 
-if (process.env.GOOGLE_DRIVE_REFRESH_TOKEN) {
-  oauth2Client.setCredentials({
-    refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN
-  });
-}
+const drive = google.drive({ version: 'v3', auth });
 
-const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
-export async function uploadVerificationToDrive(user: User) {
-  if (!process.env.GOOGLE_DRIVE_REFRESH_TOKEN || !process.env.GOOGLE_DRIVE_FOLDER_ID) {
-    console.warn('[Google Drive] Missing credentials or folder ID. Skipping upload.');
-    return;
+export async function uploadToDrive(file: Express.Multer.File, fileName: string) {
+  if (!process.env.GOOGLE_CREDENTIALS || !FOLDER_ID) {
+    console.warn('Google Drive credentials or Folder ID missing. Skipping upload.');
+    return null;
   }
 
   try {
-    console.log(`[Google Drive] Starting verification backup for user ${user.id} (${user.email})`);
-
-    // 1. Create a folder for this user
-    const folderMetadata = {
-      name: `${user.firstName} ${user.lastName} (${user.email}) - Verification`,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [process.env.GOOGLE_DRIVE_FOLDER_ID!]
+    const fileMetadata = {
+      name: fileName,
+      parents: [FOLDER_ID],
     };
 
-    const folder = await drive.files.create({
-      requestBody: folderMetadata,
-      fields: 'id'
+    const media = {
+      mimeType: file.mimetype,
+      body: Readable.from(file.buffer),
+    };
+
+    const response = await drive.files.create({
+      requestBody: fileMetadata,
+      media: media,
+      fields: 'id, webViewLink, webContentLink',
     });
 
-    const userFolderId = folder.data.id!;
-
-    // 2. Upload JSON data
-    const verificationData = {
-      userId: user.id,
-      name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      whatsapp: user.whatsappBusinessNumber,
-      socialMedia: user.socialMediaPresence,
-      verificationType: user.sellerVerificationType,
-      idType: user.idType,
-      address: user.sellerAddress,
-      location: {
-        lat: user.sellerLatitude,
-        lng: user.sellerLongitude
-      },
-      verifiedAt: new Date().toISOString()
-    };
-
-    const tempFilePath = path.join(process.cwd(), `verification_${user.id}.json`);
-    fs.writeFileSync(tempFilePath, JSON.stringify(verificationData, null, 2));
-
-    await drive.files.create({
+    // Make file public if needed, or just return the link
+    await drive.permissions.create({
+      fileId: response.data.id!,
       requestBody: {
-        name: 'data.json',
-        parents: [userFolderId]
+        role: 'reader',
+        type: 'anyone',
       },
-      media: {
-        mimeType: 'application/json',
-        body: fs.createReadStream(tempFilePath)
-      }
     });
 
-    fs.unlinkSync(tempFilePath);
-
-    // 3. Upload images
-    const uploadImage = async (url: string, fileName: string) => {
-      // url is like /uploads/filename.jpg
-      const fullPath = path.join(process.cwd(), url);
-      if (fs.existsSync(fullPath)) {
-        await drive.files.create({
-          requestBody: {
-            name: fileName,
-            parents: [userFolderId]
-          },
-          media: {
-            body: fs.createReadStream(fullPath)
-          }
-        });
-      }
-    };
-
-    if (user.idScanUrl) await uploadImage(user.idScanUrl, 'id_front' + path.extname(user.idScanUrl));
-    if (user.idScanUrlBack) await uploadImage(user.idScanUrlBack, 'id_back' + path.extname(user.idScanUrlBack));
-    if (user.faceScanUrl) await uploadImage(user.faceScanUrl, 'face_scan' + path.extname(user.faceScanUrl));
-
-    console.log(`[Google Drive] Backup completed for user ${user.id}`);
+    return response.data.webViewLink;
   } catch (error) {
-    console.error('[Google Drive] Backup failed:', error);
+    console.error('Error uploading to Google Drive:', error);
+    throw error;
   }
 }

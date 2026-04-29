@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,7 +31,21 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [bokooIndex, setBokooIndex] = useState(0);
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+
+  const bokooSlides = [
+    { title: "Buy Now. Pay Later.", desc: "Split your payments into 4 easy installments.", icon: <Wallet className="w-6 h-6" /> },
+    { title: "0% Interest.", desc: "No hidden fees, no extra costs. Just pure campus convenience.", icon: <Zap className="w-6 h-6 text-yellow-400" /> },
+    { title: "Quick Approval.", desc: "Get approved in minutes with our secure campus verification.", icon: <ShieldCheck className="w-6 h-6 text-green-400" /> }
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBokooIndex((prev) => (prev + 1) % bokooSlides.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const { data: deals = [], isLoading: dealsLoading } = useQuery<WeeklyDealWithProduct[]>({
     queryKey: ['/api/weekly-deals'],
@@ -167,6 +182,47 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Bɔkɔɔ Pay Slide Advert */}
+      <section className="py-8 bg-black overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-r from-gray-900 to-black rounded-[2rem] p-6 border border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+            
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-white">
+                  {bokooSlides[bokooIndex].icon}
+                </div>
+                <div className="space-y-1">
+                  <Badge className="bg-primary/20 text-primary border-none font-black text-[8px] uppercase tracking-widest px-2 mb-1">
+                    Bɔkɔɔ Pay
+                  </Badge>
+                  <h3 className="text-white text-xl font-black italic tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
+                    {bokooSlides[bokooIndex].title}
+                  </h3>
+                  <p className="text-gray-400 text-xs font-bold animate-in fade-in slide-in-from-left-6 duration-700">
+                    {bokooSlides[bokooIndex].desc}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="hidden md:flex gap-1.5 mr-4">
+                  {bokooSlides.map((_, i) => (
+                    <div key={i} className={`h-1 rounded-full transition-all ${i === bokooIndex ? 'w-6 bg-primary' : 'w-2 bg-white/10'}`}></div>
+                  ))}
+                </div>
+                <Link href="/gh/browse">
+                  <Button className="h-12 px-8 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all">
+                    Shop with Bɔkɔɔ <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Featured Items Grid */}
       <section className="py-24 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -199,7 +255,7 @@ export default function Home() {
              </div>
            ) : (
              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-               {featuredProducts.map((product) => (
+               {Array.isArray(featuredProducts) && featuredProducts.map((product) => (
                  <ProductCard key={product.id} product={product} />
                ))}
              </div>
@@ -255,7 +311,7 @@ export default function Home() {
                <div className="lg:col-span-2 space-y-4">
                   {activityLoading ? (
                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-[2rem]" />)
-                  ) : campusActivity.length === 0 ? (
+                  ) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
                      <div className="bg-gray-50 rounded-[3rem] p-12 text-center border-2 border-dashed border-gray-100">
                         <p className="text-gray-400 font-black uppercase tracking-widest text-xs">No recent activity for {user?.university || 'your campus'}.</p>
                      </div>
@@ -290,7 +346,7 @@ export default function Home() {
                                             <img 
                                               src={activity.user.avatar || `https://i.pravatar.cc/100?u=${activity.user.firstName}`} 
                                               alt="" 
-                                              onError={() => handleImageError(`user-${activity.user.firstName}-${activity.id}`)}
+                                              onError={() => activity.user && handleImageError(`user-${activity.user.firstName}-${activity.id}`)}
                                             />
                                           ) : (
                                             <Users className="w-4 h-4 text-gray-400" />
@@ -319,8 +375,9 @@ export default function Home() {
                      <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                      <h3 className="text-3xl font-black mb-4 relative z-10">Trending <br /><span className="text-[#B2FCE4]">Sellers.</span></h3>
                      <div className="space-y-6 mt-8 relative z-10">
-                        {featuredProducts.slice(0, 5).map((p) => (
+                       {Array.isArray(featuredProducts) && featuredProducts.slice(0, 5).map((p) => (
                            <div key={p.id} className="flex items-center gap-4 group/item cursor-pointer">
+
                               <div className="w-12 h-12 rounded-2xl border-2 border-white/10 overflow-hidden group-hover/item:border-[#B2FCE4] transition-colors flex items-center justify-center bg-white/5">
                                  {!brokenImages[`seller-${p.id}`] ? (
                                    <img 
