@@ -58,6 +58,14 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const { data: adminStores = [] } = useQuery<Store[]>({
+    queryKey: ['/api/admin/stores'],
+    enabled: !!user?.isAdmin,
+  });
+
+  const availableStores = user?.isAdmin ? adminStores : userStores;
+
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [gifFile, setGifFile] = useState<File | null>(null);
@@ -319,7 +327,13 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                           <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Select Store</FormLabel>
                           <Select onValueChange={v => field.onChange(parseInt(v))} defaultValue={field.value?.toString()}>
                             <FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Which store?" /></SelectTrigger></FormControl>
-                            <SelectContent>{userStores.map(s => <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>)}</SelectContent>
+                            <SelectContent>
+                              {availableStores.map(s => (
+                                <SelectItem key={s.id} value={s.id.toString()}>
+                                  {s.name} {s.userId === 1 ? '👑' : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
                           </Select>
                         </FormItem>
                       )} />
