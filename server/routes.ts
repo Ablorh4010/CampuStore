@@ -163,6 +163,9 @@ async function finalizePaystackOrder(data: any) {
     const store = await storage.getStoreById(product.storeId);
     if (!store) continue;
 
+    const isThisItemEligible = product.isInstallmentEligible && metadata.isBokoo;
+    const itemRecurringAmount = isThisItemEligible ? (parseFloat(product.price.toString()) * item.quantity * 0.75) / 3 : 0;
+
     const order = await storage.createOrder({
       buyerId: userId || 0,
       sellerId: store.userId,
@@ -178,11 +181,11 @@ async function finalizePaystackOrder(data: any) {
       buyerEmail: buyerEmail,
       payoutStatus: 'pending',
       
-      // Installment info
-      isInstallment: metadata.isBokoo || false,
-      installmentsPaid: metadata.isBokoo ? 1 : 0,
-      installmentAmount: metadata.isBokoo ? metadata.recurringAmount?.toString() : null,
-      nextInstallmentDate: metadata.isBokoo ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+      // Installment info - only applied if the product itself is eligible
+      isInstallment: isThisItemEligible,
+      installmentsPaid: isThisItemEligible ? 1 : 0,
+      installmentAmount: isThisItemEligible ? itemRecurringAmount.toFixed(2) : null,
+      nextInstallmentDate: isThisItemEligible ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
       paystackAuthCode: data.authorization?.authorization_code || null,
     });
     
