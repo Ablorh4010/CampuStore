@@ -21,7 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +41,7 @@ const productSchema = z.object({
   specialOffer: z.string().optional().nullable(),
   stockQuantity: z.number().min(1, 'Stock is required').default(1),
   sizes: z.string().optional().nullable(), // For clothing/shoes
-  images: z.array(z.string()).max(4, 'Maximum 4 other images allowed'),
+  images: z.array(z.string()).max(8, 'Maximum 8 other images allowed'),
   mediaGifUrl: z.string().min(1, 'Showcase GIF or Video is mandatory'),
 });
 
@@ -242,8 +241,8 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + imageFiles.length > 4) {
-      toast({ title: 'Limit Exceeded', description: 'At most 4 other images allowed.', variant: 'destructive' });
+    if (files.length + imageFiles.length > 8) {
+      toast({ title: 'Limit Exceeded', description: 'At most 8 other images allowed.', variant: 'destructive' });
       return;
     }
     
@@ -291,6 +290,16 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
     createProductMutation.mutate(data);
   };
 
+  const onFormError = (errors: any) => {
+    console.error("Form Validation Errors:", errors);
+    const firstError = Object.values(errors)[0] as any;
+    toast({ 
+      title: "Check Form Details", 
+      description: firstError?.message || 'Please complete all required fields.', 
+      variant: "destructive" 
+    });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col rounded-[3rem] border-none shadow-2xl p-0">
@@ -317,7 +326,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
 
         <ScrollArea className="flex-grow p-10">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit, onFormError)} className="space-y-8">
               {step === 1 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-8">
                   <div className="grid md:grid-cols-2 gap-8">
@@ -438,9 +447,9 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                     <div className="flex justify-between items-center mb-8">
                       <div>
                         <h4 className="font-black uppercase tracking-tight">Image Gallery</h4>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Upload up to 4 high-quality photos</p>
+                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Upload up to 8 high-quality photos</p>
                       </div>
-                      <Badge variant="outline" className="text-lg px-4 py-1 rounded-xl border-2 font-black">{imageFiles.length}/4</Badge>
+                      <Badge variant="outline" className="text-lg px-4 py-1 rounded-xl border-2 font-black">{imageFiles.length}/8</Badge>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -462,7 +471,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                           </div>
                         </div>
                       ))}
-                      {imageFiles.length < 4 && (
+                      {imageFiles.length < 8 && (
                         <label className="aspect-square bg-white rounded-[2rem] border-4 border-dashed border-gray-100 flex flex-col items-center justify-center cursor-pointer hover:border-primary/20 hover:bg-gray-50 transition-all shadow-sm">
                            <div className="p-4 bg-gray-50 rounded-2xl mb-2"><ImagePlus className="w-8 h-8 text-gray-300" /></div>
                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Add Photo</span>
@@ -504,7 +513,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
             <Button 
               type="button" 
               className="h-16 rounded-[1.5rem] flex-[2] font-black uppercase tracking-widest text-xs shadow-2xl shadow-primary/30 animate-pulse-slow"
-              onClick={form.handleSubmit(onSubmit)}
+              onClick={form.handleSubmit(onSubmit, onFormError)}
               disabled={isUploading || createProductMutation.isPending}
             >
                {isUploading ? <><Loader2 className="w-6 h-6 animate-spin mr-2" /> Processing...</> : <><Plus className="w-6 h-6 mr-2" /> Launch Product</>}

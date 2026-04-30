@@ -641,16 +641,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { title, category } = req.body;
       if (!title) return res.status(400).json({ message: "Title is required" });
-      
+
       const { generateProductDescription } = await import('./ai');
-      const description = await generateProductDescription(title, category);
-      res.json({ description });
+      const result = await generateProductDescription(title, category);
+      res.json(result);
     } catch (error) {
       console.error("AI Description Error:", error);
       res.status(500).json({ message: "Failed to generate AI description" });
     }
   });
-
   app.post("/api/ai/generate-store-profile", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { name, university, city } = req.body;
