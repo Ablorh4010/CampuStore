@@ -66,6 +66,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   const [isEnhancing, setIsEnhancing] = useState<number | null>(null);
   const [step, setStep] = useState(1);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
@@ -106,6 +107,32 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       toast({ title: "AI Error", description: "Failed to generate description.", variant: "destructive" });
     } finally {
       setIsAiGenerating(false);
+    }
+  };
+
+  const analyzeImageWithAi = async (base64Image: string) => {
+    setIsAnalyzingImage(true);
+    try {
+      const response = await apiRequest('POST', '/api/ai/analyze-image', { image: base64Image });
+      const data = await response.json();
+      
+      form.setValue('title', data.title);
+      form.setValue('description', data.description);
+      
+      const categoryId = categories.find((c: any) => c.name === data.categoryName)?.id;
+      if (categoryId) {
+        form.setValue('categoryId', categoryId);
+      }
+      
+      toast({ 
+        title: "AI Analysis Complete!", 
+        description: `Identified as ${data.categoryName}. Details updated.` 
+      });
+    } catch (error) {
+      console.error("AI Analysis Error:", error);
+      toast({ title: "Analysis Failed", description: "Gemini couldn't analyze the image. Please enter details manually.", variant: "destructive" });
+    } finally {
+      setIsAnalyzingImage(false);
     }
   };
 
@@ -317,7 +344,20 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                          {gifPreview ? (
                             <div className="relative group rounded-3xl overflow-hidden border-4 border-white shadow-2xl">
                                <img src={gifPreview} className="w-full h-48 object-cover" alt="GIF Preview" />
-                               <Button type="button" variant="destructive" size="icon" className="absolute top-4 right-4 rounded-full h-10 w-10 shadow-lg" onClick={() => {setGifFile(null); setGifPreview(null); form.setValue('mediaGifUrl', '');}}><Trash2 className="w-5 h-5" /></Button>
+                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
+                                  {gifFile?.type.startsWith('image/') && (
+                                    <Button 
+                                      type="button" 
+                                      className="bg-white text-black font-black text-[10px] uppercase h-10 px-4 rounded-xl"
+                                      onClick={() => analyzeImageWithAi(gifPreview)}
+                                      disabled={isAnalyzingImage}
+                                    >
+                                      {isAnalyzingImage ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Sparkles className="w-3 h-3 text-primary mr-2" />}
+                                      Analyze with Gemini
+                                    </Button>
+                                  )}
+                                  <Button type="button" variant="destructive" size="icon" className="rounded-full h-10 w-10 shadow-lg" onClick={() => {setGifFile(null); setGifPreview(null); form.setValue('mediaGifUrl', '');}}><Trash2 className="w-5 h-5" /></Button>
+                               </div>
                             </div>
                          ) : (
                             <label className="flex flex-col items-center justify-center h-48 bg-white rounded-3xl cursor-pointer hover:bg-gray-50 transition-all border-2 border-gray-100 shadow-sm group">

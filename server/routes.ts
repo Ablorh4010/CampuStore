@@ -125,7 +125,7 @@ async function createPaystackPlan(amount: number, name: string) {
         amount: Math.round(amount * 100),
         interval: 'monthly',
         currency: 'GHS',
-        invoice_limit: 4, // 4 installments total
+        invoice_limit: 3, // 3 remaining installments
         description: 'Bɔkɔɔ Pay Installment Plan'
       })
     });
@@ -176,7 +176,14 @@ async function finalizePaystackOrder(data: any) {
       shippingMode: (metadata.shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
       buyerAddress: guestDetails?.address || buyerInfo?.address || 'Provided at checkout',
       buyerEmail: buyerEmail,
-      payoutStatus: 'pending'
+      payoutStatus: 'pending',
+      
+      // Installment info
+      isInstallment: metadata.isBokoo || false,
+      installmentsPaid: metadata.isBokoo ? 1 : 0,
+      installmentAmount: metadata.isBokoo ? metadata.recurringAmount?.toString() : null,
+      nextInstallmentDate: metadata.isBokoo ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+      paystackAuthCode: data.authorization?.authorization_code || null,
     });
     
     createdOrders.push(order);
@@ -676,6 +683,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("AI Tracking Insight Error:", error);
       res.status(500).json({ message: "Failed to generate AI tracking insights" });
+    }
+  });
+
+  app.post("/api/ai/analyze-image", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { image } = req.body;
+      if (!image) return res.status(400).json({ message: "Image data is required" });
+
+      const { analyzeProductImage } = await import('./ai');
+      const result = await analyzeProductImage(image);
+      res.json(result);
+    } catch (error) {
+      console.error("AI Image Analysis Error:", error);
+      res.status(500).json({ message: "Failed to analyze image with AI" });
     }
   });
 
@@ -1939,6 +1960,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/messages/conversations", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const conversations = await storage.getUserConversations(req.userId!);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Fetch Conversations Error:", error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
   app.put("/api/messages/:id/read", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -2224,9 +2255,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { amount, email, metadata } = req.body;
       
       let planCode = null;
-      if (metadata.isBokoo) {
-        // Create a unique plan for this installment purchase
-        planCode = await createPaystackPlan(amount, `Bɔkɔɔ Installment - ${email} - ${Date.now()}`);
+      if (metadata.isBokoo && metadata.recurringAmount > 0) {
+        // Create a unique plan for the deferred installments
+        planCode = await createPaystackPlan(metadata.recurringAmount, `Bɔkɔɔ Installment - ${email} - ${Date.now()}`);
       }
 
       // PayStack uses minor units (pesewas for GHS)
@@ -2349,6 +2380,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Failed to update product status" });
+    }
+  });
+
+  app.put("/api/admin/products/:id/eligibility", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isEligible } = req.body;
+      const updatedProduct = await storage.updateProductEligibility(id, isEligible);
+      if (updatedProduct) {
+        res.json(updatedProduct);
+      } else {
+        res.status(404).json({ message: "Product not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update product eligibility" });
     }
   });
 

@@ -107,6 +107,7 @@ export const products = pgTable("products", {
   isAvailable: boolean("is_available").notNull().default(true),
   approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
   viewCount: integer("view_count").notNull().default(0),
+  isInstallmentEligible: boolean("is_installment_eligible").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -142,6 +143,14 @@ export const orders = pgTable("orders", {
   buyerEmail: text("buyer_email"),
   payoutStatus: text("payout_status").default("pending"), // pending, processed, cancelled
   payoutProcessedAt: timestamp("payout_processed_at"),
+  
+  // Installment fields
+  isInstallment: boolean("is_installment").notNull().default(false),
+  installmentsPaid: integer("installments_paid").notNull().default(0),
+  installmentAmount: decimal("installment_amount", { precision: 10, scale: 2 }),
+  nextInstallmentDate: timestamp("next_installment_date"),
+  paystackAuthCode: text("paystack_auth_code"),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

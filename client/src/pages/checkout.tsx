@@ -67,14 +67,14 @@ export default function Checkout() {
 
   const paystackInitializeMutation = useMutation({
     mutationFn: async () => {
-      const amount = isBokoo ? grandTotal / 4 : grandTotal;
       const response = await apiRequest("POST", "/api/paystack/initialize", {
-        amount,
+        amount: upfrontAmount,
         email: details.email,
         metadata: {
           userId: user?.id,
           cartItems: cartItems.map((item: any) => ({ productId: item.product.id, quantity: item.quantity })),
           isBokoo,
+          recurringAmount,
           guestDetails: !user ? details : undefined,
           codFee: codFee > 0 ? codFee : undefined,
           shippingMode,
@@ -117,10 +117,25 @@ export default function Checkout() {
   const [buyerIdFile, setBuyerIdFile] = useState<File | null>(null);
   const [buyerFaceFile, setBuyerFaceFile] = useState<File | null>(null);
 
+  const eligibleItems = cartItems.filter((item: any) => item.product.isInstallmentEligible);
+  const nonEligibleItems = cartItems.filter((item: any) => !item.product.isInstallmentEligible);
+
+  const eligibleTotal = eligibleItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
+  const nonEligibleTotal = nonEligibleItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
+
   const isFreeDeliveryQualified = cartTotal < 100;
   const shippingFee = shippingMode === 'ghana_post_ems' && !isFreeDeliveryQualified ? 70 : 0;
   const codFee = paymentMode === 'cod' ? (cartTotal * 0.10) : 0;
+  
   const grandTotal = cartTotal + shippingFee + codFee;
+  
+  // Mixed checkout calculation
+  // If Bɔkɔɔ Pay is selected: Pay upfront (Non-eligible items + 1st quarter of eligible items) + all fees
+  const upfrontAmount = isBokoo 
+    ? nonEligibleTotal + (eligibleTotal / 4) + shippingFee + codFee
+    : grandTotal;
+  
+  const recurringAmount = isBokoo ? (eligibleTotal * 3 / 4) / 3 : 0;
 
   useEffect(() => {
     if (cartItems.length === 0 && !new URLSearchParams(window.location.search).get('reference')) {
@@ -512,7 +527,7 @@ export default function Checkout() {
                         {paystackInitializeMutation.isPending || paystackVerifyMutation.isPending ? (
                           <><Loader2 className="w-5 h-5 animate-spin mr-2" /> {paystackVerifyMutation.isPending ? "Verifying..." : "Redirecting..."}</>
                         ) : (
-                          `Confirm & Pay GH₵${(isBokoo ? grandTotal / 4 : grandTotal).toFixed(2)}`
+                          `Confirm & Pay GH₵${upfrontAmount.toFixed(2)}`
                         )}
                       </Button>
                     </div>
@@ -527,7 +542,13 @@ export default function Checkout() {
                 <h3 className="font-black uppercase text-xs tracking-widest text-gray-400 mb-6">Summary.</h3>
                 <div className="space-y-4 mb-6 max-h-[300px] overflow-auto">
                   {cartItems.map((item: any) => (
-                    <div key={item.id} className="flex justify-between text-sm"><p className="font-bold line-clamp-1">{item.product.title}</p><p className="font-black ml-4">GH₵{(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p></div>
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <div>
+                        <p className="font-bold line-clamp-1">{item.product.title}</p>
+                        {item.product.isInstallmentEligible && <Badge variant="outline" className="text-[8px] font-black uppercase text-primary border-primary/20 px-1 h-4">Eligible</Badge>}
+                      </div>
+                      <p className="font-black ml-4">GH₵{(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
+                    </div>
                   ))}
                 </div>
                 <Separator className="mb-6" />
@@ -540,7 +561,25 @@ export default function Checkout() {
                   {codFee > 0 && <div className="flex justify-between text-xs font-bold text-gray-400 uppercase"><span>COD Fee (10%)</span><span>GH₵{codFee.toFixed(2)}</span></div>}
                 </div>
                 <div className="flex justify-between items-center mb-6"><span className="text-lg font-black italic">Total.</span><span className="text-3xl font-black">GH₵{grandTotal.toFixed(2)}</span></div>
-                {isBokoo && <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex justify-between items-center text-primary font-black italic"><span>Due Today.</span><span>GH₵{(grandTotal/4).toFixed(2)}</span></div>}
+                
+                {isBokoo && (
+                   <div className="space-y-3">
+                      <div className="p-4 bg-primary/5 rounded-2xl border-2 border-primary/10">
+                         <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-black uppercase text-primary">Pay Today</span>
+                            <span className="font-black text-lg">GH₵{upfrontAmount.toFixed(2)}</span>
+                         </div>
+                         <p className="text-[9px] font-bold text-gray-500">Includes all non-eligible items + 1st installment + fees.</p>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-2xl border-2 border-gray-100">
+                         <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] font-black uppercase text-gray-400">Monthly Next</span>
+                            <span className="font-black text-lg">GH₵{recurringAmount.toFixed(2)}</span>
+                         </div>
+                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">3 Parts • Monthly Auto-deduct</p>
+                      </div>
+                   </div>
+                )}
              </Card>
           </div>
         </div>

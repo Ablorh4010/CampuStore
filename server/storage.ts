@@ -89,6 +89,7 @@ export interface IStorage {
   getPendingProducts(): Promise<ProductWithStore[]>;
   getAllProductsForAdmin(): Promise<ProductWithStore[]>;
   updateProductApprovalStatus(id: number, status: string): Promise<Product | undefined>;
+  updateProductEligibility(id: number, isEligible: boolean): Promise<Product | undefined>;
 
   // Orders
   createOrder(order: InsertOrder): Promise<Order>;
@@ -908,6 +909,15 @@ export class DatabaseStorage implements IStorage {
     return product || undefined;
   }
 
+  async updateProductEligibility(id: number, isEligible: boolean): Promise<Product | undefined> {
+    const [product] = await db
+      .update(products)
+      .set({ isInstallmentEligible: isEligible })
+      .where(eq(products.id, id))
+      .returning();
+    return product || undefined;
+  }
+
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
     const orderData = { ...insertOrder };
     if (orderData.estimatedDeliveryDate && typeof orderData.estimatedDeliveryDate === 'string') {
@@ -1082,6 +1092,39 @@ export class DatabaseStorage implements IStorage {
   async markMessageAsRead(id: number): Promise<boolean> {
     const result = await db.update(messages).set({ isRead: true }).where(eq(messages.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  async getUserConversations(userId: number): Promise<any[]> {
+    // This is a more complex query to get unique conversations with last message
+    const conversations = await db.execute(sql`
+      WITH LastMessages AS (
+        SELECT 
+          CASE WHEN from_id = ${userId} THEN to_id ELSE from_id END as other_user_id,
+          content,
+          created_at,
+          is_read,
+          from_id,
+          ROW_NUMBER() OVER(PARTITION BY CASE WHEN from_id = ${userId} THEN to_id ELSE from_id END ORDER BY created_at DESC) as rn
+        FROM messages
+        WHERE from_id = ${userId} OR to_id = ${userId}
+      )
+      SELECT 
+        lm.other_user_id as "userId",
+        u.first_name as "firstName",
+        u.last_name as "lastName",
+        u.avatar as "avatar",
+        u.user_type as "userType",
+        lm.content as "lastMessage",
+        lm.created_at as "timestamp",
+        lm.is_read as "isRead",
+        lm.from_id as "lastMessageFromId"
+      FROM LastMessages lm
+      JOIN users u ON lm.other_user_id = u.id
+      WHERE lm.rn = 1
+      ORDER BY lm.created_at DESC
+    `);
+
+    return conversations.rows;
   }
 
   async addToCart(insertCartItem: InsertCartItem): Promise<CartItem> {

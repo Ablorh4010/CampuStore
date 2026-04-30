@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import InboxComponent from '@/components/chat/InboxComponent';
 import type { ProductWithStore, StoreWithUser, Category, User, WeeklyDealWithProduct, CampusActivityWithUser, OrderWithDetails } from '@shared/schema';
 
 export default function AdminDashboard() {
@@ -209,6 +210,16 @@ export default function AdminDashboard() {
     },
   });
 
+  const updateProductEligibilityMutation = useMutation({
+    mutationFn: ({ productId, isEligible }: { productId: number; isEligible: boolean }) =>
+      apiRequest('PUT', `/api/admin/products/${productId}/eligibility`, { isEligible }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      toast({ title: 'Success', description: 'Installment eligibility updated' });
+    },
+  });
+
   const updateStoreStatusMutation = useMutation({
     mutationFn: ({ storeId, status, feedback }: { storeId: number; status: string; feedback?: string }) =>
       apiRequest('PUT', `/api/admin/stores/${storeId}/approval`, { status, feedback }),
@@ -311,6 +322,9 @@ export default function AdminDashboard() {
             <TabsTrigger value="pending-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
               Pending Items
             </TabsTrigger>
+            <TabsTrigger value="product-mgmt" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+              Product Mgmt
+            </TabsTrigger>
             <TabsTrigger value="pending-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
               Pending Stores
             </TabsTrigger>
@@ -328,6 +342,9 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="installment-approvals" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
               Installment Approvals
+            </TabsTrigger>
+            <TabsTrigger value="inbox" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+              Inbox
             </TabsTrigger>
             <TabsTrigger value="settings" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
               App Settings
@@ -427,6 +444,53 @@ export default function AdminDashboard() {
                 ))}
                 {allProducts.filter(p => p.approvalStatus === 'pending').length === 0 && (
                    <p className="col-span-full text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending items.</p>
+                )}
+             </div>
+          </TabsContent>
+
+          <TabsContent value="product-mgmt" className="mt-0">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allProducts.filter(p => p.approvalStatus === 'approved').map(product => (
+                  <Card key={product.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white">
+                    <div className="aspect-[4/3] bg-gray-100 relative">
+                       <img src={product.images[0]} className="w-full h-full object-cover" alt="" />
+                       <div className="absolute top-4 right-4">
+                          {product.isInstallmentEligible && (
+                             <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg">
+                               Installment Plan Active
+                             </Badge>
+                          )}
+                       </div>
+                    </div>
+                    <CardContent className="p-6">
+                       <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-black text-sm uppercase">{product.title}</h4>
+                          <p className="font-black text-primary">GH₵{product.price}</p>
+                       </div>
+                       <p className="text-xs text-gray-400 mb-4 uppercase font-bold tracking-widest">Store: {product.store.name}</p>
+                       
+                       <div className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between">
+                          <div>
+                             <p className="text-[10px] font-black uppercase text-gray-400">Installment Eligibility</p>
+                             <p className="text-xs font-bold">{product.isInstallmentEligible ? 'Enabled for Bɔkɔɔ Pay' : 'Full Payment Only'}</p>
+                          </div>
+                          <Button 
+                            variant={product.isInstallmentEligible ? "destructive" : "default"}
+                            size="sm"
+                            className="rounded-xl font-black text-[10px] uppercase h-8"
+                            onClick={() => updateProductEligibilityMutation.mutate({ 
+                              productId: product.id, 
+                              isEligible: !product.isInstallmentEligible 
+                            })}
+                          >
+                            {product.isInstallmentEligible ? 'Disable' : 'Enable'}
+                          </Button>
+                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {allProducts.filter(p => p.approvalStatus === 'approved').length === 0 && (
+                   <p className="col-span-full text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No approved items yet.</p>
                 )}
              </div>
           </TabsContent>
@@ -757,6 +821,10 @@ export default function AdminDashboard() {
              {pendingBuyerVerifications.length === 0 && (
                 <p className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending installment approvals.</p>
              )}
+          </TabsContent>
+
+          <TabsContent value="inbox" className="mt-0">
+             <InboxComponent />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-0">
