@@ -42,7 +42,7 @@ const productSchema = z.object({
   stockQuantity: z.number().min(1, 'Stock is required').default(1),
   sizes: z.string().optional().nullable(), // For clothing/shoes
   images: z.array(z.string()).max(8, 'Maximum 8 other images allowed'),
-  mediaGifUrl: z.string().min(1, 'Showcase GIF or Video is mandatory'),
+  mediaGifUrl: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -67,8 +67,8 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
 
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [gifFile, setGifFile] = useState<File | null>(null);
-  const [gifPreview, setGifPreview] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState<number | null>(null);
   const [step, setStep] = useState(1);
@@ -176,15 +176,15 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       try {
         let mediaGifUrl = '';
         
-        // 1. Upload optional GIF/Video if present
-        if (gifFile) {
-          console.log('Uploading GIF/Video...');
-          const gifFormData = new FormData();
-          gifFormData.append('image', gifFile);
-          const gifRes = await apiRequest('POST', '/api/upload/product', gifFormData);
-          const gifData = await gifRes.json();
-          mediaGifUrl = gifData.url;
-          console.log('GIF/Video uploaded successfully:', mediaGifUrl);
+        // 1. Upload optional Video if present
+        if (videoFile) {
+          console.log('Uploading Video...');
+          const videoFormData = new FormData();
+          videoFormData.append('image', videoFile);
+          const videoRes = await apiRequest('POST', '/api/upload/product', videoFormData);
+          const videoData = await videoRes.json();
+          mediaGifUrl = videoData.url;
+          console.log('Video uploaded successfully:', mediaGifUrl);
         }
         
         // 2. Upload other images in parallel
@@ -230,8 +230,8 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       form.reset();
       setImageFiles([]);
       setImagePreviews([]);
-      setGifFile(null);
-      setGifPreview(null);
+      setVideoFile(null);
+      setVideoPreview(null);
     },
     onError: (error: Error) => {
       console.error('Submission error:', error);
@@ -243,12 +243,12 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
     }
   });
 
-  const handleGifChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setGifFile(file);
+      setVideoFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => setGifPreview(reader.result as string);
+      reader.onloadend = () => setVideoPreview(reader.result as string);
       reader.readAsDataURL(file);
       form.setValue('mediaGifUrl', 'uploaded');
     }
@@ -378,29 +378,33 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                          <p className="text-[10px] text-gray-500 font-bold mb-6 leading-relaxed uppercase tracking-wider">
                             Add a short video or GIF to make your product stand out. Not required but highly recommended.
                          </p>
-                         {gifPreview ? (
+                         {videoPreview ? (
                             <div className="relative group rounded-3xl overflow-hidden border-4 border-white shadow-2xl">
-                               <img src={gifPreview} className="w-full h-48 object-cover" alt="GIF Preview" />
+                               {videoFile?.type.startsWith('video/') ? (
+                                 <video src={videoPreview} className="w-full h-48 object-cover" controls />
+                               ) : (
+                                 <img src={videoPreview} className="w-full h-48 object-cover" alt="Video Preview" />
+                               )}
                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                                  {gifFile?.type.startsWith('image/') && (
+                                  {videoFile?.type.startsWith('image/') && (
                                     <Button 
                                       type="button" 
                                       className="bg-white text-black font-black text-[10px] uppercase h-10 px-4 rounded-xl"
-                                      onClick={() => analyzeImageWithAi(gifPreview)}
+                                      onClick={() => analyzeImageWithAi(videoPreview)}
                                       disabled={isAnalyzingImage}
                                     >
                                       {isAnalyzingImage ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Sparkles className="w-3 h-3 text-primary mr-2" />}
                                       Analyze with Gemini
                                     </Button>
                                   )}
-                                  <Button type="button" variant="destructive" size="icon" className="rounded-full h-10 w-10 shadow-lg" onClick={() => {setGifFile(null); setGifPreview(null); form.setValue('mediaGifUrl', undefined);}}><Trash2 className="w-5 h-5" /></Button>
+                                  <Button type="button" variant="destructive" size="icon" className="rounded-full h-10 w-10 shadow-lg" onClick={() => {setVideoFile(null); setVideoPreview(null); form.setValue('mediaGifUrl', undefined);}}><Trash2 className="w-5 h-5" /></Button>
                                </div>
                             </div>
                          ) : (
                             <label className="flex flex-col items-center justify-center h-48 bg-white rounded-3xl cursor-pointer hover:bg-gray-50 transition-all border-2 border-gray-100 shadow-sm group">
                                <div className="p-4 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform"><Wand2 className="w-10 h-10 text-primary animate-pulse" /></div>
-                               <span className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Capture or Upload <br />Product Showcase</span>
-                               <input type="file" className="hidden" accept="image/gif,video/mp4,video/quicktime,video/webm" onChange={handleGifChange} />
+                               <span className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Capture or Upload <br />Product Video</span>
+                               <input type="file" className="hidden" accept="video/mp4,video/quicktime,video/webm" onChange={handleVideoChange} />
                             </label>
                          )}
                       </div>
