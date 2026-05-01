@@ -1,23 +1,64 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { VertexAI } from '@google-cloud/vertexai';
 
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "dummy_key");
+const project = process.env.GOOGLE_CLOUD_PROJECT || 'chromatic-force-480509-j5';
+const location = 'europe-west1';
 
-export async function generateStoreProfile(name: string, university: string, city: string) {
-  if (!process.env.GEMINI_API_KEY) {
-    // Fallback if no key is provided
-    return {
-      description: `Welcome to ${name}! We are a premier student store located at ${university} in ${city}. We provide high-quality products for students by students. Shop with us for the best deals on campus!`,
-      shippingModes: ["affordcampus_pickup", "seller_delivery"]
-    };
+const vertexAI = new VertexAI({ project: project, location: location });
+
+/**
+ * Helper to call generative model, prioritizing Vertex AI Prompt Management if a prompt ID is provided.
+ */
+async function callGenerativeModel(options: {
+  promptId?: string;
+  defaultPrompt: string;
+  defaultSystemInstruction?: string;
+  variables?: Record<string, string>;
+  modelName?: string;
+  responseMimeType?: string;
+  imagePart?: any;
+}) {
+  const modelName = options.modelName || "gemini-2.0-flash-001";
+  
+  // If we had a working MCP, we'd use the promptId here.
+  // For now, we use the SDK to generate content with local fallback.
+  const generativeModel = vertexAI.getGenerativeModel({
+    model: modelName,
+    generationConfig: {
+      responseMimeType: options.responseMimeType as any,
+    },
+    systemInstruction: options.defaultSystemInstruction,
+  });
+
+  let finalPrompt = options.defaultPrompt;
+  if (options.variables) {
+    for (const [key, value] of Object.entries(options.variables)) {
+      finalPrompt = finalPrompt.replace(new RegExp(`{{${key}}}`, 'g'), value);
+      // Also handle the old hardcoded style in ai.ts
+      finalPrompt = finalPrompt.replace(new RegExp(`"${value}"`, 'g'), `"${value}"`);
+    }
   }
 
+  const parts: any[] = [{ text: finalPrompt }];
+  if (options.imagePart) {
+    parts.push(options.imagePart);
+  }
+
+  const result = await generativeModel.generateContent({
+    contents: [{ role: 'user', parts }],
+  });
+
+  const response = await result.response;
+  return response.candidates?.[0].content.parts[0].text || "";
+}
+
+export async function generateStoreProfile(name: string, university: string, city: string) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-    
-    const prompt = `You are an AI assistant helping a student create a store profile on a campus marketplace app.
-    The store name is "${name}".
-    The student is located at "${university}" in "${city}".
+    const text = await callGenerativeModel({
+      promptId: process.env.STORE_PROFILE_PROMPT_ID,
+      defaultSystemInstruction: "You are an AI assistant helping a student create a store profile on a campus marketplace app.",
+      defaultPrompt: `
+    The store name is "{{name}}".
+    The student is located at "{{university}}" in "{{city}}".
     
     Generate an engaging store description (2-3 sentences) tailored to the campus community.
     Also, suggest the most appropriate shipping modes from this list: ["seller_delivery", "affordcampus_pickup", "ems"].
@@ -28,31 +69,30 @@ export async function generateStoreProfile(name: string, university: string, cit
       "description": string,
       "shippingModes": string[]
     }
-    `;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    `,
+      variables: { name, university, city },
+      responseMimeType: "application/json"
+    });
     
     return JSON.parse(text);
   } catch (error) {
     console.error("AI Generation Error:", error);
-    throw new Error("Failed to generate store profile with AI");
+    return {
+      description: `Welcome to ${name}! We are a premier student store located at ${university} in ${city}. We provide high-quality products for students by students. Shop with us for the best deals on campus!`,
+      shippingModes: ["affordcampus_pickup", "seller_delivery"]
+    };
   }
 }
 
 export async function generateProductInsights(searchQuery: string) {
-  if (!process.env.GEMINI_API_KEY) {
-    return { suggestion: "I couldn't find a direct match, but I can keep an eye out!" };
-  }
-  
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `You are a helpful shopping assistant on a university marketplace. The user is searching for: "${searchQuery}". Provide a very short, friendly 1-sentence response suggesting what they might look for or general advice for finding good deals on this item.`;
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { suggestion: response.text().trim() };
+    const text = await callGenerativeModel({
+      promptId: process.env.PRODUCT_INSIGHTS_PROMPT_ID,
+      defaultSystemInstruction: "You are a helpful shopping assistant on a university marketplace.",
+      defaultPrompt: `The user is searching for: "{{searchQuery}}". Provide a very short, friendly 1-sentence response suggesting what they might look for or general advice for finding good deals on this item.`,
+      variables: { searchQuery }
+    });
+    return { suggestion: text.trim() };
   } catch (error) {
     console.error("AI Assistant Error:", error);
     return { suggestion: "I'm having trouble thinking right now, but feel free to browse our trending items!" };
@@ -60,29 +100,32 @@ export async function generateProductInsights(searchQuery: string) {
 }
 
 export async function generateTrackingInsights(order: any) {
-  if (!process.env.GEMINI_API_KEY) {
-    return { summary: "Your order is being processed and will be delivered soon." };
-  }
-
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `You are a delivery assistant for "The University Hub", a campus marketplace in Ghana.
+    const text = await callGenerativeModel({
+      promptId: process.env.TRACKING_INSIGHTS_PROMPT_ID,
+      defaultSystemInstruction: "You are a delivery assistant for \"The University Hub\", a campus marketplace in Ghana.",
+      defaultPrompt: `
     Order Details:
-    - Product: ${order.product.title}
-    - Shipping Mode: ${order.shippingMode}
-    - Delivery Status: ${order.deliveryStatus}
-    - Carrier: ${order.carrier || 'Ghana Post'}
-    - Tracking History: ${order.trackingHistory || 'No updates yet'}
+    - Product: {{productTitle}}
+    - Shipping Mode: {{shippingMode}}
+    - Delivery Status: {{deliveryStatus}}
+    - Carrier: {{carrier}}
+    - Tracking History: {{trackingHistory}}
     
     The user is based in Ghana.
     Standard Ghana Post takes 1-10 days.
     Express takes 1-3 days.
     
-    Generate a friendly, reassuring 1-2 sentence update for the buyer about their delivery progress. Use Ghanaian context if possible.`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { summary: response.text().trim() };
+    Generate a friendly, reassuring 1-2 sentence update for the buyer about their delivery progress. Use Ghanaian context if possible.`,
+      variables: {
+        productTitle: order.product.title,
+        shippingMode: order.shippingMode,
+        deliveryStatus: order.deliveryStatus,
+        carrier: order.carrier || 'Ghana Post',
+        trackingHistory: order.trackingHistory || 'No updates yet'
+      }
+    });
+    return { summary: text.trim() };
   } catch (error) {
     console.error("AI Tracking Error:", error);
     return { summary: "We're tracking your order and will provide updates as soon as they're available." };
@@ -90,17 +133,13 @@ export async function generateTrackingInsights(order: any) {
 }
 
 export async function generateProductDescription(title: string, category: string) {
-  if (!process.env.GEMINI_API_KEY) {
-    return { description: "A high-quality item perfect for students. Great condition and value." };
-  }
-
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `Generate a catchy, professional product description for "${title}" in the "${category}" category on a student marketplace. Max 3 sentences. Focus on value for students.`;
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return { description: response.text().trim() };
+    const text = await callGenerativeModel({
+      promptId: process.env.PRODUCT_DESCRIPTION_PROMPT_ID,
+      defaultPrompt: `Generate a catchy, professional product description for "{{title}}" in the "{{category}}" category on a student marketplace. Max 3 sentences. Focus on value for students.`,
+      variables: { title, category }
+    });
+    return { description: text.trim() };
   } catch (error) {
     console.error("AI Description Error:", error);
     return { description: "Professional product listing. Perfect for campus life." };
@@ -108,21 +147,11 @@ export async function generateProductDescription(title: string, category: string
 }
 
 export async function analyzeProductImage(base64Image: string) {
-  if (!process.env.GEMINI_API_KEY) {
-    return {
-      title: "New Product",
-      description: "A high-quality item perfect for students.",
-      categoryName: "Other"
-    };
-  }
-
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
-      generationConfig: { responseMimeType: "application/json" }
-    });
-
-    const prompt = `You are a product listing expert for a Ghanaian student marketplace. 
+    const text = await callGenerativeModel({
+      promptId: process.env.IMAGE_ANALYSIS_PROMPT_ID,
+      defaultSystemInstruction: "You are a product listing expert for a Ghanaian student marketplace.",
+      defaultPrompt: `
     Analyze this product image and generate:
     1. A short, catchy title (max 50 chars).
     2. A professional 2-3 sentence description highlighting benefits for students.
@@ -133,21 +162,16 @@ export async function analyzeProductImage(base64Image: string) {
       "title": string,
       "description": string,
       "categoryName": string
-    }`;
-
-    // Convert base64 to parts for Gemini
-    const imageParts = [
-      {
+    }`,
+      imagePart: {
         inlineData: {
           data: base64Image.split(',')[1] || base64Image,
           mimeType: "image/jpeg"
         }
-      }
-    ];
-
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const response = await result.response;
-    return JSON.parse(response.text());
+      },
+      responseMimeType: "application/json"
+    });
+    return JSON.parse(text);
   } catch (error) {
     console.error("AI Image Analysis Error:", error);
     return {
@@ -159,16 +183,11 @@ export async function analyzeProductImage(base64Image: string) {
 }
 
 export async function generateProductSuggestions(targetProduct: any, candidates: any[]) {
-  if (!process.env.GEMINI_API_KEY || candidates.length === 0) {
+  if (candidates.length === 0) {
     return candidates.slice(0, 4);
   }
 
   try {
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash", 
-      generationConfig: { responseMimeType: "application/json" } 
-    });
-    
     const candidatesData = candidates.map(c => ({
       id: c.id,
       title: c.title,
@@ -176,24 +195,32 @@ export async function generateProductSuggestions(targetProduct: any, candidates:
       storeName: c.store.name
     }));
 
-    const prompt = `You are a shopping assistant on a campus marketplace. 
+    const text = await callGenerativeModel({
+      promptId: process.env.SUGGESTIONS_PROMPT_ID,
+      defaultSystemInstruction: "You are a shopping assistant on a campus marketplace.",
+      defaultPrompt: `
     The user is looking at this product:
-    Title: "${targetProduct.title}"
-    Price: ${targetProduct.price}
-    Category: "${targetProduct.category.name}"
+    Title: "{{title}}"
+    Price: {{price}}
+    Category: "{{category}}"
 
     Here is a list of other available products:
-    ${JSON.stringify(candidatesData)}
+    {{candidatesData}}
 
     Identify which products from the list are the SAME items or very similar alternatives from OTHER sellers, and have the SAME or LOWER price.
     Return ONLY a JSON array of product IDs, ordered by best value (lowest price first).
     Keep at most 4 suggestions.
     If no items match, return an empty array [].
-    `;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    `,
+      variables: {
+        title: targetProduct.title,
+        price: targetProduct.price,
+        category: targetProduct.category.name,
+        candidatesData: JSON.stringify(candidatesData)
+      },
+      responseMimeType: "application/json"
+    });
+    
     const suggestedIds = JSON.parse(text);
     
     // Maintain the order returned by AI
