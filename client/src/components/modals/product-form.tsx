@@ -322,7 +322,7 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                </div>
                <div>
                   <DialogTitle className="text-3xl font-black uppercase tracking-tighter">
-                    {step === 1 ? 'Product Basics' : step === 2 ? 'AI Enhancement' : 'Product Gallery'}
+                    {step === 1 ? 'Product Basics v1.4' : step === 2 ? 'AI Enhancement' : 'Product Gallery'}
                   </DialogTitle>
                   <DialogDescription className="text-white/70 font-bold">Step {step} of 3</DialogDescription>
                </div>
