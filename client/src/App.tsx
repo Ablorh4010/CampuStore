@@ -31,6 +31,8 @@ import Contact from "./pages/contact";
 import NotFound from "@/pages/not-found";
 
 import GeminiAssistant from "./components/chat-assistant";
+import ScrollToTop from "./components/layout/scroll-to-top";
+import ErrorBoundary from "./components/error-boundary";
 
 function Router() {
   return (
@@ -72,10 +74,13 @@ function App() {
         <AuthProvider>
           <SocketProvider>
             <CartProvider>
-              <div className="min-h-screen bg-gray-50">
+              <div className="min-h-screen bg-gray-50 flex flex-col max-w-[1600px] mx-auto shadow-2xl border-x border-gray-100">
                 <Header />
-                <main>
-                  <Router />
+                <main className="flex-grow pb-24 lg:pb-12">
+                  <ErrorBoundary>
+                    <ScrollToTop />
+                    <Router />
+                  </ErrorBoundary>
                 </main>
                 <Footer />
                 <CartSidebar />

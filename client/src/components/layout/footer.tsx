@@ -1,6 +1,10 @@
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 export default function Footer() {
+  const [location] = useLocation();
+  const isGh = location.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
+
   return (
     <footer className="bg-slate-800 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -30,12 +34,12 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">For Buyers</h4>
             <ul className="space-y-2 text-gray-300">
               <li>
-                <Link href="/browse" className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/browse`} className="hover:text-white transition-colors">
                   Browse Products
                 </Link>
               </li>
               <li>
-                <Link href="/browse" className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/browse`} className="hover:text-white transition-colors">
                   Find Stores
                 </Link>
               </li>
@@ -56,7 +60,7 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">For Sellers</h4>
             <ul className="space-y-2 text-gray-300">
               <li>
-                <Link href="/dashboard" className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/dashboard`} className="hover:text-white transition-colors">
                   Start Selling
                 </Link>
               </li>

@@ -91,23 +91,70 @@ export async function generateTrackingInsights(order: any) {
 
 export async function generateProductDescription(title: string, category: string) {
   if (!process.env.GEMINI_API_KEY) {
-    return `Premium ${title} from our ${category} collection. High quality and great value for students.`;
+    return { description: "A high-quality item perfect for students. Great condition and value." };
   }
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `You are an expert e-commerce copywriter for a Ghanaian campus marketplace. 
-    Product Title: "${title}"
-    Category: "${category}"
+    const prompt = `Generate a catchy, professional product description for "${title}" in the "${category}" category on a student marketplace. Max 3 sentences. Focus on value for students.`;
     
-    Write a professional, persuasive, and concise product description (2-4 sentences) that highlights the benefits for students. Use a modern, energetic tone. Include emojis where appropriate.`;
-
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text().trim();
+    return { description: response.text().trim() };
   } catch (error) {
     console.error("AI Description Error:", error);
-    return `Premium ${title} from our ${category} collection. High quality and great value for students.`;
+    return { description: "Professional product listing. Perfect for campus life." };
+  }
+}
+
+export async function analyzeProductImage(base64Image: string) {
+  if (!process.env.GEMINI_API_KEY) {
+    return {
+      title: "New Product",
+      description: "A high-quality item perfect for students.",
+      categoryName: "Other"
+    };
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    const prompt = `You are a product listing expert for a Ghanaian student marketplace. 
+    Analyze this product image and generate:
+    1. A short, catchy title (max 50 chars).
+    2. A professional 2-3 sentence description highlighting benefits for students.
+    3. The most appropriate category name from this list: ["Electronics", "Books", "Clothing", "Furniture", "Sports", "Other"].
+
+    Return ONLY a JSON object:
+    {
+      "title": string,
+      "description": string,
+      "categoryName": string
+    }`;
+
+    // Convert base64 to parts for Gemini
+    const imageParts = [
+      {
+        inlineData: {
+          data: base64Image.split(',')[1] || base64Image,
+          mimeType: "image/jpeg"
+        }
+      }
+    ];
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const response = await result.response;
+    return JSON.parse(response.text());
+  } catch (error) {
+    console.error("AI Image Analysis Error:", error);
+    return {
+      title: "Product from Image",
+      description: "Uploaded via AI assistant. Ready for review.",
+      categoryName: "Other"
+    };
   }
 }
 

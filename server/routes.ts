@@ -1098,10 +1098,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileName = req.file.filename;
       const outputPath = path.join('uploads', `wm_${fileName}`);
 
+      console.log(`Processing product image: ${fileName}`);
+
       // AI Watermarking using Sharp
       const image = sharp(filePath);
       const metadata = await image.metadata();
       
+      console.log(`Image metadata: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
+
       const watermarkText = Buffer.from(`
         <svg width="${metadata.width}" height="${metadata.height}">
           <style>
@@ -1115,6 +1119,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .composite([{ input: watermarkText, top: 0, left: 0 }])
         .toFile(outputPath);
 
+      console.log(`Successfully watermarked image: wm_${fileName}`);
+
       // Clean up original un-watermarked file
       const fs = await import('fs');
       if (fs.existsSync(filePath)) {
@@ -1124,7 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ url: `/uploads/wm_${fileName}` });
     } catch (error) {
       console.error('Image processing error:', error);
-      res.status(500).json({ message: "Failed to process image with AI watermarking" });
+      res.status(500).json({ message: "Failed to process image with AI watermarking", error: String(error) });
     }
   });
 

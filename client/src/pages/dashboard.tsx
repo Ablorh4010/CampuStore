@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ProductForm from '@/components/modals/product-form';
+import InboxComponent from '@/components/chat/InboxComponent';
 import type { ProductWithStore, Store, OrderWithDetails, CampusActivity } from '@shared/schema';
 
 export default function Dashboard() {
@@ -195,6 +196,7 @@ export default function Dashboard() {
             <TabsTrigger value="listings" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Inventory</TabsTrigger>
             <TabsTrigger value="sales" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Orders Received</TabsTrigger>
             <TabsTrigger value="purchases" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">My Purchases</TabsTrigger>
+            <TabsTrigger value="inbox" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:shadow-sm">Inbox</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-0">
@@ -254,7 +256,14 @@ export default function Dashboard() {
                          <MessageCircle className="w-8 h-8 text-gray-200" />
                       </div>
                       <h4 className="font-black uppercase tracking-widest text-xs mb-2">Campus Inbox</h4>
-                      <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Connect with buyers directly on hub chat.</p>
+                      <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-6">Connect with buyers directly on hub chat.</p>
+                      <Button 
+                        variant="outline" 
+                        className="w-full h-10 rounded-xl border-2 font-black uppercase tracking-widest text-[10px]"
+                        onClick={() => setActiveTab('inbox')}
+                      >
+                        Open Inbox
+                      </Button>
                    </Card>
                 </div>
              </div>
@@ -444,6 +453,10 @@ export default function Dashboard() {
                   </div>
                 ))}
              </div>
+          </TabsContent>
+
+          <TabsContent value="inbox" className="mt-0">
+             <InboxComponent />
           </TabsContent>
         </Tabs>
 

@@ -1,0 +1,5 @@
+Feature routes registered: Events, Clubs, Auctions, Study Groups, Social, Gamification
+Socket.IO server initialized for real-time chat
+10:00:53 AM [express] Serving static files from: /home/kaydemghana/CampuStore/dist/public
+10:00:53 AM [express] serving on port 5000
+10:00:53 AM [express] Socket.IO enabled for real-time chat

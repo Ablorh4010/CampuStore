@@ -1,4 +1,4 @@
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const [imgError, setImgError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [location] = useLocation();
+
+  const isGh = location.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,7 +44,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     : product.mediaGifUrl || product.images[0];
 
   return (
-    <Link href={`/product/${product.id}`}>
+    <Link href={`${basePrefix}/product/${product.id}`}>
       <div 
         className="group relative flex flex-col h-full cursor-pointer"
         onMouseEnter={() => setIsHovered(true)}

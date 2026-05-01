@@ -212,7 +212,7 @@ export default function Home() {
                     <div key={i} className={`h-1 rounded-full transition-all ${i === bokooIndex ? 'w-6 bg-primary' : 'w-2 bg-white/10'}`}></div>
                   ))}
                 </div>
-                <Link href="/gh/browse">
+                <Link href="/gh/browse?installment=true">
                   <Button className="h-12 px-8 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all">
                     Shop with Bɔkɔɔ <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>

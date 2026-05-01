@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useSearch } from 'wouter';
-import { Grid, List, Filter, SortAsc, Search, ShoppingBag } from 'lucide-react';
+import { Grid, List, Filter, SortAsc, Search, ShoppingBag, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -19,22 +19,29 @@ import { useAuth } from '@/lib/auth-context';
 import type { ProductWithStore, StoreWithUser, Category } from '@shared/schema';
 
 export default function Browse() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const searchParams = useSearch();
   const { user } = useAuth();
+  
+  const isGh = location.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
+  
   const [viewMode, setViewMode] = useState<'products' | 'stores'>('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
   const [sortBy, setSortBy] = useState('newest');
+  const [isInstallmentOnly, setIsInstallmentOnly] = useState(false);
 
   // Parse URL parameters
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     const search = params.get('search');
     const categoryId = params.get('categoryId');
+    const installment = params.get('installment') === 'true';
     
     if (search) setSearchQuery(search);
     if (categoryId) setSelectedCategory(parseInt(categoryId));
+    if (installment) setIsInstallmentOnly(true);
   }, [searchParams]);
 
   const { data: categories = [] } = useQuery<Category[]>({
@@ -66,7 +73,8 @@ export default function Browse() {
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
     if (selectedCategory) params.set('categoryId', selectedCategory.toString());
-    setLocation(`/browse?${params.toString()}`);
+    if (isInstallmentOnly) params.set('installment', 'true');
+    setLocation(`${basePrefix}/browse?${params.toString()}`);
   };
 
   const handleCategoryFilter = (categoryId: number | 'all') => {
@@ -76,7 +84,8 @@ export default function Browse() {
     const params = new URLSearchParams();
     if (searchQuery) params.set('search', searchQuery);
     if (newCategory) params.set('categoryId', newCategory.toString());
-    setLocation(`/browse?${params.toString()}`);
+    if (isInstallmentOnly) params.set('installment', 'true');
+    setLocation(`${basePrefix}/browse?${params.toString()}`);
   };
 
   const sortedProducts = Array.isArray(products) ? [...products].sort((a, b) => {
@@ -88,6 +97,7 @@ export default function Browse() {
 
   const filteredProducts = sortedProducts.filter(product => {
     if (selectedCategory && product.categoryId !== selectedCategory) return false;
+    if (isInstallmentOnly && !product.isInstallmentEligible) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return product.title.toLowerCase().includes(query) ||
@@ -170,19 +180,48 @@ export default function Browse() {
                 <h3 className="text-[11px] font-black uppercase tracking-[0.2em] mb-6 text-gray-400">Categories</h3>
                 <div className="flex flex-col gap-1">
                   <button
-                    onClick={() => handleCategoryFilter('all')}
+                    onClick={() => {
+                      handleCategoryFilter('all');
+                      setIsInstallmentOnly(false);
+                    }}
                     className={`text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                      selectedCategory === undefined 
+                      selectedCategory === undefined && !isInstallmentOnly
                       ? 'bg-black text-white shadow-lg shadow-black/10' 
                       : 'text-gray-500 hover:bg-gray-50'
                     }`}
                   >
                     All Items
                   </button>
+
+                  <button
+                    onClick={() => {
+                      const newValue = !isInstallmentOnly;
+                      setIsInstallmentOnly(newValue);
+                      setSelectedCategory(undefined);
+                      const params = new URLSearchParams();
+                      if (searchQuery) params.set('search', searchQuery);
+                      if (newValue) params.set('installment', 'true');
+                      setLocation(`${basePrefix}/browse?${params.toString()}`);
+                    }}
+                    className={`text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all mb-4 mt-2 ${
+                      isInstallmentOnly 
+                      ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                      : 'text-primary hover:bg-primary/5 border-2 border-primary/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                       <Wallet className="w-3.5 h-3.5" />
+                       <span>Bɔkɔɔ Pay Only</span>
+                    </div>
+                  </button>
+
                   {categories.map((category) => (
                     <button
                       key={category.id}
-                      onClick={() => handleCategoryFilter(category.id)}
+                      onClick={() => {
+                        handleCategoryFilter(category.id);
+                        setIsInstallmentOnly(false);
+                      }}
                       className={`text-left px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                         selectedCategory === category.id 
                         ? 'bg-black text-white shadow-lg shadow-black/10' 
@@ -211,7 +250,7 @@ export default function Browse() {
           <main className="flex-1">
             <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
                <h2 className="text-sm font-black tracking-[0.1em] text-gray-900 uppercase">
-                 {selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Explore Market'}
+                 {isInstallmentOnly ? 'Bɔkɔɔ Pay Eligible' : (selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Explore Market')}
                  <span className="ml-2 text-gray-300 font-medium tracking-normal text-xs uppercase">({viewMode === 'products' ? filteredProducts.length : filteredStores.length} results)</span>
                </h2>
             </div>
@@ -235,7 +274,7 @@ export default function Browse() {
                     </div>
                     <h3 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-widest">No results</h3>
                     <p className="text-gray-400 text-xs font-bold mb-8 uppercase tracking-widest">Try adjusting your filters.</p>
-                    <Button onClick={() => { setSearchQuery(''); setSelectedCategory(undefined); }} className="rounded-xl bg-black font-black text-xs uppercase tracking-widest h-12 px-8">
+                    <Button onClick={() => { setSearchQuery(''); setSelectedCategory(undefined); setIsInstallmentOnly(false); }} className="rounded-xl bg-black font-black text-xs uppercase tracking-widest h-12 px-8">
                        Reset all
                     </Button>
                   </div>
@@ -250,28 +289,10 @@ export default function Browse() {
                 )}
               </div>
             ) : (
-              <div>
-                {storesLoading ? (
-                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-                    {[...Array(6)].map((_, i) => (
-                      <div key={i} className="h-48">
-                        <Skeleton className="h-full w-full rounded-2xl" />
-                      </div>
-                    ))}
-                  </div>
-                ) : filteredStores.length === 0 ? (
-                  <div className="py-20 text-center">
-                    <h3 className="text-sm font-black uppercase tracking-widest">No stores found</h3>
-                  </div>
-                ) : (
-                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
-                    {filteredStores.map((store) => (
-                      <div key={store.id} className="animate-reveal-up">
-                        <StoreCard store={store} />
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredStores.map((store) => (
+                  <StoreCard key={store.id} store={store} />
+                ))}
               </div>
             )}
           </main>

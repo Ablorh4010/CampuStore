@@ -171,48 +171,41 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       setIsUploading(true);
-      const token = localStorage.getItem('token');
-      
-      // 1. Upload mandatory GIF
-      const gifFormData = new FormData();
-      gifFormData.append('image', gifFile!);
-      const gifRes = await fetch('/api/upload/product', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: gifFormData
-      });
-      if (!gifRes.ok) throw new Error("GIF upload failed");
-      const gifData = await gifRes.json();
-      
-      // 2. Upload other images
-      const imageUrls: string[] = [];
-      for (const file of imageFiles) {
-        const formData = new FormData();
-        formData.append('image', file);
-        const res = await fetch('/api/upload/product', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: formData
-        });
-        if (res.ok) {
+      try {
+        // 1. Upload mandatory GIF
+        const gifFormData = new FormData();
+        gifFormData.append('image', gifFile!);
+        const gifRes = await apiRequest('POST', '/api/upload/product', gifFormData);
+        const gifData = await gifRes.json();
+        
+        // 2. Upload other images in parallel
+        const uploadPromises = imageFiles.map(async (file) => {
+          const formData = new FormData();
+          formData.append('image', file);
+          const res = await apiRequest('POST', '/api/upload/product', formData);
           const resData = await res.json();
-          imageUrls.push(resData.url);
-        }
-      }
+          return resData.url;
+        });
 
-      // 3. Create Product
-      const finalData = { 
-        ...data, 
-        mediaGifUrl: gifData.url,
-        images: imageUrls,
-        isAvailable: true
-      };
-      
-      const response = await apiRequest('POST', '/api/products', finalData);
-      return response.json();
+        const imageUrls = await Promise.all(uploadPromises);
+
+        // 3. Create Product
+        const finalData = { 
+          ...data, 
+          mediaGifUrl: gifData.url,
+          images: imageUrls,
+          isAvailable: true
+        };
+        
+        const response = await apiRequest('POST', '/api/products', finalData);
+        return response.json();
+      } finally {
+        setIsUploading(false);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products/store'] });
       toast({ title: 'Success', description: 'Product submitted for review!' });
       onClose();
       form.reset();
@@ -220,11 +213,14 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
       setImagePreviews([]);
       setGifFile(null);
       setGifPreview(null);
-      setIsUploading(false);
     },
     onError: (error: Error) => {
-      toast({ title: 'Submission failed', description: error.message, variant: 'destructive' });
-      setIsUploading(false);
+      console.error('Submission error:', error);
+      toast({ 
+        title: 'Submission failed', 
+        description: error.message || 'An unexpected error occurred during product creation.', 
+        variant: 'destructive' 
+      });
     }
   });
 

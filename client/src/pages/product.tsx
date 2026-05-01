@@ -40,8 +40,11 @@ import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
 import type { ProductWithStore } from '@shared/schema';
 
 export default function Product() {
-  const [, params] = useRoute('/product/:id');
-  const productId = params?.id ? parseInt(params.id) : null;
+  const [location] = useLocation();
+  // Extract ID from path like /product/123 or /gh/product/123
+  const match = location.match(/\/product\/(\d+)/);
+  const productId = match ? parseInt(match[1]) : null;
+  
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [brokenImages, setBrokenImages] = useState<Record<number, boolean>>({});
   const { user } = useAuth();
@@ -128,6 +131,28 @@ export default function Product() {
       productId: product.id,
       content: `Hi! I'm interested in your ${product.title}. Is it still available?`,
     });
+  };
+
+  const handleShare = async () => {
+    if (!product) return;
+    
+    const shareData = {
+      title: product.title,
+      text: `Check out this ${product.title} on The University Hub!`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({ title: 'Shared!', description: 'Product link shared successfully.' });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast({ title: 'Link Copied', description: 'Product link copied to clipboard.' });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
   };
 
   const nextImage = () => {
@@ -314,7 +339,11 @@ export default function Product() {
                   <MessageCircle className="mr-2 h-4 w-4" />
                   {createMessageMutation.isPending ? 'Sending...' : 'Contact Seller'}
                 </Button>
-                <Button variant="outline" className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50">
+                <Button 
+                  variant="outline" 
+                  className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50"
+                  onClick={handleShare}
+                >
                   <Share2 className="mr-2 h-4 w-4" />
                   Share Item
                 </Button>
