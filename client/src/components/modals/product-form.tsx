@@ -314,9 +314,8 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col rounded-[3rem] border-none shadow-2xl p-0">
-        <DialogHeader className="paylater-hero p-10 text-white flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <DialogHeader className="bg-black p-10 text-white flex-shrink-0">
+          <div className="flex items-center justify-between">            <div className="flex items-center gap-4">
                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
                  {step === 1 ? <Package className="w-6 h-6" /> : step === 2 ? <Sparkles className="w-6 h-6" /> : <ImageIcon className="w-6 h-6" />}
                </div>
