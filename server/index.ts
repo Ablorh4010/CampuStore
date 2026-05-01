@@ -104,7 +104,7 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port} - VERSION 1.3 RE-DEPLOYED`);
+    log(`serving on port ${port} - VERSION 1.5 - DEPLOY_ID: ${Date.now()}`);
     log(`Socket.IO enabled for real-time chat`);
   });
 })();
