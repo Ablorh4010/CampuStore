@@ -52,11 +52,16 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+        try {
+          const stringified = JSON.stringify(capturedJsonResponse);
+          if (stringified.length > 200) {
+            logLine += ` :: ${stringified.slice(0, 200)}…`;
+          } else {
+            logLine += ` :: ${stringified}`;
+          }
+        } catch (e) {
+          logLine += ` :: [Unserializable Response]`;
+        }
       }
 
       log(logLine);
@@ -76,8 +81,8 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    console.error("Global Error Handler:", err);
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after
