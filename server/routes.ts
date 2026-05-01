@@ -1087,6 +1087,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // EMERGENCY DB SYNC ROUTE
+  app.post("/api/admin/db-sync-emergency", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      console.log("Starting emergency DB sync on production...");
+      const { sql } = await import('drizzle-orm');
+      
+      // 1. Make media_gif_url optional
+      await db.execute(sql`ALTER TABLE products ALTER COLUMN media_gif_url DROP NOT NULL;`);
+      console.log("Successfully made media_gif_url optional.");
+      
+      res.json({ message: "Production database schema updated successfully." });
+    } catch (error) {
+      console.error("Emergency DB sync failed:", error);
+      res.status(500).json({ message: "Emergency DB sync failed", error: String(error) });
+    }
+  });
   app.post("/api/admin/db-sync", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       console.log("Starting emergency DB sync...");
