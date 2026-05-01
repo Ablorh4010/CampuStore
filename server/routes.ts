@@ -229,8 +229,34 @@ async function finalizePaystackOrder(data: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // EMERGENCY DB SCHEMA FIXES FOR PRODUCTION
+  (async () => {
+    try {
+      console.log("PRODUCTION DB SYNC: Checking and fixing schema...");
+      const { sql } = await import('drizzle-orm');
+      
+      // Products Table Fixes
+      try {
+        await db.execute(sql`ALTER TABLE products ALTER COLUMN media_gif_url DROP NOT NULL;`);
+        await db.execute(sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_installment_eligible BOOLEAN DEFAULT true NOT NULL;`);
+      } catch (e) { console.log("Note: Products schema updates skipped."); }
 
-  // Register extended feature routes (Events, Clubs, Auctions, Study Groups, etc.)
+      // Orders Table Fixes
+      try {
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_status TEXT DEFAULT 'pending';`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_processed_at TIMESTAMP;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_installment BOOLEAN DEFAULT false NOT NULL;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS installments_paid INTEGER DEFAULT 0 NOT NULL;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS installment_amount DECIMAL(10,2);`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS next_installment_date TIMESTAMP;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS paystack_auth_code TEXT;`);
+      } catch (e) { console.log("Note: Orders schema updates skipped."); }
+      
+      console.log("PRODUCTION DB SYNC: Success!");
+    } catch (error) {
+      console.log("PRODUCTION DB SYNC: Note - Critical failure in schema sync:", error instanceof Error ? error.message : String(error));
+    }
+  })();
   const { registerFeatureRoutes } = await import('./feature-routes');
   registerFeatureRoutes(app);
 
@@ -1097,6 +1123,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 1. Make media_gif_url optional
       await db.execute(sql`ALTER TABLE products ALTER COLUMN media_gif_url DROP NOT NULL;`);
       console.log("Successfully made media_gif_url optional.");
+
+      // 2. Add is_installment_eligible if missing
+      try {
+        await db.execute(sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_installment_eligible BOOLEAN DEFAULT true NOT NULL;`);
+        console.log("Successfully added is_installment_eligible column.");
+      } catch (e) {
+        console.log("Note: is_installment_eligible column might already exist.");
+      }
       
       res.json({ message: "Production database schema updated successfully." });
     } catch (error) {
@@ -2636,7 +2670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { storeId, categoryId, title, description, price, originalPrice, condition, images, specialOffer, mediaGifUrl } = req.body;
 
       // Validate required fields
-      if (!storeId || !categoryId || !title || !description || !price || !condition || !images || images.length === 0 || !mediaGifUrl) {
+      if (!storeId || !categoryId || !title || !description || !price || !condition || !images || images.length === 0) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 

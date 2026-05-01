@@ -33,8 +33,8 @@ import type { Category, Store } from '@shared/schema';
 const productSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
-  price: z.string().min(1, 'Price is required'),
-  originalPrice: z.string().optional().nullable(),
+  price: z.coerce.string().min(1, 'Price is required'),
+  originalPrice: z.coerce.string().optional().nullable(),
   condition: z.string().min(1, 'Condition is required'),
   categoryId: z.number().min(1, 'Category is required'),
   storeId: z.number().min(1, 'Store is required'),
@@ -361,12 +361,44 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                       )} />
                       <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="price" render={({ field }) => (
-                          <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Price (GH₵)</FormLabel><FormControl><Input type="number" placeholder="0.00" className="h-14 rounded-2xl border-2" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem>
+                            <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Price (GH₵)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="0.00" 
+                                className="h-14 rounded-2xl border-2" 
+                                {...field} 
+                                min="0"
+                                step="0.01"
+                                onChange={e => field.onChange(e.target.value)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
                         )} />
-                        <FormField control={form.control} name="condition" render={({ field }) => (
-                          <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="excellent">Excellent</SelectItem><SelectItem value="good">Good</SelectItem></SelectContent></Select></FormItem>
+                        <FormField control={form.control} name="originalPrice" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Original Price (Opt.)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="0.00" 
+                                className="h-14 rounded-2xl border-2" 
+                                {...field} 
+                                value={field.value || ''}
+                                min="0"
+                                step="0.01"
+                                onChange={e => field.onChange(e.target.value)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
                         )} />
                       </div>
+                      <FormField control={form.control} name="condition" render={({ field }) => (
+                        <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="excellent">Excellent</SelectItem><SelectItem value="good">Good</SelectItem></SelectContent></Select></FormItem>
+                      )} />
                     </div>
                     <div className="space-y-6">
                       <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
@@ -420,7 +452,23 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                   <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                       <FormField control={form.control} name="stockQuantity" render={({ field }) => (
-                        <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Initial Stock Quantity</FormLabel><FormControl><Input type="number" className="h-14 rounded-2xl border-2" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl><p className="text-[10px] text-gray-400 font-bold">You will be reminded to update this weekly.</p><FormMessage /></FormItem>
+                        <FormItem>
+                          <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Initial Stock Quantity</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              className="h-14 rounded-2xl border-2" 
+                              {...field} 
+                              min="1"
+                              onChange={e => {
+                                const val = parseInt(e.target.value);
+                                field.onChange(isNaN(val) ? 1 : val);
+                              }}
+                            />
+                          </FormControl>
+                          <p className="text-[10px] text-gray-400 font-bold">You will be reminded to update this weekly.</p>
+                          <FormMessage />
+                        </FormItem>
                       )} />
                       
                       <div className="space-y-4">

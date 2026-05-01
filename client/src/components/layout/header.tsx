@@ -299,7 +299,7 @@ export default function Header() {
                        <Button 
                          variant="outline" 
                          className="w-full"
-                         onClick={() => { setLocation(user?.isMerchant ? `${basePrefix}/dashboard` : '/seller-auth'); setIsMobileMenuOpen(false); }}
+                         onClick={() => { setLocation('/seller-auth'); setIsMobileMenuOpen(false); }}
                        >
                          Start Selling
                        </Button>

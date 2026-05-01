@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="description" content="UNIVERSITY HUB - Buy. Sell. Campus. The modern marketplace for students." />
-    <meta name="theme-color" content="#2E5BFF" />
+    <meta name="description" content="The student marketplace for University Hub. Buy and sell textbooks, electronics, and dorm essentials with ease." />
+    <meta name="theme-color" content="#413796" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -12,52 +12,11 @@
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-512.png" />
     <link rel="manifest" href="/manifest.json" />
-    <title>UNIVERSITY HUB v1.5 - Buy. Sell. Campus.</title>
-    <script>
-      // EMERGENCY HARD RESET SCRIPT
-      (function() {
-        const deploymentTime = "20260501_RESET_V1.5"; 
-        if (localStorage.getItem('last_deploy_hyper') !== deploymentTime) {
-          console.log("HYPER RESET INITIATED...");
-          
-          // Unregister ALL service workers first
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-              for (let registration of registrations) registration.unregister();
-            });
-          }
-
-          // Clear all caches
-          if ('caches' in window) {
-            caches.keys().then(names => {
-              for (let name of names) caches.delete(name);
-            });
-          }
-
-          localStorage.clear();
-          localStorage.setItem('last_deploy_hyper', deploymentTime);
-          
-          // Force reload from server bypassing cache
-          setTimeout(() => {
-            window.location.reload(true);
-          }, 1000);
-        }
-      })();
-
-      // Update title with country code once detected
-      window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-          const countryMatch = window.location.pathname.match(/^\/([a-z]{2})\/?/i);
-          if (countryMatch) {
-            document.title = `UNIVERSITY HUB ${countryMatch[1].toUpperCase()} - Buy. Sell. Campus.`;
-          }
-        }, 1000);
-      });
-    </script>
+    <title>UNIVERSITY HUB - Buy. Sell. Campus.</title>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx?v=1777624722"></script>
+    <script type="module" src="/src/main.tsx"></script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script>
       // Only load Replit dev banner in Replit environment to avoid 403 errors

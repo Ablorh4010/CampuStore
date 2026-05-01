@@ -67,10 +67,10 @@ export default function StoreForm({ isOpen, onClose, store }: StoreFormProps) {
       form.reset({
         name: store.name,
         description: store.description,
-        university: store.university,
-        campus: store.campus,
-        city: store.city,
-        logoUrl: store.logoUrl,
+        university: store.university || '',
+        campus: store.campus || '',
+        city: store.city || '',
+        logoUrl: store.logoUrl || '',
         shippingModes: store.shippingModes || [],
       });
       setLogoUrl(store.logoUrl || null);

@@ -76,10 +76,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     // Create socket connection with authentication
     const newSocket = io({
       auth: { token },
-      transports: ['websocket', 'polling'],
+      // On GAE, polling often works more reliably as initial handshake
+      transports: ['polling', 'websocket'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      // GAE standard often requires specific path or protocol handling
+      secure: true,
+      timeout: 5000,
+      autoConnect: true
     });
 
     newSocket.on('connect', () => {

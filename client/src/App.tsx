@@ -8,31 +8,28 @@ import { CartProvider } from "./lib/cart-context";
 import { SocketProvider } from "./lib/socket-context";
 import Header from "./components/layout/header";
 import Footer from "./components/layout/footer";
-import CartSidebar from "./components/cart/cart-sidebar";
-import PWAInstallPrompt from "./components/pwa-install-prompt";
 import Home from "./pages/home";
 import Browse from "./pages/browse";
 import Store from "./pages/store";
 import Product from "./pages/product";
 import Dashboard from "./pages/dashboard";
-import Auth from "./pages/auth";
-import SellerAuth from "./pages/seller-auth";
-import AdminDashboard from "./pages/admin";
-import AdminRegister from "./pages/admin-register";
-import AdminPortal from "./pages/admin-portal";
-import ForgotPassword from "./pages/forgot-password";
-import ResetPassword from "./pages/reset-password";
-import ModeSelection from "./pages/mode-selection";
 import SellerSettings from "./pages/seller-settings";
 import Checkout from "./pages/checkout";
 import PaymentSuccess from "./pages/payment-success";
+import AdminDashboard from "./pages/admin";
+import AdminPortal from "./pages/admin-portal";
+import AdminRegister from "./pages/admin-register";
+import Auth from "./pages/auth";
+import SellerAuth from "./pages/seller-auth";
+import ModeSelection from "./pages/mode-selection";
+import CartSidebar from "./components/cart/cart-sidebar";
+import PWAInstallPrompt from "./components/pwa-install-prompt";
+import ForgotPassword from "./pages/forgot-password";
+import ResetPassword from "./pages/reset-password";
 import About from "./pages/about";
 import Contact from "./pages/contact";
 import NotFound from "@/pages/not-found";
-
 import GeminiAssistant from "./components/chat-assistant";
-import ScrollToTop from "./components/layout/scroll-to-top";
-import ErrorBoundary from "./components/error-boundary";
 
 function Router() {
   return (
@@ -74,13 +71,10 @@ function App() {
         <AuthProvider>
           <SocketProvider>
             <CartProvider>
-              <div className="min-h-screen bg-gray-50 flex flex-col max-w-[1600px] mx-auto shadow-2xl border-x border-gray-100">
+              <div className="min-h-screen bg-gray-50">
                 <Header />
-                <main className="flex-grow pb-24 lg:pb-12">
-                  <ErrorBoundary>
-                    <ScrollToTop />
-                    <Router />
-                  </ErrorBoundary>
+                <main>
+                  <Router />
                 </main>
                 <Footer />
                 <CartSidebar />

@@ -420,6 +420,8 @@ export const insertProductSchema = createInsertSchema(products).omit({
   approvalStatus: true,
   createdAt: true,
 }).extend({
+  price: z.coerce.string().min(1, "Price is required"),
+  originalPrice: z.coerce.string().optional().nullable(),
   images: z.array(z.string()).max(8, "Maximum 8 images allowed per listing"),
   mediaGifUrl: z.string().optional(),
 });
@@ -484,6 +486,12 @@ export const insertAuctionSchema = createInsertSchema(auctions).omit({
   bidCount: true,
   status: true,
   createdAt: true,
+}).extend({
+  startingPrice: z.coerce.string().min(1, "Starting price is required"),
+  reservePrice: z.coerce.string().optional().nullable(),
+  buyNowPrice: z.coerce.string().optional().nullable(),
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date(),
 });
 
 export const insertAuctionBidSchema = createInsertSchema(auctionBids).omit({

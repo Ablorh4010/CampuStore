@@ -72,7 +72,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  log("Starting server initialization...");
   const server = await registerRoutes(app);
+  log("Routes registered and DB sync completed.");
 
   // Setup Socket.IO for real-time chat
   const io = setupSocketIO(server);
