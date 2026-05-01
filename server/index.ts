@@ -29,6 +29,12 @@ app.get('/clear-cache', (req, res) => {
   res.send('<h1>Cache Cleared</h1><p>Please <a href="/gh/browse">click here</a> to go to the store.</p>');
 });
 
+app.get('/force-reload', (req, res) => {
+  res.setHeader('Clear-Site-Data', '"cache", "storage", "executionContexts"');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.send('<h1>Force Reload Initiated</h1><p>Cache cleared. <a href="/">Click here to go home</a></p>');
+});
+
 
 app.use((req, res, next) => {
   const start = Date.now();
