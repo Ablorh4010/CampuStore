@@ -170,35 +170,54 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
 
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
+      console.log('Starting product creation mutation with data:', data);
+      console.log('Additional images count:', imageFiles.length);
       setIsUploading(true);
       try {
-        // 1. Upload mandatory GIF
-        const gifFormData = new FormData();
-        gifFormData.append('image', gifFile!);
-        const gifRes = await apiRequest('POST', '/api/upload/product', gifFormData);
-        const gifData = await gifRes.json();
+        let mediaGifUrl = '';
+        
+        // 1. Upload optional GIF/Video if present
+        if (gifFile) {
+          console.log('Uploading GIF/Video...');
+          const gifFormData = new FormData();
+          gifFormData.append('image', gifFile);
+          const gifRes = await apiRequest('POST', '/api/upload/product', gifFormData);
+          const gifData = await gifRes.json();
+          mediaGifUrl = gifData.url;
+          console.log('GIF/Video uploaded successfully:', mediaGifUrl);
+        }
         
         // 2. Upload other images in parallel
-        const uploadPromises = imageFiles.map(async (file) => {
+        console.log(`Uploading ${imageFiles.length} additional images...`);
+        const uploadPromises = imageFiles.map(async (file, index) => {
+          console.log(`Uploading image ${index + 1}/${imageFiles.length}...`);
           const formData = new FormData();
           formData.append('image', file);
           const res = await apiRequest('POST', '/api/upload/product', formData);
           const resData = await res.json();
+          console.log(`Image ${index + 1} uploaded successfully:`, resData.url);
           return resData.url;
         });
 
         const imageUrls = await Promise.all(uploadPromises);
+        console.log('All images uploaded successfully:', imageUrls);
 
         // 3. Create Product
         const finalData = { 
           ...data, 
-          mediaGifUrl: gifData.url,
+          mediaGifUrl: mediaGifUrl || undefined,
           images: imageUrls,
           isAvailable: true
         };
+        console.log('Sending final product data to server:', finalData);
         
         const response = await apiRequest('POST', '/api/products', finalData);
-        return response.json();
+        const result = await response.json();
+        console.log('Product created successfully on server:', result);
+        return result;
+      } catch (error) {
+        console.error('Error in product creation mutation:', error);
+        throw error;
       } finally {
         setIsUploading(false);
       }
@@ -279,10 +298,6 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   };
 
   const onSubmit = (data: ProductFormData) => {
-    if (!gifFile) {
-      toast({ title: "Showcase Required", description: "Every product must have a GIF or Video.", variant: "destructive" });
-      return;
-    }
     createProductMutation.mutate(data);
   };
 
@@ -358,8 +373,11 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                       <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
                          <div className="flex items-center gap-2 mb-4">
                             <Video className="w-5 h-5 text-primary" />
-                            <span className="text-xs font-black uppercase text-primary tracking-tighter">Showcase GIF/Video (Mandatory)</span>
+                            <span className="text-xs font-black uppercase text-primary tracking-tighter">Showcase Video (Optional)</span>
                          </div>
+                         <p className="text-[10px] text-gray-500 font-bold mb-6 leading-relaxed uppercase tracking-wider">
+                            Add a short video or GIF to make your product stand out. Not required but highly recommended.
+                         </p>
                          {gifPreview ? (
                             <div className="relative group rounded-3xl overflow-hidden border-4 border-white shadow-2xl">
                                <img src={gifPreview} className="w-full h-48 object-cover" alt="GIF Preview" />
@@ -375,14 +393,14 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                                       Analyze with Gemini
                                     </Button>
                                   )}
-                                  <Button type="button" variant="destructive" size="icon" className="rounded-full h-10 w-10 shadow-lg" onClick={() => {setGifFile(null); setGifPreview(null); form.setValue('mediaGifUrl', '');}}><Trash2 className="w-5 h-5" /></Button>
+                                  <Button type="button" variant="destructive" size="icon" className="rounded-full h-10 w-10 shadow-lg" onClick={() => {setGifFile(null); setGifPreview(null); form.setValue('mediaGifUrl', undefined);}}><Trash2 className="w-5 h-5" /></Button>
                                </div>
                             </div>
                          ) : (
                             <label className="flex flex-col items-center justify-center h-48 bg-white rounded-3xl cursor-pointer hover:bg-gray-50 transition-all border-2 border-gray-100 shadow-sm group">
                                <div className="p-4 bg-primary/10 rounded-2xl group-hover:scale-110 transition-transform"><Wand2 className="w-10 h-10 text-primary animate-pulse" /></div>
                                <span className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Capture or Upload <br />Product Showcase</span>
-                               <input type="file" className="hidden" accept="image/gif,video/mp4" onChange={handleGifChange} />
+                               <input type="file" className="hidden" accept="image/gif,video/mp4,video/quicktime,video/webm" onChange={handleGifChange} />
                             </label>
                          )}
                       </div>

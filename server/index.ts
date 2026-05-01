@@ -5,8 +5,8 @@ import { setupSocketIO } from "./socket";
 
 const app = express();
 app.set("trust proxy", true);
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ limit: '20mb', extended: false }));
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
@@ -93,7 +93,7 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on port ${port} - VERSION 1.3 RE-DEPLOYED`);
     log(`Socket.IO enabled for real-time chat`);
   });
 })();

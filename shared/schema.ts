@@ -100,7 +100,7 @@ export const products = pgTable("products", {
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   condition: text("condition").notNull(),
   images: text("images").array().notNull(), // At most 8 images
-  mediaGifUrl: text("media_gif_url").notNull(), // Mandatory short quality GIF/Video
+  mediaGifUrl: text("media_gif_url"), // Optional short quality GIF/Video
   specialOffer: text("special_offer"),
   stockQuantity: integer("stock_quantity").notNull().default(1),
   sizes: text("sizes"), // e.g. "S,M,L" or "40,41,42"
@@ -421,7 +421,7 @@ export const insertProductSchema = createInsertSchema(products).omit({
   createdAt: true,
 }).extend({
   images: z.array(z.string()).max(8, "Maximum 8 images allowed per listing"),
-  mediaGifUrl: z.string().min(1, "A showcase GIF or video is mandatory"),
+  mediaGifUrl: z.string().optional(),
 });
 
 export const insertOrderSchema = createInsertSchema(orders).omit({
