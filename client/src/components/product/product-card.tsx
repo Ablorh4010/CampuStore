@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
 import type { ProductWithStore } from '@shared/schema';
 import { useState } from 'react';
+import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
 
 interface ProductCardProps {
   product: ProductWithStore;
@@ -30,15 +31,6 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const sellerName = `${product.store.user.firstName} ${product.store.user.lastName?.[0] || ''}.`;
   
-  const calculatePriceWithFee = (price: string | number) => {
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-    return numPrice + (numPrice * 0.05); // 5% service fee
-  };
-
-  const formatPriceWithFee = (price: string | number) => {
-    return calculatePriceWithFee(price).toFixed(2);
-  };
-
   const displayImage = isHovered && product.images.length > 1 && !imgError
     ? product.images[1]
     : product.mediaGifUrl || product.images[0];
