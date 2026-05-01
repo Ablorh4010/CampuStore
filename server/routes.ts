@@ -1087,6 +1087,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  app.post("/api/admin/db-sync", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      console.log("Starting emergency DB sync...");
+      // In a real app we'd use migrations, but for this setup we'll try to use drizzle-kit logic or raw SQL
+      // For now, let's just log that we reached it.
+      res.json({ message: "DB sync endpoint reached. Manual schema update required on Cloud SQL." });
+    } catch (error) {
+      console.error("DB sync error:", error);
+      res.status(500).json({ message: "DB sync failed", error: String(error) });
+    }
+  });
+
   // Product image upload with AI Watermarking
   app.post("/api/upload/product", authenticateToken, imageUpload.single('image'), async (req: AuthRequest, res) => {
     try {
@@ -1098,46 +1110,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fileName = req.file.filename;
       const outputPath = path.join('uploads', `wm_${fileName}`);
 
-      console.log(`Processing product image: ${fileName}`);
+      console.log(`Processing product upload: ${fileName}, mimetype: ${req.file.mimetype}`);
 
-      // AI Watermarking using Sharp
-      const image = sharp(filePath);
-      
-      // Set a timeout for Sharp processing to prevent hangs
-      const processingPromise = (async () => {
-        const metadata = await image.metadata();
-        console.log(`Image metadata: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
+      if (req.file.mimetype.startsWith('image/')) {
+        // AI Watermarking using Sharp for images
+        const image = sharp(filePath);
+        
+        // Set a timeout for Sharp processing to prevent hangs
+        const processingPromise = (async () => {
+          const metadata = await image.metadata();
+          console.log(`Image metadata: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
 
-        const watermarkText = Buffer.from(`
-          <svg width="${metadata.width}" height="${metadata.height}">
-            <style>
-              .text { fill: white; font-family: sans-serif; font-weight: bold; opacity: 0.4; font-size: ${Math.floor(metadata.width! / 15)}px; }
-            </style>
-            <text x="80%" y="90%" text-anchor="middle" class="text">University Hub</text>
-          </svg>
-        `);
+          const watermarkText = Buffer.from(`
+            <svg width="${metadata.width}" height="${metadata.height}">
+              <style>
+                .text { fill: white; font-family: sans-serif; font-weight: bold; opacity: 0.4; font-size: ${Math.floor(metadata.width! / 15)}px; }
+              </style>
+              <text x="80%" y="90%" text-anchor="middle" class="text">University Hub</text>
+            </svg>
+          `);
 
-        await image
-          .composite([{ input: watermarkText, top: 0, left: 0 }])
-          .toFile(outputPath);
-      })();
+          await image
+            .composite([{ input: watermarkText, top: 0, left: 0 }])
+            .toFile(outputPath);
+        })();
 
-      // 30 second timeout for image processing
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Image processing timed out")), 30000)
-      );
+        // 30 second timeout for image processing
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Image processing timed out")), 30000)
+        );
 
-      await Promise.race([processingPromise, timeoutPromise]);
+        await Promise.race([processingPromise, timeoutPromise]);
 
-      console.log(`Successfully watermarked image: wm_${fileName}`);
+        console.log(`Successfully watermarked image: wm_${fileName}`);
 
-      // Clean up original un-watermarked file
-      const fs = await import('fs');
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+        // Clean up original un-watermarked file
+        const fs = await import('fs');
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+        res.json({ url: `/uploads/wm_${fileName}` });
+      } else {
+        // For videos or other files, skip watermarking but still use the wm_ prefix for consistency if desired, 
+        // or just move the file. Actually, let's just rename it to keep consistent URLs.
+        const fs = await import('fs');
+        fs.renameSync(filePath, outputPath);
+        console.log(`Successfully moved video file: wm_${fileName}`);
+        res.json({ url: `/uploads/wm_${fileName}` });
       }
-
-      res.json({ url: `/uploads/wm_${fileName}` });
     } catch (error) {
       console.error('Image processing error:', error);
       res.status(500).json({ message: "Failed to process image with AI watermarking", error: String(error) });
@@ -1424,7 +1444,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const products = await storage.getProductsWithStore(filters);
       res.json(products);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch products" });
+      console.error("GET /api/products error:", error);
+      res.status(500).json({ message: "Failed to fetch products", error: String(error) });
     }
   });
 

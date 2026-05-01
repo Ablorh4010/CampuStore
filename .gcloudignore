@@ -13,5 +13,8 @@
 .git
 .gitignore
 
+# Explicitly include build artifacts
+!dist/
+
 # Node.js dependencies:
 node_modules/
