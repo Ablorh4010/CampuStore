@@ -99,7 +99,7 @@ export const products = pgTable("products", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   originalPrice: decimal("original_price", { precision: 10, scale: 2 }),
   condition: text("condition").notNull(),
-  images: text("images").array().notNull(), // At most 4 images
+  images: text("images").array().notNull(), // At most 8 images
   mediaGifUrl: text("media_gif_url").notNull(), // Mandatory short quality GIF/Video
   specialOffer: text("special_offer"),
   stockQuantity: integer("stock_quantity").notNull().default(1),
@@ -420,7 +420,7 @@ export const insertProductSchema = createInsertSchema(products).omit({
   approvalStatus: true,
   createdAt: true,
 }).extend({
-  images: z.array(z.string()).max(4, "Maximum 4 images allowed per listing"),
+  images: z.array(z.string()).max(8, "Maximum 8 images allowed per listing"),
   mediaGifUrl: z.string().min(1, "A showcase GIF or video is mandatory"),
 });
 
