@@ -9,3 +9,7 @@ vite.config.ts.*
 *.tar.gz
 migrations
 app.yaml
+*.log
+*.swp
+uploads/*
+!uploads/.gitkeep

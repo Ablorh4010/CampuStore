@@ -1102,22 +1102,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // AI Watermarking using Sharp
       const image = sharp(filePath);
-      const metadata = await image.metadata();
       
-      console.log(`Image metadata: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
+      // Set a timeout for Sharp processing to prevent hangs
+      const processingPromise = (async () => {
+        const metadata = await image.metadata();
+        console.log(`Image metadata: ${metadata.width}x${metadata.height}, format: ${metadata.format}`);
 
-      const watermarkText = Buffer.from(`
-        <svg width="${metadata.width}" height="${metadata.height}">
-          <style>
-            .text { fill: white; font-family: sans-serif; font-weight: bold; opacity: 0.4; font-size: ${Math.floor(metadata.width! / 15)}px; }
-          </style>
-          <text x="80%" y="90%" text-anchor="middle" class="text">University Hub</text>
-        </svg>
-      `);
+        const watermarkText = Buffer.from(`
+          <svg width="${metadata.width}" height="${metadata.height}">
+            <style>
+              .text { fill: white; font-family: sans-serif; font-weight: bold; opacity: 0.4; font-size: ${Math.floor(metadata.width! / 15)}px; }
+            </style>
+            <text x="80%" y="90%" text-anchor="middle" class="text">University Hub</text>
+          </svg>
+        `);
 
-      await image
-        .composite([{ input: watermarkText, top: 0, left: 0 }])
-        .toFile(outputPath);
+        await image
+          .composite([{ input: watermarkText, top: 0, left: 0 }])
+          .toFile(outputPath);
+      })();
+
+      // 30 second timeout for image processing
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Image processing timed out")), 30000)
+      );
+
+      await Promise.race([processingPromise, timeoutPromise]);
 
       console.log(`Successfully watermarked image: wm_${fileName}`);
 
@@ -1371,23 +1381,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Product routes
   app.post("/api/products", authenticateToken, async (req: AuthRequest, res) => {
     try {
+      console.log("Creating new product with data:", JSON.stringify(req.body, null, 2));
       const productData = insertProductSchema.parse(req.body);
       
       // Verify user owns the store
       const store = await storage.getStoreById(productData.storeId);
       if (!store) {
+        console.error(`Store not found: ${productData.storeId}`);
         return res.status(404).json({ message: "Store not found" });
       }
       
       if (store.userId !== req.userId) {
+        console.error(`User ${req.userId} attempted to create product for store ${productData.storeId} owned by ${store.userId}`);
         return res.status(403).json({ message: "Cannot create product for another user's store" });
       }
 
       const product = await storage.createProduct(productData);
+      console.log(`Product created successfully: ${product.id}`);
       res.json(product);
     } catch (error) {
-      console.error("Product creation validation error:", error);
-      res.status(400).json({ message: "Invalid product data", error: error instanceof Error ? error.message : String(error) });
+      console.error("Product creation error:", error);
+      res.status(400).json({ 
+        message: "Invalid product data or creation failed", 
+        error: error instanceof Error ? error.message : String(error),
+        details: error
+      });
     }
   });
 
