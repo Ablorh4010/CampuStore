@@ -250,20 +250,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Magic Import: Fetching content from ${url}`);
       
-      // Fetch the external page
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-      });
+      let html = '';
+      try {
+        // First attempt with full headers
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache'
+          }
+        });
 
-      if (!response.ok) {
-        return res.status(400).json({ message: `Failed to fetch URL: ${response.statusText}` });
+        if (response.ok) {
+          html = await response.text();
+        } else if (response.status === 403 || response.status === 401) {
+          // Secondary attempt with minimalist headers if forbidden
+          console.log(`Magic Import: Primary fetch failed (${response.status}), trying secondary attempt...`);
+          const response2 = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+          });
+          if (response2.ok) {
+            html = await response2.text();
+          } else {
+            return res.status(400).json({ message: "This website is protecting its data from being imported. Please try another product link." });
+          }
+        } else {
+          return res.status(400).json({ message: `Failed to fetch URL: ${response.statusText}` });
+        }
+      } catch (fetchErr) {
+        console.error("Fetch Error:", fetchErr);
+        return res.status(400).json({ message: "Could not connect to the provided URL. Please check the link and try again." });
       }
 
-      const html = await response.text();
+      if (!html) {
+        return res.status(400).json({ message: "Failed to retrieve content from the provided URL." });
+      }
+
       const extractedData = await extractProductFromHtml(html);
-      
       res.json(extractedData);
     } catch (error) {
       console.error("Magic Import Error:", error);
