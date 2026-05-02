@@ -43,7 +43,7 @@ export default function AdminDashboard() {
 
   // Deletion/Suspension feedback state
   const [modModalOpen, setModModalOpen] = useState(false);
-  const [modItem, setModItem] = useState<{ id: number; type: 'product' | 'store' | 'user' | 'deal' | 'activity'; action: 'delete' | 'reject' | 'suspend'; title: string } | null>(null);
+  const [modItem, setModItem] = useState<{ id: number; type: 'product' | 'store' | 'user' | 'deal' | 'activity'; action: 'delete' | 'reject' | 'suspend' | 'needs_correction'; title: string } | null>(null);
   const [adminMomoNumber, setAdminMomoNumber] = useState('');
 
   const { data: configData } = useQuery<{ value: string }>({
@@ -212,6 +212,16 @@ export default function AdminDashboard() {
     },
   });
 
+  const updateProductAvailabilityMutation = useMutation({
+    mutationFn: ({ productId, isAvailable }: { productId: number; isAvailable: boolean }) =>
+      apiRequest('PUT', `/api/admin/products/${productId}/availability`, { isAvailable }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      toast({ title: 'Success', description: 'Product availability updated' });
+    },
+  });
+
   const updateProductEligibilityMutation = useMutation({
     mutationFn: ({ productId, isEligible }: { productId: number; isEligible: boolean }) =>
       apiRequest('PUT', `/api/admin/products/${productId}/eligibility`, { isEligible }),
@@ -292,6 +302,29 @@ export default function AdminDashboard() {
       setModItem(null);
     },
   });
+
+  const handleModAction = (feedback: string) => {
+    if (!modItem) return;
+
+    if (modItem.type === 'user' && (modItem.action === 'reject' || modItem.action === 'needs_correction')) {
+      const status = modItem.action === 'reject' ? 'rejected' : 'needs_correction';
+      updateUserVerificationMutation.mutate({ 
+        userId: modItem.id, 
+        status, 
+        feedback 
+      }, {
+        onSuccess: () => {
+          setModModalOpen(false);
+          setModItem(null);
+        }
+      });
+    } else if (modItem.action === 'delete' || modItem.action === 'reject') {
+      deleteItemMutation.mutate({ id: modItem.id, type: modItem.type as any, feedback });
+    } else {
+      // Suspend logic can go here
+      setModModalOpen(false);
+    }
+  };
 
   if (authLoading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -465,11 +498,21 @@ export default function AdminDashboard() {
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allProducts.filter(p => p.approvalStatus === 'approved').map(product => (
-                  <Card key={product.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white">
+                {allProducts.filter(p => ['approved', 'archived'].includes(p.approvalStatus)).map(product => (
+                  <Card key={product.id} className={`rounded-3xl border-none shadow-sm overflow-hidden bg-white transition-opacity ${!product.isAvailable ? 'opacity-60' : ''}`}>
                     <div className="aspect-[4/3] bg-gray-100 relative">
                        <img src={product.images[0]} className="w-full h-full object-cover" alt="" />
-                       <div className="absolute top-4 right-4">
+                       <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+                          {product.approvalStatus === 'archived' && (
+                             <Badge className="bg-amber-500 text-white font-black uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg">
+                               Archived
+                             </Badge>
+                          )}
+                          {!product.isAvailable && (
+                             <Badge className="bg-gray-500 text-white font-black uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg">
+                               Sleeping
+                             </Badge>
+                          )}
                           {product.isInstallmentEligible && (
                              <Badge className="bg-primary text-white font-black uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg">
                                Installment Plan Active
@@ -482,30 +525,64 @@ export default function AdminDashboard() {
                           <h4 className="font-black text-sm uppercase">{product.title}</h4>
                           <p className="font-black text-primary">GH₵{product.price}</p>
                        </div>
-                       <p className="text-xs text-gray-400 mb-4 uppercase font-bold tracking-widest">Store: {product.store.name}</p>
+                       <p className="text-xs text-gray-400 mb-6 uppercase font-bold tracking-widest">Store: {product.store.name}</p>
                        
-                       <div className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between">
-                          <div>
-                             <p className="text-[10px] font-black uppercase text-gray-400">Installment Eligibility</p>
-                             <p className="text-xs font-bold">{product.isInstallmentEligible ? 'Enabled for Bɔkɔɔ Pay' : 'Full Payment Only'}</p>
-                          </div>
+                       <div className="grid grid-cols-2 gap-3 mb-6">
+                          <Button 
+                            variant="outline"
+                            className="rounded-xl font-black text-[10px] uppercase h-10"
+                            onClick={() => updateProductAvailabilityMutation.mutate({ 
+                              productId: product.id, 
+                              isAvailable: !product.isAvailable 
+                            })}
+                          >
+                            <RefreshCcw className="w-3 h-3 mr-1" />
+                            {product.isAvailable ? 'Put to Sleep' : 'Wake Up'}
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            className="rounded-xl font-black text-[10px] uppercase h-10"
+                            onClick={() => updateProductStatusMutation.mutate({ 
+                              productId: product.id, 
+                              status: product.approvalStatus === 'archived' ? 'approved' : 'archived' 
+                            })}
+                          >
+                            <Package className="w-3 h-3 mr-1" />
+                            {product.approvalStatus === 'archived' ? 'Unarchive' : 'Archive'}
+                          </Button>
                           <Button 
                             variant={product.isInstallmentEligible ? "destructive" : "default"}
-                            size="sm"
-                            className="rounded-xl font-black text-[10px] uppercase h-8"
+                            className="rounded-xl font-black text-[10px] uppercase h-10"
                             onClick={() => updateProductEligibilityMutation.mutate({ 
                               productId: product.id, 
                               isEligible: !product.isInstallmentEligible 
                             })}
                           >
-                            {product.isInstallmentEligible ? 'Disable' : 'Enable'}
+                            <DollarSign className="w-3 h-3 mr-1" />
+                            {product.isInstallmentEligible ? 'Disable Pay' : 'Enable Pay'}
                           </Button>
+                          <Button 
+                            variant="destructive"
+                            className="rounded-xl font-black text-[10px] uppercase h-10"
+                            onClick={() => {
+                              setModItem({ id: product.id, type: 'product', action: 'delete', title: product.title });
+                              setModModalOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Delete
+                          </Button>
+                       </div>
+
+                       <div className="p-3 bg-gray-50 rounded-xl flex items-center justify-between">
+                          <p className="text-[10px] font-black uppercase text-gray-400">Views</p>
+                          <p className="text-xs font-black">{product.viewCount}</p>
                        </div>
                     </CardContent>
                   </Card>
                 ))}
-                {allProducts.filter(p => p.approvalStatus === 'approved').length === 0 && (
-                   <p className="col-span-full text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No approved items yet.</p>
+                {allProducts.filter(p => ['approved', 'archived'].includes(p.approvalStatus)).length === 0 && (
+                   <p className="col-span-full text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No items in catalog.</p>
                 )}
              </div>
           </TabsContent>
@@ -580,19 +657,33 @@ export default function AdminDashboard() {
                                 <p className="font-black text-gray-400 uppercase">Location</p>
                                 <p className="font-bold">{u.sellerLatitude}, {u.sellerLongitude}</p>
                              </div>
+                             <div className="space-y-1">
+                                <p className="font-black text-gray-400 uppercase">Date of Birth</p>
+                                <p className="font-bold">{u.dateOfBirth ? new Date(u.dateOfBirth).toLocaleDateString() : 'Not provided'}</p>
+                             </div>
                           </div>
                           
                           <div className="space-y-1">
-                             <p className="text-xs font-black text-gray-400 uppercase">Address</p>
+                             <p className="text-xs font-black text-gray-400 uppercase">Residential Address</p>
                              <p className="text-sm font-medium">{u.sellerAddress || 'Not provided'}</p>
                           </div>
 
                           <div className="flex gap-2 pt-4">
                              <Button 
-                               className="flex-grow rounded-xl bg-green-500 hover:bg-green-600 font-bold" 
+                               className="flex-grow rounded-xl bg-green-600 hover:bg-green-700 font-bold" 
                                onClick={() => updateUserVerificationMutation.mutate({ userId: u.id, status: 'verified' })}
                              >
-                               Approve Seller
+                               Approve
+                             </Button>
+                             <Button 
+                               variant="outline"
+                               className="flex-grow rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50 font-bold"
+                               onClick={() => {
+                                 setModItem({ id: u.id, type: 'user', action: 'needs_correction', title: `${u.firstName} ${u.lastName}` });
+                                 setModModalOpen(true);
+                               }}
+                             >
+                               Correction
                              </Button>
                              <Button 
                                variant="destructive" 
@@ -602,7 +693,7 @@ export default function AdminDashboard() {
                                  setModModalOpen(true);
                                }}
                              >
-                               Reject
+                               Reject & Delete
                              </Button>
                           </div>
                        </div>
@@ -1018,6 +1109,46 @@ export default function AdminDashboard() {
               <DialogFooter>
                  <Button className="w-full h-14 rounded-2xl font-black shadow-xl" disabled={!newDeal.productId} onClick={() => createDealMutation.mutate(newDeal)}>
                     Activate Deal
+                 </Button>
+              </DialogFooter>
+           </DialogContent>
+        </Dialog>
+
+        <Dialog open={modModalOpen} onOpenChange={setModModalOpen}>
+           <DialogContent className="max-w-md rounded-3xl border-none p-8">
+              <DialogHeader>
+                 <DialogTitle className="text-2xl font-black uppercase tracking-tighter">
+                    {modItem?.action === 'delete' ? 'Confirm Deletion' : 
+                     modItem?.action === 'needs_correction' ? 'Request Correction' : 
+                     'Reject Application'}
+                 </DialogTitle>
+                 <DialogDescription className="font-bold">
+                    {modItem?.action === 'delete' ? `Are you sure you want to delete ${modItem?.title}?` : 
+                     modItem?.action === 'needs_correction' ? `Specify what ${modItem?.title} needs to correct.` :
+                     `Are you sure you want to reject and delete ${modItem?.title}'s account?`}
+                 </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                 <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    Feedback / Reason
+                 </Label>
+                 <Textarea 
+                   id="mod-feedback"
+                   placeholder="Enter details for the user..."
+                   className="rounded-2xl border-2 min-h-[100px]"
+                 />
+              </div>
+              <DialogFooter className="gap-2">
+                 <Button variant="outline" className="rounded-xl font-bold" onClick={() => setModModalOpen(false)}>Cancel</Button>
+                 <Button 
+                   variant={modItem?.action === 'needs_correction' ? 'default' : 'destructive'}
+                   className="rounded-xl font-bold px-8"
+                   onClick={() => {
+                     const feedback = (document.getElementById('mod-feedback') as HTMLTextAreaElement)?.value;
+                     handleModAction(feedback);
+                   }}
+                 >
+                    {modItem?.action === 'needs_correction' ? 'Send Request' : 'Confirm Action'}
                  </Button>
               </DialogFooter>
            </DialogContent>

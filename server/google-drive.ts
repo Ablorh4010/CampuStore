@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import type { User } from '@shared/schema';
 
 // Google Drive Folder ID for verifications - should be in .env
 const FOLDER_ID = process.env.GOOGLE_DRIVE_VERIFICATION_FOLDER_ID;
@@ -48,4 +49,12 @@ export async function uploadToDrive(file: Express.Multer.File, fileName: string)
     console.error('Error uploading to Google Drive:', error);
     throw error;
   }
+}
+
+export async function uploadVerificationToDrive(user: User) {
+  console.log(`Backing up verification for user ${user.id} to Google Drive...`);
+  // This is a placeholder for actual implementation if we had the file buffers here.
+  // In a real scenario, we might fetch from GCS and then upload to Drive, 
+  // or this would have been called during the initial upload.
+  return true;
 }

@@ -25,11 +25,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import ProductCard from '@/components/product/product-card';
 import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/hooks/use-toast';
 import type { ProductWithStore, StoreWithUser, Category, WeeklyDealWithProduct, CampusActivityWithUser } from '@shared/schema';
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [bokooIndex, setBokooIndex] = useState(0);
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
@@ -68,6 +70,9 @@ export default function Home() {
     setBrokenImages(prev => ({ ...prev, [id]: true }));
   };
 
+  const isGh = window.location.pathname.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
+
   useEffect(() => {
     if (deals.length > 0) {
       const interval = setInterval(() => {
@@ -88,14 +93,54 @@ export default function Home() {
     },
   });
 
+  const handleShareHub = async () => {
+    // Add referral code if user is logged in
+    const shareUrl = new URL(window.location.origin);
+    if (user) {
+      shareUrl.searchParams.set('ref', user.id.toString());
+    }
+
+    const shareData = {
+      title: 'The University Hub',
+      text: 'Join Africa\'s leading student marketplace. Buy, sell, and discover everything campus!',
+      url: shareUrl.toString(),
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({ title: 'Shared!', description: 'The University Hub link shared successfully.' });
+      } else {
+        await navigator.clipboard.writeText(shareUrl.toString());
+        toast({ title: 'Link Copied', description: 'The University Hub link with your referral code copied to clipboard.' });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
   const handleGetStarted = () => {
-    setLocation('/gh/browse');
+    const exploreUrl = user ? `/gh/browse?ref=${user.id}` : '/gh/browse';
+    setLocation(exploreUrl);
   };
 
   const currentDeal = deals[currentIndex];
 
+  const bokooLink = user ? `/gh/browse?installment=true&ref=${user.id}` : "/gh/browse?installment=true";
+  const exploreLink = user ? `/gh/browse?ref=${user.id}` : "/gh/browse";
+
   return (
     <div className="min-h-screen bg-white">
+      {/* Top Banner / Share Hub */}
+      <div className="bg-black py-2 px-4 text-center">
+         <button 
+           onClick={handleShareHub}
+           className="text-[10px] font-black uppercase tracking-widest text-white hover:text-primary transition-colors flex items-center justify-center gap-2 mx-auto"
+         >
+           <ExternalLink className="w-3 h-3" /> Invite your friends & earn rewards
+         </button>
+      </div>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-16 pb-24 lg:pt-32 lg:pb-40">
         <div className="absolute inset-0 z-0">
@@ -164,7 +209,7 @@ export default function Home() {
                        </div>
                     </div>
 
-                    <Link href={`/gh/product/${currentDeal.productId}`}>
+                    <Link href={`${basePrefix}/product/${currentDeal.productId}${user ? `?ref=${user.id}` : ''}`}>
                       <Button className="w-full h-12 rounded-xl bg-primary text-white font-black shadow-lg">
                          Shop This Deal
                       </Button>
@@ -212,7 +257,7 @@ export default function Home() {
                     <div key={i} className={`h-1 rounded-full transition-all ${i === bokooIndex ? 'w-6 bg-primary' : 'w-2 bg-white/10'}`}></div>
                   ))}
                 </div>
-                <Link href="/gh/browse?installment=true">
+                <Link href={bokooLink}>
                   <Button className="h-12 px-8 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all">
                     Shop with Bɔkɔɔ <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -236,7 +281,7 @@ export default function Home() {
                  </h2>
                  <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">New listings from your university hub</p>
               </div>
-              <Link href="/gh/browse">
+              <Link href={exploreLink}>
                  <Button variant="ghost" className="font-black uppercase tracking-widest text-xs hover:bg-white px-8 h-12 rounded-xl group transition-all">
                     Explore All <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                  </Button>
@@ -376,31 +421,34 @@ export default function Home() {
                      <h3 className="text-3xl font-black mb-4 relative z-10">Trending <br /><span className="text-[#B2FCE4]">Sellers.</span></h3>
                      <div className="space-y-6 mt-8 relative z-10">
                        {Array.isArray(featuredProducts) && featuredProducts.slice(0, 5).map((p) => (
-                           <div key={p.id} className="flex items-center gap-4 group/item cursor-pointer">
-
-                              <div className="w-12 h-12 rounded-2xl border-2 border-white/10 overflow-hidden group-hover/item:border-[#B2FCE4] transition-colors flex items-center justify-center bg-white/5">
-                                 {!brokenImages[`seller-${p.id}`] ? (
-                                   <img 
-                                     src={p.store.user.avatar || `https://i.pravatar.cc/100?u=${p.store.user.firstName}`} 
-                                     className="w-full h-full object-cover" 
-                                     alt="" 
-                                     onError={() => handleImageError(`seller-${p.id}`)}
-                                   />
-                                 ) : (
-                                   <Users className="w-6 h-6 text-white/20" />
-                                 )}
-                              </div>
-                              <div>
-                                 <p className="font-black text-sm uppercase tracking-tight leading-none mb-1">{p.store.name}</p>
-                                 <p className="text-[9px] font-black text-white/40 uppercase tracking-widest">{p.store.university}</p>
-                              </div>
-                              <ChevronRight className="ml-auto w-4 h-4 text-white/20 group-hover/item:text-[#B2FCE4] group-hover/item:translate-x-1 transition-all" />
-                           </div>
+                           <Link key={p.id} href={`${basePrefix}/store/${p.store.id}${user ? `?ref=${user.id}` : ''}`}>
+                             <div className="flex items-center gap-4 group/item cursor-pointer">
+                                <div className="w-12 h-12 rounded-2xl border-2 border-white/10 overflow-hidden group-hover/item:border-[#B2FCE4] transition-colors flex items-center justify-center bg-white/5">
+                                   {!brokenImages[`seller-${p.id}`] ? (
+                                     <img 
+                                       src={p.store.user.avatar || `https://i.pravatar.cc/100?u=${p.store.user.firstName}`} 
+                                       className="w-full h-full object-cover" 
+                                       alt="" 
+                                       onError={() => handleImageError(`seller-${p.id}`)}
+                                     />
+                                   ) : (
+                                     <Users className="w-6 h-6 text-white/20" />
+                                   )}
+                                </div>
+                                <div>
+                                   <p className="font-black text-sm uppercase tracking-tight leading-none mb-1">{p.store.name}</p>
+                                   <p className="text-[9px] font-black text-white/40 uppercase tracking-widest">{p.store.university}</p>
+                                </div>
+                                <ChevronRight className="ml-auto w-4 h-4 text-white/20 group-hover/item:text-[#B2FCE4] group-hover/item:translate-x-1 transition-all" />
+                             </div>
+                           </Link>
                         ))}
                      </div>
-                     <Button variant="ghost" className="w-full mt-10 h-14 rounded-2xl border-2 border-white/10 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white hover:text-black transition-all">
-                        View Ranking
-                     </Button>
+                     <Link href={`${basePrefix}/browse?sortBy=popular${user ? `&ref=${user.id}` : ''}`}>
+                        <Button variant="ghost" className="w-full mt-10 h-14 rounded-2xl border-2 border-white/10 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white hover:text-black transition-all">
+                           View Ranking
+                        </Button>
+                     </Link>
                   </div>
                </div>
            </div>

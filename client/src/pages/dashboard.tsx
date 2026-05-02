@@ -115,9 +115,45 @@ export default function Dashboard() {
 
   if (!primaryStore) return null;
 
+  const isVerified = user?.verificationStatus === 'verified';
+  const isPending = user?.verificationStatus === 'pending';
+  const needsCorrection = user?.verificationStatus === 'needs_correction';
+
   return (
     <div className="min-h-screen bg-white py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Verification Status Banner */}
+        {!isVerified && (
+          <div className="mb-10">
+            {isPending && (
+              <Alert className="rounded-3xl border-blue-200 bg-blue-50 py-6">
+                <Clock className="h-5 w-5 text-blue-600" />
+                <AlertTitle className="font-black uppercase tracking-widest text-[10px] text-blue-600 mb-1">Application Under Review</AlertTitle>
+                <AlertDescription className="font-bold text-blue-800">
+                  Your seller identity is currently being verified. You have limited access until your account is approved.
+                </AlertDescription>
+              </Alert>
+            )}
+            {needsCorrection && (
+              <Alert className="rounded-3xl border-amber-200 bg-amber-50 py-6">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <AlertTitle className="font-black uppercase tracking-widest text-[10px] text-amber-600 mb-1">Action Required: Correction Needed</AlertTitle>
+                <AlertDescription className="font-bold text-amber-800 space-y-3">
+                  <p>Admin feedback: "{user?.verificationNotes || 'Please review your uploaded documents.'}"</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-amber-300 hover:bg-amber-100 h-9 rounded-xl font-black uppercase text-[10px]"
+                    onClick={() => setLocation('/seller-auth')}
+                  >
+                    <RefreshCcw className="w-3 h-3 mr-2" /> Update Information & Resubmit
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div className="flex items-center gap-6 animate-reveal-up">
             <div className="w-24 h-24 rounded-[2rem] overflow-hidden border-4 border-gray-50 shadow-xl flex-shrink-0">
@@ -132,9 +168,19 @@ export default function Dashboard() {
                 <Badge className="bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
                   Store Dashboard
                 </Badge>
-                {primaryStore.approvalStatus === 'pending' && (
+                {isPending && (
                   <Badge className="bg-yellow-100 text-yellow-700 border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
                     Approval Pending
+                  </Badge>
+                )}
+                {needsCorrection && (
+                  <Badge className="bg-amber-100 text-amber-700 border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
+                    Needs Correction
+                  </Badge>
+                )}
+                {isVerified && (
+                  <Badge className="bg-green-100 text-green-700 border-none font-black uppercase tracking-widest text-[10px] px-3 py-1">
+                    Verified Merchant
                   </Badge>
                 )}
               </div>
@@ -154,9 +200,11 @@ export default function Dashboard() {
              </Link>
              <Button 
                onClick={() => setIsProductFormOpen(true)}
-               className="rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-black/10"
+               disabled={!isVerified}
+               className={`rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-black/10 ${!isVerified ? 'opacity-50' : ''}`}
              >
-               <Plus className="w-4 h-4 mr-2" /> New Listing
+               <Plus className="w-4 h-4 mr-2" /> 
+               {isVerified ? 'New Listing' : 'Locked'}
              </Button>
           </div>
         </div>
@@ -248,7 +296,15 @@ export default function Dashboard() {
                       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl"></div>
                       <h3 className="text-2xl font-black uppercase tracking-tighter mb-4">Quick <br />Promote.</h3>
                       <p className="text-white/60 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Feature your top items on the home page for only GH₵5/day.</p>
-                      <Button className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary hover:text-white transition-all">Select Listing</Button>
+                      <Button 
+                        className="w-full h-12 rounded-xl bg-white text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary hover:text-white transition-all"
+                        onClick={() => {
+                          setActiveTab('listings');
+                          toast({ title: "Promotion", description: "Select an item from your inventory to promote." });
+                        }}
+                      >
+                        Select Listing
+                      </Button>
                    </Card>
 
                    <Card className="rounded-[2.5rem] border-2 border-dashed border-gray-100 p-8 text-center bg-white">

@@ -141,7 +141,7 @@ export class DatabaseStorage implements IStorage {
     if (userData.password) {
       userData.password = await bcrypt.hash(userData.password, 10);
     }
-    const [user] = await db.insert(users).values(userData).returning();
+    const [user] = await db.insert(users).values(userData as any).returning();
     return user;
   }
 
@@ -333,10 +333,11 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount || 0) > 0;
   }
 
-  async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
+  async updateUser(id: number, data: Partial<any>): Promise<User | undefined> {
     const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
-    return user || undefined;
+    return user;
   }
+
 
   async createStore(insertStore: InsertStore): Promise<Store> {
     const [store] = await db.insert(stores).values({

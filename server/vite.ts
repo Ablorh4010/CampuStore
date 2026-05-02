@@ -19,7 +19,7 @@ export async function setupVite(app: Express, server: Server) {
   const { createServer: createViteServer, createLogger } = await import("vite");
   const viteConfigModule = await import("../vite.config");
   const viteConfig = typeof viteConfigModule.default === 'function' 
-    ? await viteConfigModule.default({ command: 'serve', mode: 'development' })
+    ? await viteConfigModule.default({ command: 'serve', mode: 'development' } as any)
     : viteConfigModule.default;
     
   const viteLogger = createLogger();

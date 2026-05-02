@@ -1,7 +1,8 @@
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Star } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 import type { StoreWithUser } from '@shared/schema';
 
 interface StoreCardProps {
@@ -9,11 +10,20 @@ interface StoreCardProps {
 }
 
 export default function StoreCard({ store }: StoreCardProps) {
+  const { user } = useAuth();
+  const [location] = useLocation();
+  const isGh = location.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
+  
   const rating = parseFloat(store.rating || "0");
   const ownerName = `${store.user.firstName} ${store.user.lastName}`;
 
+  const storeLink = user 
+    ? `${basePrefix}/store/${store.id}?ref=${user.id}`
+    : `${basePrefix}/store/${store.id}`;
+
   return (
-    <Link href={`/store/${store.id}`}>
+    <Link href={storeLink}>
       <Card className="hover:shadow-md transition-shadow cursor-pointer">
         <CardContent className="p-6">
           <div className="flex items-center space-x-4 mb-4">

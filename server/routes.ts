@@ -10,8 +10,11 @@ import {
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import multer from "multer";
-import { readFileSync } from "fs";
+import fs, { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
+import { generateStoreProfile, generateProductDescription, analyzeProductImage, verifyFaceMatch } from "./ai";
+import { uploadToGCS } from "./gcs-storage";
+import { sendVerificationEmail, sendEmail as sendLocalEmail, sendPurchaseConfirmationEmail } from "./email";
 import crypto from 'crypto';
 import { generateToken, authenticateToken, tryAuthenticate, requireAdmin, type AuthRequest } from "./auth";
 import { sendOrderConfirmation } from "./notifications";
@@ -22,32 +25,6 @@ import { Resend } from 'resend';
 import sharp from 'sharp';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-async function sendEmail(to: string, subject: string, html: string) {
-  if (!resend) {
-    console.warn('Warning: RESEND_API_KEY is missing. Email skipped:', { to, subject });
-    return false;
-  }
-  try {
-    const { data, error } = await resend.emails.send({
-      from: 'The University Hub <support@uniexchangehub.com>',
-      to,
-      subject,
-      html,
-    });
-    
-    if (error) {
-      console.error('❌ Resend API Error (sendEmail):', error);
-      return false;
-    }
-    
-    console.log(`✅ Email sent to ${to}. ID: ${data?.id}`);
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to send email:', error);
-    return false;
-  }
-}
 
 let stripe: Stripe | null = null;
 if (process.env.STRIPE_SECRET_KEY) {
@@ -77,33 +54,51 @@ const apiLimiter = rateLimit({
   validate: { trustProxy: false },
 });
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Configure multer for image uploads with validation
-const imageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
 const imageUpload = multer({
-  storage: imageStorage,
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max file size
+    fileSize: 10 * 1024 * 1024, // 10MB max file size for images and videos
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/jpg', 
+      'image/png', 
+      'image/webp', 
+      'image/gif',
+      'video/mp4',
+      'video/quicktime',
+      'video/x-msvideo',
+      'video/webm'
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only JPEG, PNG, WebP, and GIF images are allowed'));
+      cb(new Error('Only JPEG, PNG, WebP, GIF images and MP4, MOV, AVI, WEBM videos are allowed'));
     }
   }
 });
+
+// Helper function to save files either to GCS or local disk
+const saveFile = async (file: Express.Multer.File): Promise<string> => {
+  const extension = path.extname(file.originalname);
+  const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+
+  if (process.env.GAE_ENV || process.env.NODE_ENV === 'production') {
+    return await uploadToGCS(file.buffer, fileName, file.mimetype);
+  } else {
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir);
+    }
+    const filePath = path.join(uploadsDir, fileName);
+    await fs.promises.writeFile(filePath, file.buffer);
+    return `/uploads/${fileName}`;
+  }
+};
 
 const inMemoryUpload = multer({
   storage: multer.memoryStorage(),
@@ -177,7 +172,7 @@ async function finalizePaystackOrder(data: any) {
       paymentReference: reference,
       paymentGateway: 'paystack',
       shippingMode: (metadata.shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
-      buyerAddress: guestDetails?.address || buyerInfo?.address || 'Provided at checkout',
+      buyerAddress: guestDetails?.address || buyerInfo?.sellerAddress || 'Provided at checkout',
       buyerEmail: buyerEmail,
       payoutStatus: 'pending',
       
@@ -229,6 +224,22 @@ async function finalizePaystackOrder(data: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Identity Verification - Face Matching
+  app.post("/api/verify/face-match", async (req: any, res: any) => {
+    try {
+      const { idPhoto, liveSelfie } = req.body;
+      if (!idPhoto || !liveSelfie) {
+        return res.status(400).json({ message: "Both ID photo and live selfie are required" });
+      }
+
+      const result = await verifyFaceMatch(idPhoto, liveSelfie);
+      res.json(result);
+    } catch (error) {
+      console.error("Face Match Route Error:", error);
+      res.status(500).json({ message: "Verification service error" });
+    }
+  });
+
   // EMERGENCY DB SCHEMA FIXES FOR PRODUCTION
   (async () => {
     try {
@@ -840,7 +851,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No images uploaded" });
       }
 
-      const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+      const imageUrls = await Promise.all(
+        (req.files as Express.Multer.File[]).map(file => saveFile(file))
+      );
       res.json({ urls: imageUrls });
     } catch (error) {
       console.error('Image upload error:', error);
@@ -870,7 +883,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUsers = await storage.getAdminUsers();
       for (const admin of adminUsers) {
         if (admin.email) {
-          await sendEmail(admin.email, 'Order Approved by Seller', `
+          await sendLocalEmail(admin.email, 'Order Approved by Seller', `
             <h1>Order #${id} Approved</h1>
             <p>Seller has approved order #${id}. Final admin approval required.</p>
           `);
@@ -900,14 +913,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (status === 'approved') {
         // Notify Buyer
-        await sendEmail(order.buyer.email, 'Order Confirmed!', `
+        await sendLocalEmail(order.buyer.email, 'Order Confirmed!', `
           <h1>Your order #${id} has been confirmed!</h1>
           <p>Estimated Delivery: ${new Date(estimatedDeliveryDate).toLocaleDateString()}</p>
           <p>A Kaydem Logistics agent will be assigned to your delivery.</p>
         `);
 
         // Notify Seller
-        await sendEmail(order.seller.email, 'Order Confirmed by Hub', `
+        await sendLocalEmail(order.seller.email, 'Order Confirmed by Hub', `
           <h1>Order #${id} is ready for fulfillment</h1>
           <p>Please prepare the item for pickup. Estimated delivery to buyer: ${new Date(estimatedDeliveryDate).toLocaleDateString()}</p>
         `);
@@ -952,18 +965,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (confirmation === 'received') {
-        await sendEmail(order.buyer.email, 'Thank You!', `<h1>Thank you for shopping with us!</h1><p>Your order #${id} has been successfully delivered and confirmed.</p>`);
+        await sendLocalEmail(order.buyer.email, 'Thank You!', `<h1>Thank you for shopping with us!</h1><p>Your order #${id} has been successfully delivered and confirmed.</p>`);
         
         // Notify Seller and Admin of success
-        await sendEmail(order.seller.email, 'Delivery Successful!', `<p>Order #${id} has been confirmed by the buyer. Your payout is pending admin approval.</p>`);
+        await sendLocalEmail(order.seller.email, 'Delivery Successful!', `<p>Order #${id} has been confirmed by the buyer. Your payout is pending admin approval.</p>`);
       } else {
         // Notify Seller and Admin of rejection
         const adminUsers = await storage.getAdminUsers();
         const notificationMsg = `<h1>Order #${id} Rejected</h1><p>The buyer has rejected the product for order #${id}. Please investigate.</p>`;
         
-        await sendEmail(order.seller.email, 'Order Rejected by Buyer', notificationMsg);
+        await sendLocalEmail(order.seller.email, 'Order Rejected by Buyer', notificationMsg);
         for (const admin of adminUsers) {
-          if (admin.email) await sendEmail(admin.email, 'Order Rejection Alert', notificationMsg);
+          if (admin.email) await sendLocalEmail(admin.email, 'Order Rejection Alert', notificationMsg);
         }
       }
 
@@ -994,9 +1007,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No verification documents uploaded" });
       }
 
-      const idScanUrl = files.idScan ? `/uploads/${files.idScan[0].filename}` : undefined;
-      const idScanUrlBack = files.idScanBack ? `/uploads/${files.idScanBack[0].filename}` : undefined;
-      const faceScanUrl = files.faceScan ? `/uploads/${files.faceScan[0].filename}` : undefined;
+      const idScanUrl = files.idScan ? await saveFile(files.idScan[0]) : undefined;
+      const idScanUrlBack = files.idScanBack ? await saveFile(files.idScanBack[0]) : undefined;
+      const faceScanUrl = files.faceScan ? await saveFile(files.faceScan[0]) : undefined;
 
       // Update user verification status to pending (for sellers)
       await storage.updateUser(req.userId!, {
@@ -1017,7 +1030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUsers = await storage.getAdminUsers();
       for (const admin of adminUsers) {
         if (admin.email) {
-          await sendEmail(admin.email, 'New Seller Verification Request', `
+          await sendLocalEmail(admin.email, 'New Seller Verification Request', `
             <h1>New Verification Request</h1>
             <p>User ID: ${req.userId}</p>
             <p>Verification Type: ${sellerVerificationType}</p>
@@ -1050,14 +1063,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!req.file) return res.status(400).json({ message: "No logo uploaded" });
       
-      const pendingLogoUrl = `/uploads/${req.file.filename}`;
+      const pendingLogoUrl = await saveFile(req.file);
       await storage.updateStore(storeId, { pendingLogoUrl });
       
       // Notify Admin
       const adminUsers = await storage.getAdminUsers();
       for (const admin of adminUsers) {
         if (admin.email) {
-          await sendEmail(admin.email, 'Store Logo Change Request', `
+          await sendLocalEmail(admin.email, 'Store Logo Change Request', `
             <h1>Store Logo Change Request</h1>
             <p>Store: ${store.name}</p>
             <p>Please check the admin dashboard to approve the new logo.</p>
@@ -1085,8 +1098,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No verification documents uploaded" });
       }
 
-      const buyerIdScanUrl = files.buyerIdScan ? `/uploads/${files.buyerIdScan[0].filename}` : undefined;
-      const buyerFaceScanUrl = files.buyerFaceScan ? `/uploads/${files.buyerFaceScan[0].filename}` : undefined;
+      const buyerIdScanUrl = files.buyerIdScan ? await saveFile(files.buyerIdScan[0]) : undefined;
+      const buyerFaceScanUrl = files.buyerFaceScan ? await saveFile(files.buyerFaceScan[0]) : undefined;
 
       // Update buyer verification documents if user is logged in
       if (req.userId) {
@@ -1157,15 +1170,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No image uploaded" });
       }
 
-      const filePath = req.file.path;
-      const fileName = req.file.filename;
-      const outputPath = path.join('uploads', `wm_${fileName}`);
+      const extension = path.extname(req.file.originalname);
+      const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+      const wmFileName = `wm_${fileName}`;
+      let finalBuffer: Buffer;
 
       console.log(`Processing product upload: ${fileName}, mimetype: ${req.file.mimetype}`);
 
       if (req.file.mimetype.startsWith('image/')) {
         // AI Watermarking using Sharp for images
-        const image = sharp(filePath);
+        const image = sharp(req.file.buffer);
         
         // Set a timeout for Sharp processing to prevent hangs
         const processingPromise = (async () => {
@@ -1181,9 +1195,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             </svg>
           `);
 
-          await image
+          return await image
             .composite([{ input: watermarkText, top: 0, left: 0 }])
-            .toFile(outputPath);
+            .toBuffer();
         })();
 
         // 30 second timeout for image processing
@@ -1191,24 +1205,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           setTimeout(() => reject(new Error("Image processing timed out")), 30000)
         );
 
-        await Promise.race([processingPromise, timeoutPromise]);
-
-        console.log(`Successfully watermarked image: wm_${fileName}`);
-
-        // Clean up original un-watermarked file
-        const fs = await import('fs');
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-        res.json({ url: `/uploads/wm_${fileName}` });
+        finalBuffer = await Promise.race([processingPromise, timeoutPromise]) as Buffer;
+        console.log(`Successfully watermarked image: ${wmFileName}`);
       } else {
-        // For videos or other files, skip watermarking but still use the wm_ prefix for consistency if desired, 
-        // or just move the file. Actually, let's just rename it to keep consistent URLs.
-        const fs = await import('fs');
-        fs.renameSync(filePath, outputPath);
-        console.log(`Successfully moved video file: wm_${fileName}`);
-        res.json({ url: `/uploads/wm_${fileName}` });
+        // For videos or other files, skip watermarking
+        finalBuffer = req.file.buffer;
+        console.log(`Successfully processed non-image file: ${wmFileName}`);
       }
+
+      // Save the final buffer
+      let finalUrl: string;
+      if (process.env.GAE_ENV || process.env.NODE_ENV === 'production') {
+        finalUrl = await uploadToGCS(finalBuffer, wmFileName, req.file.mimetype);
+      } else {
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir);
+        }
+        const filePath = path.join(uploadsDir, wmFileName);
+        await fs.promises.writeFile(filePath, finalBuffer);
+        finalUrl = `/uploads/${wmFileName}`;
+      }
+      
+      res.json({ url: finalUrl });
     } catch (error) {
       console.error('Image processing error:', error);
       res.status(500).json({ message: "Failed to process image with AI watermarking", error: String(error) });
@@ -1228,8 +1247,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "ID scan and facial capture are required" });
       }
 
-      const idScanUrl = `/uploads/${files.idScan[0].filename}`;
-      const faceScanUrl = `/uploads/${files.faceScan[0].filename}`;
+      const idScanUrl = await saveFile(files.idScan[0]);
+      const faceScanUrl = await saveFile(files.faceScan[0]);
 
       // Check if phone number is already taken by another user
       if (phoneNumber) {
@@ -1462,8 +1481,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Store not found" });
       }
       
-      if (store.userId !== req.userId) {
-        console.error(`User ${req.userId} attempted to create product for store ${productData.storeId} owned by ${store.userId}`);
+      if (store.userId !== req.userId && !req.user?.isAdmin) {
+        console.error(`User ${req.userId} (isAdmin: ${req.user?.isAdmin}) attempted to create product for store ${productData.storeId} owned by ${store.userId}`);
         return res.status(403).json({ message: "Cannot create product for another user's store" });
       }
 
@@ -2243,31 +2262,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/users/:id/verify", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { status, feedback } = req.body;
-      
-      const user = await storage.updateUser(id, {
-        verificationStatus: status === 'verified' ? 'verified' : 'rejected',
+      const { status, feedback } = req.body; // verified, rejected, needs_correction
+
+      const user = await storage.getUserById(id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      if (status === 'rejected') {
+        // Send rejection email first
+        await sendLocalEmail(user.email, 'Seller Application Rejected - The University Hub', `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #e11d48;">Application Rejected</h2>
+            <p>Hi ${user.firstName},</p>
+            <p>We regret to inform you that your seller application for The University Hub has been rejected.</p>
+            ${feedback ? `<p><strong>Reason:</strong> ${feedback}</p>` : ''}
+            <p>Your account has been removed from our system. You may try to register again in the future with valid information.</p>
+          </div>
+        `);
+
+        await storage.deleteUser(id);
+        return res.json({ success: true, message: "User rejected and deleted" });
+      }
+
+      const updatedUser = await storage.updateUser(id, {
+        verificationStatus: status,
         verificationNotes: feedback,
         verifiedAt: status === 'verified' ? new Date() : null
       });
-      
-      if (!user) return res.status(404).json({ message: "User not found" });
 
       if (status === 'verified') {
+        await sendLocalEmail(user.email, 'Seller Application Approved! - The University Hub', `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #059669;">Welcome Aboard!</h2>
+            <p>Hi ${user.firstName},</p>
+            <p>Congratulations! Your seller application for The University Hub has been approved.</p>
+            <p>You now have full access to our seller tools and can start launching your products.</p>
+            <div style="margin: 20px 0;">
+              <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to Dashboard</a>
+            </div>
+          </div>
+        `);
+
         try {
           const { uploadVerificationToDrive } = await import('./google-drive');
-          uploadVerificationToDrive(user).catch(err => console.error('Drive backup failed:', err));
+          uploadVerificationToDrive(updatedUser!).catch((err: Error) => console.error('Drive backup failed:', err));
         } catch (e) {
           console.error('Failed to import google-drive service:', e);
         }
+      } else if (status === 'needs_correction') {
+        await sendLocalEmail(user.email, 'Action Required: Seller Application Correction - The University Hub', `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #d97706;">Action Required</h2>
+            <p>Hi ${user.firstName},</p>
+            <p>Your seller application requires some corrections before we can proceed with approval.</p>
+            <p><strong>Notes from Admin:</strong> ${feedback || 'Please review your uploaded documents.'}</p>
+            <p>Please log in to your dashboard to update your information and resubmit.</p>
+            <div style="margin: 20px 0;">
+              <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard" style="background: #d97706; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Update My Information</a>
+            </div>
+          </div>
+        `);
       }
 
-      res.json(user);
+      res.json(updatedUser);
     } catch (error) {
+      console.error('Verification update error:', error);
       res.status(500).json({ message: "Failed to update verification status" });
     }
   });
-
   // PayStack & Config Routes
   app.get("/api/admin/config/:key", async (req, res) => {
     const value = await storage.getAppConfig(req.params.key);
@@ -2471,7 +2532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ${feedback ? `<p><strong>Admin Feedback:</strong> ${feedback}</p>` : ''}
             <p>Thank you for using The University Hub.</p>
           `;
-          await sendEmail(seller.email, subject, html);
+          await sendLocalEmail(seller.email, subject, html);
         }
       }
 
@@ -2514,7 +2575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (user) {
           try {
             const { uploadVerificationToDrive } = await import('./google-drive');
-            uploadVerificationToDrive(user).catch(err => console.error('Drive backup failed:', err));
+            uploadVerificationToDrive(user).catch((err: Error) => console.error('Drive backup failed:', err));
           } catch (e) {
             console.error('Failed to import google-drive service:', e);
           }
@@ -2536,7 +2597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ${feedback ? `<p><strong>Admin Feedback:</strong> ${feedback}</p>` : ''}
           <p>Thank you for using The University Hub.</p>
         `;
-        await sendEmail(seller.email, subject, html);
+        await sendLocalEmail(seller.email, subject, html);
       }
 
       res.json(store);
@@ -2563,7 +2624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ${feedback ? `<p><strong>Reason for Suspension:</strong> ${feedback}</p>` : ''}
             <p>Please contact support or resolve the issues mentioned above to reactivate your store.</p>
           `;
-          await sendEmail(seller.email, subject, html);
+          await sendLocalEmail(seller.email, subject, html);
         }
       }
 
@@ -2594,7 +2655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ${feedback ? `<p><strong>Reason/Feedback:</strong> ${feedback}</p>` : ''}
           <p>If you have questions, please contact support.</p>
         `;
-        await sendEmail(seller.email, subject, html);
+        await sendLocalEmail(seller.email, subject, html);
       }
 
       res.json({ success: deleted });
@@ -2626,7 +2687,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ${feedback ? `<p><strong>Reason/Feedback:</strong> ${feedback}</p>` : ''}
             <p>If you have questions, please contact support.</p>
           `;
-          await sendEmail(seller.email, subject, html);
+          await sendLocalEmail(seller.email, subject, html);
         }
       }
 
@@ -2650,7 +2711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const productId = parseInt(req.params.id);
       const { status } = req.body;
 
-      if (!['pending', 'approved', 'rejected'].includes(status)) {
+      if (!['pending', 'approved', 'rejected', 'archived'].includes(status)) {
         return res.status(400).json({ message: "Invalid approval status" });
       }
 
@@ -2665,16 +2726,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/admin/products/:id/availability", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      const { isAvailable } = req.body;
+
+      const product = await storage.updateProduct(productId, { isAvailable });
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      res.json(product);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update product availability" });
+    }
+  });
+
   app.post("/api/admin/products", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const { storeId, categoryId, title, description, price, originalPrice, condition, images, specialOffer, mediaGifUrl } = req.body;
 
-      // Validate required fields
-      if (!storeId || !categoryId || !title || !description || !price || !condition || !images || images.length === 0) {
+      // Validate required fields (storeId can be -1 for "All Stores")
+      if (storeId === undefined || !categoryId || !title || !description || !price || !condition || !images || images.length === 0) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      // Verify store exists
+      if (storeId === -1) {
+        // Broadcast to all stores
+        const allStores = await storage.getAllStoresForAdmin();
+        if (allStores.length === 0) {
+          return res.status(404).json({ message: "No stores found to broadcast to" });
+        }
+
+        const productPromises = allStores.map(async (s) => {
+          const newProduct = await storage.createProduct({
+            storeId: s.id,
+            categoryId,
+            title,
+            description,
+            price: price.toString(),
+            originalPrice: originalPrice ? originalPrice.toString() : null,
+            condition,
+            images,
+            mediaGifUrl,
+            specialOffer: specialOffer || null,
+          });
+          return storage.updateProductApprovalStatus(newProduct.id, 'approved');
+        });
+
+        const createdProducts = await Promise.all(productPromises);
+        return res.json({ 
+          message: `Successfully broadcasted to ${createdProducts.length} stores`,
+          count: createdProducts.length,
+          products: createdProducts 
+        });
+      }
+
+      // Verify store exists for single store post
       const store = await storage.getStoreById(storeId);
       if (!store) {
         return res.status(404).json({ message: "Store not found" });
@@ -2723,7 +2831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // CSV import with robust parsing
       if (req.file) {
         try {
-          const csvContent = readFileSync(req.file.path, 'utf-8');
+          const csvContent = req.file.buffer.toString('utf-8');
           
           // Parse CSV with proper handling of quoted fields and commas
           const records = parse(csvContent, {
@@ -2890,10 +2998,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: userId?.toString() || "guest",
           cartItems: JSON.stringify(cartItems || []),
           isBokoo: isBokoo ? "true" : "false",
-          guestDetails: guestDetails ? JSON.stringify(guestDetails) : undefined,
-          buyerLatitude: buyerLocation?.latitude || undefined,
-          buyerLongitude: buyerLocation?.longitude || undefined,
-          verificationUrls: verificationUrls ? JSON.stringify(verificationUrls) : undefined,
+          guestDetails: guestDetails ? JSON.stringify(guestDetails) : "{}",
+          buyerLatitude: buyerLocation?.latitude || "",
+          buyerLongitude: buyerLocation?.longitude || "",
+          verificationUrls: verificationUrls ? JSON.stringify(verificationUrls) : "{}",
         },
       });
 

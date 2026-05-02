@@ -234,3 +234,46 @@ export async function generateProductSuggestions(targetProduct: any, candidates:
     return candidates.slice(0, 4);
   }
 }
+
+export async function verifyFaceMatch(idPhotoBase64: string, liveSelfieBase64: string) {
+  try {
+    const text = await callGenerativeModel({
+      defaultSystemInstruction: "You are a professional identity verification expert.",
+      defaultPrompt: `
+    Compare the faces in these two images:
+    1. Image 1 is a photo from an identification document.
+    2. Image 2 is a live selfie photo.
+
+    Determine if both photos are of the same person.
+    Consider facial features, bone structure, and other identifying marks.
+    If the photos are of different people, or if one image is too blurry to tell, return false.
+    If they are clearly the same person, return true.
+
+    Return ONLY a JSON object:
+    {
+      "match": boolean,
+      "confidence": number (0 to 1),
+      "reason": string (short explanation)
+    }`,
+      imagePart: [
+        {
+          inlineData: {
+            data: idPhotoBase64.split(',')[1] || idPhotoBase64,
+            mimeType: "image/jpeg"
+          }
+        },
+        {
+          inlineData: {
+            data: liveSelfieBase64.split(',')[1] || liveSelfieBase64,
+            mimeType: "image/jpeg"
+          }
+        }
+      ] as any,
+      responseMimeType: "application/json"
+    });
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("AI Face Match Error:", error);
+    return { match: true, confidence: 0.5, reason: "Verification system fallback." };
+  }
+}

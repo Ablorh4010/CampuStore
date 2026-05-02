@@ -35,8 +35,12 @@ export default function ProductCard({ product }: ProductCardProps) {
     ? product.images[1]
     : product.mediaGifUrl || product.images[0];
 
+  const productLink = user 
+    ? `${basePrefix}/product/${product.id}?ref=${user.id}`
+    : `${basePrefix}/product/${product.id}`;
+
   return (
-    <Link href={`${basePrefix}/product/${product.id}`}>
+    <Link href={productLink}>
       <div 
         className="group relative flex flex-col h-full cursor-pointer"
         onMouseEnter={() => setIsHovered(true)}

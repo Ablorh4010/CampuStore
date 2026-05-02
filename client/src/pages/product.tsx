@@ -17,7 +17,8 @@ import {
   RotateCcw,
   ShieldCheck,
   Wallet,
-  ChevronDown
+  ChevronDown,
+  Video
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,12 +33,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import ProductCard from '@/components/product/product-card';
-import { useCart } from '@/lib/cart-context';
 import { useAuth } from '@/lib/auth-context';
+import { useCart } from '@/lib/cart-context';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
-import type { ProductWithStore } from '@shared/schema';
+import { calculatePriceWithFee, formatPriceWithFee } from '@/lib/utils';
+import type { ProductWithStore, OrderWithDetails } from '@shared/schema';
+
 
 export default function Product() {
   const [location] = useLocation();
@@ -45,7 +47,7 @@ export default function Product() {
   const match = location.match(/\/product\/(\d+)/);
   const productId = match ? parseInt(match[1]) : null;
   
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [brokenImages, setBrokenImages] = useState<Record<number, boolean>>({});
   const { user } = useAuth();
   const { addToCart } = useCart();
@@ -56,6 +58,19 @@ export default function Product() {
     queryKey: ['/api/products', productId],
     enabled: !!productId,
   });
+
+  const { data: purchases = [] } = useQuery<OrderWithDetails[]>({
+    queryKey: ['/api/orders/buyer', user?.id],
+    enabled: !!user,
+  });
+
+  const hasPurchasedFromSeller = purchases.some(order => order.sellerId === product?.store.userId);
+
+  // Combine images and mediaGifUrl into a single media array
+  const mediaItems = product ? [
+    ...product.images,
+    ...(product.mediaGifUrl ? [product.mediaGifUrl] : [])
+  ] : [];
 
   const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products', productId, 'suggestions'],
@@ -75,6 +90,9 @@ export default function Product() {
 
   const createMessageMutation = useMutation({
     mutationFn: async (data: { toId: number; productId: number; content: string }) => {
+      if (!hasPurchasedFromSeller) {
+        throw new Error('You must purchase an item from this seller before initiating contact.');
+      }
       const response = await apiRequest('POST', '/api/messages', {
         fromId: user!.id,
         ...data,
@@ -87,10 +105,10 @@ export default function Product() {
         description: 'Your message has been sent to the seller.',
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
-        title: 'Error',
-        description: 'Failed to send message. Please try again.',
+        title: 'Contact Restricted',
+        description: error.message || 'Failed to send message.',
         variant: 'destructive',
       });
     },
@@ -126,6 +144,15 @@ export default function Product() {
 
     if (!product) return;
 
+    if (!hasPurchasedFromSeller) {
+      toast({
+        title: 'Payment Required',
+        description: 'Communication is only enabled after a successful purchase for security.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     createMessageMutation.mutate({
       toId: product.store.userId,
       productId: product.id,
@@ -136,10 +163,16 @@ export default function Product() {
   const handleShare = async () => {
     if (!product) return;
     
+    // Add referral code if user is logged in
+    const shareUrl = new URL(window.location.href);
+    if (user) {
+      shareUrl.searchParams.set('ref', user.id.toString());
+    }
+
     const shareData = {
       title: product.title,
       text: `Check out this ${product.title} on The University Hub!`,
-      url: window.location.href,
+      url: shareUrl.toString(),
     };
 
     try {
@@ -147,26 +180,26 @@ export default function Product() {
         await navigator.share(shareData);
         toast({ title: 'Shared!', description: 'Product link shared successfully.' });
       } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast({ title: 'Link Copied', description: 'Product link copied to clipboard.' });
+        await navigator.clipboard.writeText(shareUrl.toString());
+        toast({ title: 'Link Copied', description: 'Product link with your referral code copied to clipboard.' });
       }
     } catch (error) {
       console.error('Error sharing:', error);
     }
   };
 
-  const nextImage = () => {
-    if (product && product.images) {
-      setCurrentImageIndex((prev) => 
-        prev === product.images.length - 1 ? 0 : prev + 1
+  const nextMedia = () => {
+    if (mediaItems.length > 0) {
+      setCurrentMediaIndex((prev) => 
+        prev === mediaItems.length - 1 ? 0 : prev + 1
       );
     }
   };
 
-  const prevImage = () => {
-    if (product && product.images) {
-      setCurrentImageIndex((prev) => 
-        prev === 0 ? product.images.length - 1 : prev - 1
+  const prevMedia = () => {
+    if (mediaItems.length > 0) {
+      setCurrentMediaIndex((prev) => 
+        prev === 0 ? mediaItems.length - 1 : prev - 1
       );
     }
   };
@@ -216,6 +249,14 @@ export default function Product() {
 
   const filteredRelatedProducts = relatedProducts.filter(p => p.id !== product.id);
 
+  const isVideo = (url: string) => {
+    return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*video.*/i);
+  };
+
+  const isGif = (url: string) => {
+    return url.match(/\.gif$/i);
+  };
+
   return (
     <div className="bg-white min-h-screen">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -230,33 +271,51 @@ export default function Product() {
           {/* Gallery Section */}
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Vertical Thumbnails */}
-            <div className="hidden lg:flex flex-col gap-3 w-24">
-              {product.images.map((image, index) => (
+            <div className="hidden lg:flex flex-col gap-3 w-24 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              {mediaItems.map((item, index) => (
                 <button
                   key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`aspect-[3/4] rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                    index === currentImageIndex ? 'border-black' : 'border-transparent hover:border-gray-200'
+                  onClick={() => setCurrentMediaIndex(index)}
+                  className={`aspect-[3/4] rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all duration-300 ${
+                    index === currentMediaIndex ? 'border-black' : 'border-transparent hover:border-gray-200'
                   }`}
                 >
-                  <img src={image} alt="" className="w-full h-full object-cover" />
+                  {isVideo(item) ? (
+                    <div className="w-full h-full bg-black flex items-center justify-center relative">
+                      <Video className="w-6 h-6 text-white opacity-50" />
+                      <video src={item} className="absolute inset-0 w-full h-full object-cover" muted />
+                    </div>
+                  ) : (
+                    <img src={item} alt="" className="w-full h-full object-cover" />
+                  )}
                 </button>
               ))}
             </div>
 
-            {/* Main Image */}
+            {/* Main Media Display */}
             <div className="flex-1 relative aspect-[3/4] bg-gray-50 rounded-3xl overflow-hidden group">
-               <img
-                  src={product.images[currentImageIndex]}
-                  alt={product.title}
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                  onError={() => setBrokenImages(prev => ({ ...prev, [currentImageIndex]: true }))}
-               />
+               {isVideo(mediaItems[currentMediaIndex]) ? (
+                  <video
+                    src={mediaItems[currentMediaIndex]}
+                    className="w-full h-full object-cover"
+                    controls
+                    autoPlay
+                    muted
+                    loop
+                  />
+               ) : (
+                  <img
+                    src={mediaItems[currentMediaIndex]}
+                    alt={product.title}
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                    onError={() => setBrokenImages(prev => ({ ...prev, [currentMediaIndex]: true }))}
+                  />
+               )}
                
-               {product.images.length > 1 && (
-                  <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={prevImage}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={nextImage}><ChevronRight className="h-4 w-4" /></Button>
+               {mediaItems.length > 1 && (
+                  <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={prevMedia}><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={nextMedia}><ChevronRight className="h-4 w-4" /></Button>
                   </div>
                )}
 
@@ -268,10 +327,10 @@ export default function Product() {
                   </div>
                )}
 
-               {/* Mobile Thumbnails */}
+               {/* Mobile Thumbnails / Dots */}
                <div className="lg:hidden absolute bottom-6 inset-x-0 flex justify-center gap-2">
-                  {product.images.map((_, i) => (
-                    <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-black w-4' : 'bg-black/20'}`} />
+                  {mediaItems.map((_, i) => (
+                    <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentMediaIndex ? 'bg-black w-4' : 'bg-black/20'}`} />
                   ))}
                </div>
             </div>

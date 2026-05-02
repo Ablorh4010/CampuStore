@@ -74,6 +74,7 @@ export default function Browse() {
     if (searchQuery) params.set('search', searchQuery);
     if (selectedCategory) params.set('categoryId', selectedCategory.toString());
     if (isInstallmentOnly) params.set('installment', 'true');
+    if (user) params.set('ref', user.id.toString());
     setLocation(`${basePrefix}/browse?${params.toString()}`);
   };
 
@@ -85,6 +86,7 @@ export default function Browse() {
     if (searchQuery) params.set('search', searchQuery);
     if (newCategory) params.set('categoryId', newCategory.toString());
     if (isInstallmentOnly) params.set('installment', 'true');
+    if (user) params.set('ref', user.id.toString());
     setLocation(`${basePrefix}/browse?${params.toString()}`);
   };
 
@@ -112,7 +114,7 @@ export default function Browse() {
       const query = searchQuery.toLowerCase();
       return store.name.toLowerCase().includes(query) ||
              store.description.toLowerCase().includes(query) ||
-             store.university.toLowerCase().includes(query);
+             store.university?.toLowerCase().includes(query);
     }
     return true;
   }) : [];

@@ -1,7 +1,11 @@
 import { GraduationCap, Target, Users, Heart } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from 'wouter';
+import { useAuth } from '@/lib/auth-context';
 
 export default function About() {
+  const { user } = useAuth();
+  const authLink = user ? `/?ref=${user.id}` : '/auth';
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -100,12 +104,12 @@ export default function About() {
           <p className="text-gray-600 mb-4">
             Join thousands of students already using The University Hub to buy and sell on campus.
           </p>
-          <a
-            href="/auth"
+          <Link
+            href={authLink}
             className="inline-block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-xl transition-all duration-300 hover:scale-105"
           >
             Get Started Today
-          </a>
+          </Link>
         </div>
       </div>
     </div>

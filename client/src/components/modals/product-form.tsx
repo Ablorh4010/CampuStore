@@ -37,7 +37,7 @@ const productSchema = z.object({
   originalPrice: z.coerce.string().optional().nullable(),
   condition: z.string().min(1, 'Condition is required'),
   categoryId: z.number().min(1, 'Category is required'),
-  storeId: z.number().min(1, 'Store is required'),
+  storeId: z.number().min(-1, 'Store is required'),
   specialOffer: z.string().optional().nullable(),
   stockQuantity: z.number().min(1, 'Stock is required').default(1),
   sizes: z.string().optional().nullable(), // For clothing/shoes
@@ -211,7 +211,9 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
         };
         console.log('Sending final product data to server:', finalData);
         
-        const response = await apiRequest('POST', '/api/products', finalData);
+        // Admins use a specialized endpoint for broadcasting/official posts
+        const endpoint = user?.isAdmin ? '/api/admin/products' : '/api/products';
+        const response = await apiRequest('POST', endpoint, finalData);
         const result = await response.json();
         console.log('Product created successfully on server:', result);
         return result;
@@ -225,7 +227,8 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/products/store'] });
-      toast({ title: 'Success', description: 'Product submitted for review!' });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      toast({ title: 'Success', description: 'Product launched successfully!' });
       onClose();
       form.reset();
       setImageFiles([]);
@@ -246,6 +249,10 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: 'File too large', description: 'Video must be under 10MB.', variant: 'destructive' });
+        return;
+      }
       setVideoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => setVideoPreview(reader.result as string);
@@ -263,15 +270,24 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
     
     // Validate file size and type
     const invalidFiles = files.filter(file => {
-      const isValidType = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'].includes(file.type);
-      const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+      const isValidType = [
+        'image/jpeg', 
+        'image/jpg', 
+        'image/png', 
+        'image/webp', 
+        'image/gif',
+        'video/mp4',
+        'video/quicktime',
+        'video/webm'
+      ].includes(file.type);
+      const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
       return !isValidType || !isValidSize;
     });
 
     if (invalidFiles.length > 0) {
       toast({
         title: 'Invalid files',
-        description: 'Only JPEG, PNG, WebP, and GIF images under 5MB are allowed.',
+        description: 'Only JPEG, PNG, WebP, GIF images and MP4, MOV, WEBM videos under 10MB are allowed.',
         variant: 'destructive',
       });
       return;
@@ -347,6 +363,11 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                           <Select onValueChange={v => field.onChange(parseInt(v))} defaultValue={field.value?.toString()}>
                             <FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Which store?" /></SelectTrigger></FormControl>
                             <SelectContent>
+                              {user?.isAdmin && (
+                                <SelectItem value="-1" className="font-black text-primary">
+                                  📢 Broadcast to All Stores
+                                </SelectItem>
+                              )}
                               {availableStores.map(s => (
                                 <SelectItem key={s.id} value={s.id.toString()}>
                                   {s.name} {s.userId === 1 ? '👑' : ''}

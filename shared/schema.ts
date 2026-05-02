@@ -34,11 +34,12 @@ export const users = pgTable("users", {
   mobileMoneyPhone: text("mobile_money_phone"),
   
   // Seller verification
-  verificationStatus: text("verification_status").notNull().default("unverified"), // unverified, pending, verified, rejected
+  verificationStatus: text("verification_status").notNull().default("unverified"), // unverified, pending, verified, rejected, needs_correction
   idType: text("id_type"), // passport, national_id, driving_license
   idScanUrl: text("id_scan_url"),
   idScanUrlBack: text("id_scan_url_back"),
   faceScanUrl: text("face_scan_url"),
+  dateOfBirth: timestamp("date_of_birth"),
   sellerLatitude: text("seller_latitude"),
   sellerLongitude: text("seller_longitude"),
   sellerAddress: text("seller_address"),
@@ -389,11 +390,13 @@ export const insertUserSchema = createInsertSchema(users).omit({
   isWhatsappVerified: true,
   isAdmin: true,
 }).extend({
-  campus: z.string().optional(),
+  campus: z.string().nullable().optional(),
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
-  phoneNumber: z.string().optional(),
-  whatsappNumber: z.string().optional(),
+  phoneNumber: z.string().nullable().optional(),
+  whatsappNumber: z.string().nullable().optional(),
+  dateOfBirth: z.union([z.string(), z.date()]).nullable().optional(),
+  sellerAddress: z.string().nullable().optional(),
   userType: z.enum(['buyer', 'seller', 'admin']).optional(),
 });
 

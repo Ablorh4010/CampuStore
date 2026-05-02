@@ -10,6 +10,7 @@ interface IdScanCaptureProps {
   existingImage?: string;
   title?: string;
   description?: string;
+  side?: 'front' | 'back';
 }
 
 export function IdScanCapture({ 
@@ -17,7 +18,8 @@ export function IdScanCapture({
   onRemove, 
   existingImage,
   title = "ID Document Scan",
-  description = "Upload a clear photo of your government-issued ID (passport, driver's license, national ID)"
+  description = "Upload a clear photo of your government-issued ID",
+  side = 'front'
 }: IdScanCaptureProps) {
   const [preview, setPreview] = useState<string | null>(existingImage || null);
   const [error, setError] = useState<string>('');
@@ -25,14 +27,12 @@ export function IdScanCapture({
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): boolean => {
-    // Check file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       setError('Please upload a valid image file (JPEG, PNG, or WebP)');
       return false;
     }
 
-    // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError('File size must be less than 5MB');
       return false;
@@ -65,63 +65,66 @@ export function IdScanCapture({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Upload className="h-5 w-5" />
-          {title}
+    <Card className={side === 'back' ? 'border-dashed' : ''}>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Upload className="h-4 w-4" />
+          {title} {side === 'back' ? '(Back Side)' : '(Front Side)'}
         </CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription className="text-xs">{description}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
+          <Alert variant="destructive" className="py-2">
+            <AlertDescription className="text-xs">{error}</AlertDescription>
           </Alert>
         )}
 
         {preview ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="relative rounded-lg overflow-hidden border-2 border-green-200 bg-green-50">
               <img 
                 src={preview} 
                 alt="ID Document Preview" 
-                className="w-full h-auto max-h-64 object-contain"
+                className="w-full h-auto max-h-48 object-contain"
               />
-              <div className="absolute top-2 right-2 bg-green-500 text-white p-2 rounded-full">
-                <Check className="h-4 w-4" />
+              <div className="absolute top-2 right-2 bg-green-500 text-white p-1 rounded-full">
+                <Check className="h-3 w-3" />
               </div>
             </div>
             <Button 
               type="button"
               variant="outline" 
+              size="sm"
               onClick={handleRemove}
-              className="w-full"
+              className="w-full text-xs h-8"
             >
-              <X className="h-4 w-4 mr-2" />
-              Remove and Upload Different Image
+              <X className="h-3 w-3 mr-1" />
+              Remove
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full"
+              className="w-full text-xs h-9"
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Choose from Gallery
+              <Upload className="h-3 w-3 mr-1" />
+              Gallery
             </Button>
             
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => cameraInputRef.current?.click()}
-              className="w-full"
+              className="w-full text-xs h-9"
             >
-              <Camera className="h-4 w-4 mr-2" />
-              Take Photo
+              <Camera className="h-3 w-3 mr-1" />
+              Camera
             </Button>
 
             <input
@@ -142,12 +145,6 @@ export function IdScanCapture({
             />
           </div>
         )}
-
-        <div className="text-xs text-gray-500 space-y-1">
-          <p>✓ Ensure all details are clearly visible</p>
-          <p>✓ Document must not be expired</p>
-          <p>✓ Maximum file size: 5MB</p>
-        </div>
       </CardContent>
     </Card>
   );

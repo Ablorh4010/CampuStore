@@ -163,7 +163,7 @@ export default function Header() {
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setLocation(`${basePrefix}/browse`)}>
+                  <DropdownMenuItem onClick={() => setLocation(`${basePrefix}/browse?view=stores`)}>
                     View All Stores
                   </DropdownMenuItem>
                 </DropdownMenuContent>

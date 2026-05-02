@@ -15,16 +15,16 @@ export default function Footer() {
               the student market place - connecting students across campuses.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              <a href="https://facebook.com/universityhub" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors">
                 <i className="fab fa-facebook-f"></i>
               </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              <a href="https://twitter.com/universityhub" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors">
                 <i className="fab fa-twitter"></i>
               </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              <a href="https://instagram.com/universityhub" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors">
                 <i className="fab fa-instagram"></i>
               </a>
-              <a href="#" className="text-gray-300 hover:text-white transition-colors">
+              <a href="https://tiktok.com/@universityhub" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors">
                 <i className="fab fa-tiktok"></i>
               </a>
             </div>
@@ -39,19 +39,19 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href={`${basePrefix}/browse`} className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/browse?view=stores`} className="hover:text-white transition-colors">
                   Find Stores
                 </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/`} className="hover:text-white transition-colors">
                   Daily Deals
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/browse`} className="hover:text-white transition-colors">
                   Wishlist
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -60,24 +60,24 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">For Sellers</h4>
             <ul className="space-y-2 text-gray-300">
               <li>
-                <Link href={`${basePrefix}/dashboard`} className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/seller-auth`} className="hover:text-white transition-colors">
                   Start Selling
                 </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href="/about" className="hover:text-white transition-colors">
                   Seller Guide
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href="/about" className="hover:text-white transition-colors">
                   Pricing & Fees
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href={`${basePrefix}/dashboard`} className="hover:text-white transition-colors">
                   Store Analytics
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -86,24 +86,24 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-gray-300">
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href="/about" className="hover:text-white transition-colors">
                   Help Center
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href="/about" className="hover:text-white transition-colors">
                   Safety Tips
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href="/contact" className="hover:text-white transition-colors">
                   Contact Us
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-white transition-colors">
+                <Link href="/about" className="hover:text-white transition-colors">
                   Community Guidelines
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -112,15 +112,15 @@ export default function Footer() {
         <div className="border-t border-gray-700 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-300 text-sm">© 2024 The University Hub. All rights reserved.</p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#" className="text-gray-300 hover:text-white text-sm transition-colors">
+            <Link href="/about" className="text-gray-300 hover:text-white text-sm transition-colors">
               Privacy Policy
-            </a>
-            <a href="#" className="text-gray-300 hover:text-white text-sm transition-colors">
+            </Link>
+            <Link href="/about" className="text-gray-300 hover:text-white text-sm transition-colors">
               Terms of Service
-            </a>
-            <a href="#" className="text-gray-300 hover:text-white text-sm transition-colors">
+            </Link>
+            <Link href="/about" className="text-gray-300 hover:text-white text-sm transition-colors">
               Cookie Policy
-            </a>
+            </Link>
           </div>
         </div>
       </div>

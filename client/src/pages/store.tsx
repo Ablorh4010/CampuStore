@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useRoute } from 'wouter';
-import { Star, MapPin, MessageCircle, ExternalLink } from 'lucide-react';
+import { Star, MapPin, MessageCircle, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,9 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import ProductCard from '@/components/product/product-card';
 import ChatBox from '@/components/chat/chat-box';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Store, Product, User, ProductWithStore } from '@shared/schema';
+import { useAuth } from '@/lib/auth-context';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import type { Store, Product, User, ProductWithStore, OrderWithDetails } from '@shared/schema';
 
 export default function Store() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [, params] = useRoute('/store/:id');
   const storeId = params?.id ? parseInt(params.id) : null;
 
@@ -18,6 +23,94 @@ export default function Store() {
     queryKey: ['/api/stores', storeId],
     enabled: !!storeId,
   });
+
+  const { data: purchases = [] } = useQuery<OrderWithDetails[]>({
+    queryKey: ['/api/orders/buyer', user?.id],
+    enabled: !!user,
+  });
+
+  const hasPurchasedFromSeller = purchases.some(order => order.sellerId === store?.userId);
+
+  const createMessageMutation = useMutation({
+    mutationFn: async (data: { toId: number; content: string }) => {
+      if (!hasPurchasedFromSeller) {
+        throw new Error('You must purchase an item from this seller before initiating contact.');
+      }
+      const response = await apiRequest('POST', '/api/messages', {
+        fromId: user!.id,
+        ...data,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Message sent',
+        description: 'Your inquiry has been sent to the seller.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Contact Restricted',
+        description: error.message || 'Failed to send message.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleContactSeller = () => {
+    if (!user) {
+      toast({
+        title: 'Please sign in',
+        description: 'You need to be signed in to contact sellers.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!store) return;
+
+    if (!hasPurchasedFromSeller) {
+      toast({
+        title: 'Payment Required',
+        description: 'Communication is only enabled after a successful purchase for security.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    createMessageMutation.mutate({
+      toId: store.userId,
+      content: `Hi! I'm interested in your store ${store.name}. Can we chat?`,
+    });
+  };
+
+  const handleShare = async () => {
+    if (!store) return;
+    
+    // Add referral code if user is logged in
+    const shareUrl = new URL(window.location.href);
+    if (user) {
+      shareUrl.searchParams.set('ref', user.id.toString());
+    }
+
+    const shareData = {
+      title: store.name,
+      text: `Check out ${store.name} on The University Hub!`,
+      url: shareUrl.toString(),
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({ title: 'Shared!', description: 'Store link shared successfully.' });
+      } else {
+        await navigator.clipboard.writeText(shareUrl.toString());
+        toast({ title: 'Link Copied', description: 'Store link with your referral code copied to clipboard.' });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
 
   const { data: products = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', storeId],
@@ -102,11 +195,11 @@ export default function Store() {
                 <p className="text-gray-600 mb-4">{store.description}</p>
                 
                 <div className="flex items-center space-x-2">
-                  <Button>
-                    <MessageCircle className="h-4 w-4 mr-2" />
+                  <Button onClick={handleContactSeller} disabled={createMessageMutation.isPending}>
+                    {createMessageMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MessageCircle className="h-4 w-4 mr-2" />}
                     Contact Seller
                   </Button>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={handleShare}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Share Store
                   </Button>
