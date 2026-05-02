@@ -3153,7 +3153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add products
       productsList.forEach(p => {
-        xml += `\n  <url><loc>${baseUrl}/product/${p.id}</loc><lastmod>${new Date(p.updatedAt || new Date()).toISOString().split('T')[0]}</lastmod></url>`;
+        xml += `\n  <url><loc>${baseUrl}/product/${p.id}</loc><lastmod>${new Date(p.createdAt || new Date()).toISOString().split('T')[0]}</lastmod></url>`;
         xml += `\n  <url><loc>${baseUrl}/gh/product/${p.id}</loc></url>`;
       });
 

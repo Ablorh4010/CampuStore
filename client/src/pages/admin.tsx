@@ -10,7 +10,7 @@ import {
   CheckCircle2, XCircle, AlertCircle, Trash2, Store as StoreIcon, 
   Package, User as UserIcon, Phone, MapPin, Eye, ExternalLink, 
   Settings, Plus, Tag, Mail, Loader2, RefreshCcw, ShieldAlert, 
-  Video, Users as UsersIcon, DollarSign, Activity, Zap, Globe, Newspaper, Smartphone
+  Video, Users as UsersIcon, DollarSign, Activity, Zap, Globe, Newspaper, Smartphone, Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
