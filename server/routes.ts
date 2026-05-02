@@ -262,6 +262,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS next_installment_date TIMESTAMP;`);
         await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS paystack_auth_code TEXT;`);
       } catch (e) { console.log("Note: Orders schema updates skipped."); }
+
+      // Users Table Fixes
+      try {
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP;`);
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS id_scan_url_back TEXT;`);
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_notes TEXT;`);
+      } catch (e) { console.log("Note: Users schema updates skipped."); }
       
       console.log("PRODUCTION DB SYNC: Success!");
     } catch (error) {

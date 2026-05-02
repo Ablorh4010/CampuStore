@@ -31,9 +31,9 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const sellerName = `${product.store.user.firstName} ${product.store.user.lastName?.[0] || ''}.`;
   
-  const displayImage = isHovered && product.images.length > 1 && !imgError
+  const displayImage = isHovered && product.images && product.images.length > 1 && !imgError
     ? product.images[1]
-    : product.mediaGifUrl || product.images[0];
+    : product.mediaGifUrl || (product.images && product.images.length > 0 ? product.images[0] : '/placeholder-product.png');
 
   const productLink = user 
     ? `${basePrefix}/product/${product.id}?ref=${user.id}`

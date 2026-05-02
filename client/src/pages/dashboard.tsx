@@ -265,7 +265,7 @@ export default function Dashboard() {
                              <div key={order.id} className="flex items-center justify-between p-6 bg-white rounded-3xl shadow-sm border border-gray-100 group hover:border-primary/20 transition-all">
                                 <div className="flex items-center gap-4">
                                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50">
-                                      <img src={order.product.images[0]} className="w-full h-full object-cover" alt="" />
+                                      <img src={order.product.images?.[0] || '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
                                    </div>
                                    <div>
                                       <h4 className="font-black text-sm uppercase tracking-tight">{order.product.title}</h4>
@@ -330,7 +330,7 @@ export default function Dashboard() {
                 {storeProducts.map(product => (
                   <Card key={product.id} className="rounded-3xl border-none shadow-sm overflow-hidden group">
                     <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
-                       <img src={product.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
+                       <img src={product.images?.[0] || '/placeholder-product.png'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="" />
                        <div className="absolute top-4 right-4 flex gap-2">
                           <Button 
                             variant="destructive" 
@@ -405,11 +405,12 @@ export default function Dashboard() {
              <div className="space-y-4">
                 {orders.map(order => (
                   <div key={order.id} className="flex items-center justify-between p-8 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-primary/5 transition-all">
-                       <div className="flex items-center gap-6">
-                          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-50 border shadow-sm">
-                             <img src={order.product.images[0]} className="w-full h-full object-cover" alt="" />
+                       <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0">
+                             <img src={order.product.images?.[0] || '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
                           </div>
                           <div>
+
                             <div className="flex items-center gap-2 mb-1">
                                <Badge className="bg-primary/5 text-primary border-none font-black text-[9px] uppercase">{order.product.category.name}</Badge>
                                <span className="text-[10px] font-bold text-gray-400">Order #{order.id}</span>
@@ -464,11 +465,12 @@ export default function Dashboard() {
              <div className="space-y-4">
                 {purchases.map(order => (
                   <div key={order.id} className="flex items-center justify-between p-8 bg-gray-50 rounded-[2.5rem] group hover:bg-white hover:shadow-xl hover:shadow-primary/5 transition-all border border-transparent hover:border-primary/10">
-                       <div className="flex items-center gap-6">
-                          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white shadow-sm">
-                             <img src={order.product.images[0]} className="w-full h-full object-cover" alt="" />
+                       <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0">
+                             <img src={order.product.images?.[0] || '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
                           </div>
                           <div>
+
                             <div className="flex items-center gap-2 mb-1">
                                <Badge className="bg-primary/5 text-primary border-none font-black text-[9px] uppercase">{order.product.category.name}</Badge>
                                <span className="text-[10px] font-bold text-gray-400">Order #{order.id}</span>
