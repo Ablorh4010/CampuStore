@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import type { Store, Product, User, ProductWithStore, OrderWithDetails } from '@shared/schema';
+import SEO from '@/components/seo/SEO';
 
 export default function Store() {
   const { user } = useAuth();

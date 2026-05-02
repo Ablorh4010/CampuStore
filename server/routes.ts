@@ -3100,6 +3100,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SEO Routes
+  app.get("/robots.txt", (req, res) => {
+    res.type("text/plain");
+    res.send("User-agent: *\nAllow: /\nSitemap: https://uniexchangehub.com/sitemap.xml");
+  });
+
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const baseUrl = "https://uniexchangehub.com";
+      const productsList = await storage.getProductsWithStore({});
+      const storesList = await storage.getStoresWithUser({});
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+      
+      // Add static pages
+      const pages = ["", "/browse", "/about", "/contact", "/seller-auth", "/auth"];
+      pages.forEach(page => {
+        xml += `\n  <url><loc>${baseUrl}${page}</loc></url>`;
+      });
+
+      // Add products
+      productsList.forEach(p => {
+        xml += `\n  <url><loc>${baseUrl}/product/${p.id}</loc><lastmod>${new Date(p.updatedAt || new Date()).toISOString().split('T')[0]}</lastmod></url>`;
+        xml += `\n  <url><loc>${baseUrl}/gh/product/${p.id}</loc></url>`;
+      });
+
+      // Add stores
+      storesList.forEach(s => {
+        xml += `\n  <url><loc>${baseUrl}/store/${s.id}</loc></url>`;
+        xml += `\n  <url><loc>${baseUrl}/gh/store/${s.id}</loc></url>`;
+      });
+
+      xml += "\n</urlset>";
+      res.type("application/xml");
+      res.send(xml);
+    } catch (error) {
+      console.error("Sitemap generation error:", error);
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

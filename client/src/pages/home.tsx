@@ -27,6 +27,7 @@ import ProductCard from '@/components/product/product-card';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import type { ProductWithStore, StoreWithUser, Category, WeeklyDealWithProduct, CampusActivityWithUser } from '@shared/schema';
+import SEO from '@/components/seo/SEO';
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -131,6 +132,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO 
+        title="The Hub - #1 Student Marketplace in Ghana"
+        description="Buy and sell textbooks, electronics, fashion and campus essentials. Ghana's most trusted marketplace for student entrepreneurs."
+        keywords="student market ghana, knust marketplace, legon marketplace, buy sell ghana, student deals accra, campus marketplace ghana"
+      />
       {/* Top Banner / Share Hub */}
       <div className="bg-black py-2 px-4 text-center">
          <button 

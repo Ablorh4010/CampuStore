@@ -39,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { calculatePriceWithFee, formatPriceWithFee } from '@/lib/utils';
 import type { ProductWithStore, OrderWithDetails } from '@shared/schema';
+import SEO from '@/components/seo/SEO';
 
 
 export default function Product() {
@@ -261,8 +262,42 @@ export default function Product() {
     return url.match(/\.gif$/i);
   };
 
+  const productSchema = product ? {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": product.title,
+    "image": mediaItems[0],
+    "description": product.description,
+    "brand": {
+      "@type": "Brand",
+      "name": product.store.name
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": window.location.href,
+      "priceCurrency": "GHS",
+      "price": product.price,
+      "itemCondition": product.condition === 'new' ? "https://schema.org/NewCondition" : "https://schema.org/UsedCondition",
+      "availability": "https://schema.org/InStock",
+      "seller": {
+        "@type": "Organization",
+        "name": product.store.name
+      }
+    }
+  } : undefined;
+
   return (
     <div className="bg-white min-h-screen">
+      {product && (
+        <SEO 
+          title={product.title}
+          description={`${product.title} for sale by ${product.store.name} on The Hub. ${product.description.substring(0, 150)}...`}
+          image={mediaItems[0]}
+          type="product"
+          keywords={`${product.title}, buy ${product.title} ghana, ${product.store.university} marketplace`}
+          schemaData={productSchema}
+        />
+      )}
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Breadcrumbs / Back */}
         <div className="mb-8">

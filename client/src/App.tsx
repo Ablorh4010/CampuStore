@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "./lib/auth-context";
 import { CartProvider } from "./lib/cart-context";
 import { SocketProvider } from "./lib/socket-context";
+import { HelmetProvider } from 'react-helmet-async';
 import Header from "./components/layout/header";
 import Footer from "./components/layout/footer";
 import Home from "./pages/home";
@@ -67,25 +68,27 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <CartProvider>
-              <div className="min-h-screen bg-gray-50">
-                <Header />
-                <main>
-                  <Router />
-                </main>
-                <Footer />
-                <CartSidebar />
-                <PWAInstallPrompt />
-                <GeminiAssistant />
-              </div>
-              <Toaster />
-            </CartProvider>
-          </SocketProvider>
-        </AuthProvider>
-      </TooltipProvider>
+      <HelmetProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <CartProvider>
+                <div className="min-h-screen bg-gray-50">
+                  <Header />
+                  <main>
+                    <Router />
+                  </main>
+                  <Footer />
+                  <CartSidebar />
+                  <PWAInstallPrompt />
+                  <GeminiAssistant />
+                </div>
+                <Toaster />
+              </CartProvider>
+            </SocketProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </HelmetProvider>
     </QueryClientProvider>
   );
 }

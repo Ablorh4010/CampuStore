@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import ProductCard from '@/components/product/product-card';
 import StoreCard from '@/components/store/store-card';
+import SEO from '@/components/seo/SEO';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth-context';
 import type { ProductWithStore, StoreWithUser, Category } from '@shared/schema';
@@ -119,8 +120,18 @@ export default function Browse() {
     return true;
   }) : [];
 
+  const isGh = window.location.pathname.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
+  const categoryName = selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'All Products';
+  const pageTitle = searchQuery ? `Search: "${searchQuery}"` : categoryName;
+
   return (
     <div className="min-h-screen bg-white">
+      <SEO 
+        title={`${pageTitle} | The Hub Ghana`}
+        description={`Find the best student deals for ${categoryName} in Ghana. Shop from student entrepreneurs across various campuses.`}
+        keywords={`${categoryName}, student deals, ghana market, campus buy and sell`}
+      />
       {/* Search Header */}
       <div className="bg-white border-b sticky top-16 z-30">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
