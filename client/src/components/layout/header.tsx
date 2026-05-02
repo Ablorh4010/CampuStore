@@ -292,7 +292,8 @@ export default function Header() {
                     </>
                   ) : (
                     <div className="flex flex-col space-y-3">
-                       <p className="text-sm text-gray-500 font-medium px-1">Welcome to University Hub</p>
+                       <p className="text-sm text-gray-500 font-medium px-1">Welcome to the Hub</p>
+
                        <Link href="/auth" onClick={() => setIsMobileMenuOpen(false)}>
                          <Button className="w-full" data-testid="button-sign-in-mobile">Sign In</Button>
                        </Link>

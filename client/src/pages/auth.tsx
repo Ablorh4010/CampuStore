@@ -232,7 +232,7 @@ export default function Auth() {
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                               <Input 
                                 type="email" 
-                                placeholder="you@university.edu" 
+                                placeholder="your@email.com" 
                                 className="pl-10"
                                 {...field}
                                 data-testid="input-email-login"
@@ -314,7 +314,7 @@ export default function Auth() {
                               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                               <Input 
                                 type="email" 
-                                placeholder="you@university.edu" 
+                                placeholder="your@email.com" 
                                 className="pl-10"
                                 {...field}
                                 data-testid="input-email-register"
@@ -416,9 +416,9 @@ export default function Auth() {
                           name="university"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>University</FormLabel>
+                              <FormLabel>Institution or Primary Hub</FormLabel>
                               <FormControl>
-                                <Input placeholder="University of Example" {...field} data-testid="input-university" />
+                                <Input placeholder="E.g. KNUST, High School, or Local Area" {...field} data-testid="input-university" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>

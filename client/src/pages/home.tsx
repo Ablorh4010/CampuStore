@@ -277,9 +277,9 @@ export default function Home() {
                     Trending Now
                  </Badge>
                  <h2 className="text-4xl lg:text-5xl font-black text-gray-900 uppercase tracking-tighter leading-none">
-                    Fresh from <br /><span className="text-primary italic">Campus Sellers.</span>
+                    Fresh from <br /><span className="text-primary italic">Our Community.</span>
                  </h2>
-                 <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">New listings from your university hub</p>
+                 <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">Top listings from student entrepreneurs and local vendors</p>
               </div>
               <Link href={exploreLink}>
                  <Button variant="ghost" className="font-black uppercase tracking-widest text-xs hover:bg-white px-8 h-12 rounded-xl group transition-all">
@@ -346,9 +346,9 @@ export default function Home() {
                     Happening Now
                  </Badge>
                  <h2 className="text-4xl lg:text-5xl font-black text-gray-900 uppercase tracking-tighter leading-none">
-                    The Campus <br /><span className="text-accent italic">Activity Feed.</span>
+                    The Community <br /><span className="text-accent italic">Activity Feed.</span>
                  </h2>
-                 <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">Events, news and updates from your school</p>
+                 <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">Events, news and updates from your education hub</p>
               </div>
            </div>
 
@@ -358,7 +358,7 @@ export default function Home() {
                      [...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-[2rem]" />)
                   ) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
                      <div className="bg-gray-50 rounded-[3rem] p-12 text-center border-2 border-dashed border-gray-100">
-                        <p className="text-gray-400 font-black uppercase tracking-widest text-xs">No recent activity for {user?.university || 'your campus'}.</p>
+                        <p className="text-gray-400 font-black uppercase tracking-widest text-xs">No recent activity for {user?.university || 'your hub'}.</p>
                      </div>
                   ) : (
                     campusActivity.map((activity) => (

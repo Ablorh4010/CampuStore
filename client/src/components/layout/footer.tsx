@@ -10,9 +10,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-xl font-bold mb-4">The University Hub</h3>
+            <h3 className="text-xl font-bold mb-4">The Hub</h3>
             <p className="text-gray-300 mb-4">
-              the student market place - connecting students across campuses.
+              The student marketplace - connecting educational communities.
             </p>
             <div className="flex space-x-4">
               <a href="https://facebook.com/universityhub" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white transition-colors">

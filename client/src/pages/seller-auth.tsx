@@ -315,7 +315,7 @@ export default function SellerAuth() {
             <Store className="h-8 w-8" />
           </div>
           <h1 className="text-3xl font-black tracking-tight text-gray-900">Seller Hub</h1>
-          <p className="text-gray-500 font-medium">Join Africa's leading student marketplace</p>
+          <p className="text-gray-500 font-medium">Empowering student entrepreneurs and local vendors</p>
         </div>
 
         <Card className="border-none shadow-2xl shadow-slate-200/50 rounded-[2rem] overflow-hidden">
@@ -340,7 +340,7 @@ export default function SellerAuth() {
                           <FormControl>
                             <div className="relative">
                               <Input 
-                                placeholder="you@university.edu" 
+                                placeholder="name@email.com" 
                                 className="h-12 rounded-xl pl-10"
                                 {...field}
                                 disabled={showOtpField}
@@ -426,10 +426,10 @@ export default function SellerAuth() {
                           name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="font-bold">University Email</FormLabel>
+                              <FormLabel className="font-bold">Primary Email</FormLabel>
                               <FormControl>
                                 <div className="relative">
-                                  <Input placeholder="you@university.edu" className="h-12 rounded-xl pl-10" {...field} disabled={showOtpField} />
+                                  <Input placeholder="name@email.com" className="h-12 rounded-xl pl-10" {...field} disabled={showOtpField} />
                                   <Mail className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400" />
                                 </div>
                               </FormControl>
@@ -589,9 +589,9 @@ export default function SellerAuth() {
                             name="university"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-bold text-xs uppercase tracking-widest">University Name</FormLabel>
+                                <FormLabel className="font-bold text-xs uppercase tracking-widest">School / Institution</FormLabel>
                                 <FormControl>
-                                  <Input className="h-11 rounded-xl" {...field} />
+                                  <Input placeholder="E.g. KNUST, High School, or Vocational Hub" className="h-11 rounded-xl" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -603,9 +603,9 @@ export default function SellerAuth() {
                             name="businessName"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-bold text-xs uppercase tracking-widest">Business Name</FormLabel>
+                                <FormLabel className="font-bold text-xs uppercase tracking-widest">Business or Brand Name</FormLabel>
                                 <FormControl>
-                                  <Input className="h-11 rounded-xl" {...field} />
+                                  <Input placeholder="What do you call your store?" className="h-11 rounded-xl" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
