@@ -195,7 +195,7 @@ export default function Home() {
                     <div className="absolute inset-0 bg-black rounded-[3rem] blur-2xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
                     <div className="relative aspect-[4/5] bg-gray-100 rounded-[3rem] overflow-hidden border-8 border-white shadow-2xl">
                        <img 
-                         src={currentDeal.product.images?.[0] || '/placeholder-product.png'} 
+                         src={(currentDeal.product.images?.[0] && currentDeal.product.images[0] !== 'uploaded') ? currentDeal.product.images[0] : '/placeholder-product.png'} 
                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                          alt={currentDeal.product.title} 
                        />

@@ -454,7 +454,7 @@ export default function AdminDashboard() {
                 {allProducts.filter(p => p.approvalStatus === 'pending').map(product => (
                   <Card key={product.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white">
                     <div className="aspect-[4/3] bg-gray-100 relative">
-                       <img src={product.images?.[0] || '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
+                       <img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
                     </div>
                     <CardContent className="p-6">
                        <h4 className="font-black text-sm uppercase mb-2">{product.title}</h4>
@@ -501,7 +501,7 @@ export default function AdminDashboard() {
                 {allProducts.filter(p => ['approved', 'archived'].includes(p.approvalStatus)).map(product => (
                   <Card key={product.id} className={`rounded-3xl border-none shadow-sm overflow-hidden bg-white transition-opacity ${!product.isAvailable ? 'opacity-60' : ''}`}>
                     <div className="aspect-[4/3] bg-gray-100 relative">
-                       <img src={product.images?.[0] || '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
+                       <img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
                        <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
                           {product.approvalStatus === 'archived' && (
                              <Badge className="bg-amber-500 text-white font-black uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg">
@@ -781,7 +781,7 @@ export default function AdminDashboard() {
                   <div className="flex flex-col lg:flex-row justify-between gap-8">
                      <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-50">
-                           <img src={order.product.images?.[0]} className="w-full h-full object-cover" alt="" />
+                           <img src={(order.product.images?.[0] && order.product.images[0] !== 'uploaded') ? order.product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
                         </div>
                         <div>
 
@@ -999,7 +999,7 @@ export default function AdminDashboard() {
                          {weeklyDeals.map(deal => (
                             <div key={deal.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
                                <div className="flex items-center gap-4">
-                                  <img src={deal.product.images?.[0] || '/placeholder-product.png'} className="w-12 h-12 rounded-lg object-cover" alt="" />
+                                  <img src={(deal.product.images?.[0] && deal.product.images[0] !== 'uploaded') ? deal.product.images[0] : '/placeholder-product.png'} className="w-12 h-12 rounded-lg object-cover" alt="" />
                                   <div>
                                      <p className="font-black text-sm">{deal.product.title}</p>
                                      <Badge className="bg-secondary text-white text-[10px]">{deal.dealLabel}</Badge>

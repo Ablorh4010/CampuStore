@@ -70,7 +70,7 @@ export default function Product() {
   const rawMedia = product ? [
     ...(product.images || []),
     ...(product.mediaGifUrl ? [product.mediaGifUrl] : [])
-  ].filter(url => !!url && url.trim() !== '') : [];
+  ].filter(url => !!url && url.trim() !== '' && url !== 'uploaded') : [];
   
   const mediaItems = rawMedia.length > 0 ? rawMedia : ['/placeholder-product.png'];
 

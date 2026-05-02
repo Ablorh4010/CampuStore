@@ -31,13 +31,31 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const sellerName = `${product.store.user.firstName} ${product.store.user.lastName?.[0] || ''}.`;
   
-  const displayImage = isHovered && product.images && product.images.length > 1 && !imgError
-    ? product.images[1]
-    : product.mediaGifUrl || (product.images && product.images.length > 0 ? product.images[0] : '/placeholder-product.png');
+  const isVideo = (url: string) => {
+    if (!url) return false;
+    return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*video.*/i);
+  };
+
+  // Filter valid images and media
+  const validImages = (product.images || []).filter(url => !!url && url.trim() !== '' && url !== 'uploaded');
+  const hasValidGif = !!product.mediaGifUrl && product.mediaGifUrl.trim() !== '' && product.mediaGifUrl !== 'uploaded';
+
+  // Prefer first valid image for non-hovered thumbnail to ensure something is visible
+  // If no images, use mediaGifUrl. If neither, use placeholder.
+  const staticThumbnail = validImages.length > 0 
+    ? validImages[0] 
+    : (hasValidGif ? product.mediaGifUrl! : '/placeholder-product.png');
+
+  // On hover, if there's a GIF/Video, show it. Otherwise show second image if available.
+  const displayImage = isHovered 
+    ? (hasValidGif ? product.mediaGifUrl! : (validImages.length > 1 ? validImages[1] : staticThumbnail))
+    : staticThumbnail;
 
   const productLink = user 
     ? `${basePrefix}/product/${product.id}?ref=${user.id}`
     : `${basePrefix}/product/${product.id}`;
+
+  const isCurrentMediaVideo = isVideo(displayImage);
 
   return (
     <Link href={productLink}>
@@ -48,12 +66,23 @@ export default function ProductCard({ product }: ProductCardProps) {
       >
         <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 rounded-2xl mb-4 transition-all duration-500">
           {!imgError ? (
-            <img
-              src={displayImage}
-              alt={product.title}
-              className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
-              onError={() => setImgError(true)}
-            />
+            isCurrentMediaVideo ? (
+              <video
+                src={displayImage}
+                className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
+                muted
+                loop
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <img
+                src={displayImage}
+                alt={product.title}
+                className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
+                onError={() => setImgError(true)}
+              />
+            )
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400">
               <Package className="h-12 w-12 mb-2 opacity-20" />

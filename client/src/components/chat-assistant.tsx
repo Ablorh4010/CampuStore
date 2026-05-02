@@ -157,7 +157,7 @@ export default function GeminiAssistant() {
                             {m.products.map(product => (
                               <Link key={product.id} href={`/product/${product.id}`}>
                                 <div className="bg-white p-3 rounded-xl border border-gray-100 flex items-center gap-3 hover:border-primary/30 transition-all cursor-pointer group shadow-sm">
-                                  {product.images?.[0] && <img src={product.images?.[0] || '/placeholder-product.png'} className="w-12 h-12 object-cover rounded-lg" alt="" />}
+                                  {product.images?.[0] && <img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-12 h-12 object-cover rounded-lg" alt="" />}
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-black truncate">{product.title}</p>
                                     <p className="text-primary font-bold text-xs">${product.price}</p>
