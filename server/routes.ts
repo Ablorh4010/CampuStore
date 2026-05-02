@@ -12,7 +12,7 @@ import { eq, sql } from "drizzle-orm";
 import multer from "multer";
 import fs, { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
-import { generateStoreProfile, generateProductDescription, analyzeProductImage, verifyFaceMatch } from "./ai";
+import { generateStoreProfile, generateProductDescription, analyzeProductImage, verifyFaceMatch, extractProductFromHtml } from "./ai";
 import { uploadToGCS } from "./gcs-storage";
 import { sendVerificationEmail, sendEmail as sendLocalEmail, sendPurchaseConfirmationEmail } from "./email";
 import crypto from 'crypto';
@@ -237,6 +237,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Face Match Route Error:", error);
       res.status(500).json({ message: "Verification service error" });
+    }
+  });
+
+  // Magic Product Import - Extract from URL
+  app.post("/api/products/extract-url", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      console.log(`Magic Import: Fetching content from ${url}`);
+      
+      // Fetch the external page
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(400).json({ message: `Failed to fetch URL: ${response.statusText}` });
+      }
+
+      const html = await response.text();
+      const extractedData = await extractProductFromHtml(html);
+      
+      res.json(extractedData);
+    } catch (error) {
+      console.error("Magic Import Error:", error);
+      res.status(500).json({ message: "Failed to extract product data from the provided URL." });
     }
   });
 

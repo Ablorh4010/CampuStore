@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InboxComponent from '@/components/chat/InboxComponent';
 import ProductForm from '@/components/modals/product-form';
+import MagicImportModal from '@/components/modals/magic-import-modal';
 import type { ProductWithStore, StoreWithUser, Category, User, WeeklyDealWithProduct, CampusActivityWithUser, OrderWithDetails, Store } from '@shared/schema';
 
 export default function AdminDashboard() {
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
 
   // Category management state
   const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1' });
@@ -489,12 +491,21 @@ export default function AdminDashboard() {
                    <h3 className="text-3xl font-black uppercase tracking-tighter">Live Catalog.</h3>
                    <p className="font-bold text-gray-400">Manage visibility and installments for all live items.</p>
                 </div>
-                <Button 
-                  className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest shadow-xl shadow-primary/20 animate-pulse-slow"
-                  onClick={() => setIsProductModalOpen(true)}
-                >
-                  <Plus className="w-6 h-6 mr-2" /> Launch Official Product
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline"
+                    className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest border-primary/20 text-primary shadow-xl shadow-primary/5"
+                    onClick={() => setIsMagicImportOpen(true)}
+                  >
+                    <Sparkles className="w-6 h-6 mr-2" /> Magic Import
+                  </Button>
+                  <Button 
+                    className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest shadow-xl shadow-primary/20 animate-pulse-slow"
+                    onClick={() => setIsProductModalOpen(true)}
+                  >
+                    <Plus className="w-6 h-6 mr-2" /> Launch Official Product
+                  </Button>
+                </div>
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1159,6 +1170,12 @@ export default function AdminDashboard() {
            isOpen={isProductModalOpen} 
            onClose={() => setIsProductModalOpen(false)} 
            userStores={[]} 
+        />
+
+        <MagicImportModal
+          isOpen={isMagicImportOpen}
+          onClose={() => setIsMagicImportOpen(false)}
+          userStores={[]} 
         />
       </div>
     </div>

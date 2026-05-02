@@ -24,7 +24,7 @@ export default function Browse() {
   const searchParams = useSearch();
   const { user } = useAuth();
   
-  const isGh = location.startsWith('/gh');
+  const isGh = window.location.pathname.startsWith('/gh');
   const basePrefix = isGh ? '/gh' : '';
   
   const [viewMode, setViewMode] = useState<'products' | 'stores'>('products');
@@ -120,8 +120,6 @@ export default function Browse() {
     return true;
   }) : [];
 
-  const isGh = window.location.pathname.startsWith('/gh');
-  const basePrefix = isGh ? '/gh' : '';
   const categoryName = selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'All Products';
   const pageTitle = searchQuery ? `Search: "${searchQuery}"` : categoryName;
 

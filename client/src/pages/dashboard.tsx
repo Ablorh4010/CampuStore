@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import ProductForm from '@/components/modals/product-form';
+import MagicImportModal from '@/components/modals/magic-import-modal';
 import InboxComponent from '@/components/chat/InboxComponent';
 import type { ProductWithStore, Store, OrderWithDetails, CampusActivity } from '@shared/schema';
 
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
 
   const fetchAiInsight = async (orderId: number) => {
     setIsGeneratingInsight(true);
@@ -198,14 +200,24 @@ export default function Dashboard() {
                  <Settings className="w-4 h-4 mr-2" /> Store Settings
                </Button>
              </Link>
-             <Button 
-               onClick={() => setIsProductFormOpen(true)}
-               disabled={!isVerified}
-               className={`rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-black/10 ${!isVerified ? 'opacity-50' : ''}`}
-             >
-               <Plus className="w-4 h-4 mr-2" /> 
-               {isVerified ? 'New Listing' : 'Locked'}
-             </Button>
+             <div className="flex gap-2">
+               <Button 
+                 variant="outline"
+                 onClick={() => setIsMagicImportOpen(true)}
+                 disabled={!isVerified}
+                 className={`rounded-xl border-primary/20 text-primary font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-primary/5 ${!isVerified ? 'opacity-50' : ''}`}
+               >
+                 <Sparkles className="w-4 h-4 mr-2" /> Magic Import
+               </Button>
+               <Button 
+                 onClick={() => setIsProductFormOpen(true)}
+                 disabled={!isVerified}
+                 className={`rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-black/10 ${!isVerified ? 'opacity-50' : ''}`}
+               >
+                 <Plus className="w-4 h-4 mr-2" /> 
+                 {isVerified ? 'New Listing' : 'Locked'}
+               </Button>
+             </div>
           </div>
         </div>
 
@@ -572,6 +584,12 @@ export default function Dashboard() {
           isOpen={isProductFormOpen} 
           onClose={() => setIsProductFormOpen(false)} 
           userStores={userStores} 
+        />
+
+        <MagicImportModal
+          isOpen={isMagicImportOpen}
+          onClose={() => setIsMagicImportOpen(false)}
+          userStores={userStores}
         />
       </div>
     </div>

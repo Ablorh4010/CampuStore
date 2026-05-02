@@ -277,3 +277,41 @@ export async function verifyFaceMatch(idPhotoBase64: string, liveSelfieBase64: s
     return { match: true, confidence: 0.5, reason: "Verification system fallback." };
   }
 }
+
+export async function extractProductFromHtml(html: string) {
+  try {
+    // Truncate HTML to avoid token limits, focusing on head and body start where meta tags usually are
+    const truncatedHtml = html.substring(0, 50000); 
+
+    const text = await callGenerativeModel({
+      defaultSystemInstruction: "You are an expert e-commerce data extraction assistant.",
+      defaultPrompt: `
+    Extract product information from the following HTML content. 
+    Look for:
+    - Title/Name
+    - Description
+    - Price (numeric value only)
+    - Original Price (if on sale)
+    - Condition (usually 'new')
+    - Images (array of absolute URLs)
+
+    Return ONLY a JSON object:
+    {
+      "title": string,
+      "description": string,
+      "price": number,
+      "originalPrice": number | null,
+      "condition": "new" | "used",
+      "images": string[]
+    }
+
+    HTML Content:
+    ${truncatedHtml}`,
+      responseMimeType: "application/json"
+    });
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("AI Extraction Error:", error);
+    throw new Error("Failed to extract product data from this URL.");
+  }
+}
