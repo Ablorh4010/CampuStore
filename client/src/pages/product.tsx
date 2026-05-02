@@ -66,11 +66,13 @@ export default function Product() {
 
   const hasPurchasedFromSeller = purchases.some(order => order.sellerId === product?.store.userId);
 
-  // Combine images and mediaGifUrl into a single media array
-  const mediaItems = product ? [
-    ...product.images,
+  // Combine images and mediaGifUrl into a single media array with fallback
+  const rawMedia = product ? [
+    ...(product.images || []),
     ...(product.mediaGifUrl ? [product.mediaGifUrl] : [])
-  ] : [];
+  ].filter(url => !!url && url.trim() !== '') : [];
+  
+  const mediaItems = rawMedia.length > 0 ? rawMedia : ['/placeholder-product.png'];
 
   const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products', productId, 'suggestions'],
@@ -250,10 +252,12 @@ export default function Product() {
   const filteredRelatedProducts = relatedProducts.filter(p => p.id !== product.id);
 
   const isVideo = (url: string) => {
+    if (!url) return false;
     return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*video.*/i);
   };
 
   const isGif = (url: string) => {
+    if (!url) return false;
     return url.match(/\.gif$/i);
   };
 
@@ -305,7 +309,7 @@ export default function Product() {
                   />
                ) : (
                   <img
-                    src={mediaItems[currentMediaIndex]}
+                    src={mediaItems[currentMediaIndex] || '/placeholder-product.png'}
                     alt={product.title}
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                     onError={() => setBrokenImages(prev => ({ ...prev, [currentMediaIndex]: true }))}

@@ -1,4 +1,4 @@
-import { X, Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { X, Minus, Plus, Trash2, ShoppingCart, Package } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,12 +71,16 @@ export default function CartSidebar() {
                   className="flex gap-6 group"
                 >
                   <div className="relative w-24 h-32 flex-shrink-0 bg-gray-50 rounded-2xl overflow-hidden">
-                    {item.product.images && item.product.images.length > 0 && (
+                    {item.product.images && item.product.images.length > 0 ? (
                       <img
                         src={item.product.images[0]}
                         alt={item.product.title}
                         className="w-full h-full object-cover"
                       />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                        <Package className="w-6 h-6" />
+                      </div>
                     )}
                   </div>
 
