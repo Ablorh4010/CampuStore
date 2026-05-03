@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InboxComponent from '@/components/chat/InboxComponent';
@@ -34,7 +35,7 @@ export default function AdminDashboard() {
   const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
 
   // Category management state
-  const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1' });
+  const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1', parentId: null as number | null });
 
   // Weekly Deals management state
   const [dealModalOpen, setDealModalOpen] = useState(false);
@@ -157,7 +158,7 @@ export default function AdminDashboard() {
     mutationFn: async (data: any) => apiRequest('POST', '/api/categories', data),
     onSuccess: () => {
       refetchCategories();
-      setNewCategory({ name: '', icon: '📦', color: '#6366f1' });
+      setNewCategory({ name: '', icon: '📦', color: '#6366f1', parentId: null });
       toast({ title: 'Category Created' });
     }
   });
@@ -989,6 +990,96 @@ export default function AdminDashboard() {
 
           <TabsContent value="app-mgmt" className="space-y-10 mt-0">
              <div className="grid lg:grid-cols-2 gap-10">
+                {/* Category Management */}
+                <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">
+                   <CardHeader className="bg-primary/5 p-8 border-b">
+                      <div className="flex items-center gap-3">
+                         <div className="p-3 bg-white rounded-2xl shadow-sm"><Tag className="w-6 h-6 text-primary" /></div>
+                         <div>
+                            <CardTitle className="text-2xl font-black">Category Hub</CardTitle>
+                            <CardDescription className="font-bold">Manage hierarchy and icons</CardDescription>
+                         </div>
+                      </div>
+                   </CardHeader>
+                   <CardContent className="p-8">
+                      <div className="space-y-6">
+                         <div className="bg-gray-50 p-6 rounded-3xl space-y-4 border border-gray-100">
+                            <div className="grid grid-cols-2 gap-4">
+                               <div className="space-y-2">
+                                  <Label className="text-xs font-black uppercase text-gray-400">Name</Label>
+                                  <Input className="rounded-xl border-2" placeholder="Category Name" value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} />
+                               </div>
+                               <div className="space-y-2">
+                                  <Label className="text-xs font-black uppercase text-gray-400">Parent (Optional)</Label>
+                                  <Select value={newCategory.parentId?.toString() || 'none'} onValueChange={v => setNewCategory({...newCategory, parentId: v === 'none' ? null : parseInt(v)})}>
+                                     <SelectTrigger className="rounded-xl border-2">
+                                        <SelectValue placeholder="Top Level" />
+                                     </SelectTrigger>
+                                     <SelectContent>
+                                        <SelectItem value="none">None (Top Level)</SelectItem>
+                                        {categories.filter(c => !c.parentId).map(c => (
+                                           <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
+                                        ))}
+                                     </SelectContent>
+                                  </Select>
+                               </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                               <div className="space-y-2">
+                                  <Label className="text-xs font-black uppercase text-gray-400">Icon Class</Label>
+                                  <Input className="rounded-xl border-2" placeholder="fas fa-icon" value={newCategory.icon} onChange={e => setNewCategory({...newCategory, icon: e.target.value})} />
+                               </div>
+                               <div className="space-y-2">
+                                  <Label className="text-xs font-black uppercase text-gray-400">Color Tag</Label>
+                                  <Select value={newCategory.color} onValueChange={v => setNewCategory({...newCategory, color: v})}>
+                                     <SelectTrigger className="rounded-xl border-2"><SelectValue /></SelectTrigger>
+                                     <SelectContent>
+                                        <SelectItem value="blue-100">Blue</SelectItem>
+                                        <SelectItem value="yellow-100">Yellow</SelectItem>
+                                        <SelectItem value="pink-100">Pink</SelectItem>
+                                        <SelectItem value="green-100">Green</SelectItem>
+                                        <SelectItem value="red-100">Red</SelectItem>
+                                        <SelectItem value="purple-100">Purple</SelectItem>
+                                     </SelectContent>
+                                  </Select>
+                               </div>
+                            </div>
+                            <Button className="w-full h-12 rounded-xl font-black shadow-lg" disabled={!newCategory.name} onClick={() => createCategoryMutation.mutate(newCategory)}>
+                               Create Category
+                            </Button>
+                         </div>
+
+                         <ScrollArea className="h-[400px] pr-4">
+                            <div className="space-y-4">
+                               {categories.filter(c => !c.parentId).map(parent => (
+                                  <div key={parent.id} className="space-y-2">
+                                     <div className="flex items-center justify-between p-3 bg-white rounded-xl border-2 border-primary/10">
+                                        <div className="flex items-center gap-3">
+                                           <span className="text-lg">🏷️</span>
+                                           <span className="font-black text-sm uppercase">{parent.name}</span>
+                                        </div>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-300 hover:text-red-500" onClick={() => deleteCategoryMutation.mutate(parent.id)}>
+                                           <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                     </div>
+                                     <div className="pl-6 space-y-2 border-l-2 border-gray-100 ml-3">
+                                        {categories.filter(c => c.parentId === parent.id).map(sub => (
+                                           <div key={sub.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 group">
+                                              <span className="text-xs font-bold text-gray-600">{sub.name}</span>
+                                              <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => deleteCategoryMutation.mutate(sub.id)}>
+                                                 <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                           </div>
+                                        ))}
+                                     </div>
+                                  </div>
+                               ))}
+                            </div>
+                         </ScrollArea>
+                      </div>
+                   </CardContent>
+                </Card>
+
                 {/* Weekly Deals Management */}
                 <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">
                    <CardHeader className="bg-primary/5 p-8 border-b">

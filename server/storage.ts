@@ -3,7 +3,7 @@ import {
   events, eventRsvps, clubs, clubMemberships, auctions, auctionBids,
   studyGroups, studyGroupMemberships, userFollows, sellerReviews,
   badges, userBadges, userPoints, pointsHistory,
-  weeklyDeals, campusActivity, appConfig,
+  weeklyDeals, campusActivity, appConfig, bookmarks,
   type User, type InsertUser, type Store, type InsertStore, type Category,
   type Product, type InsertProduct, type Order, type InsertOrder,
   type Message, type InsertMessage, type CartItem, type InsertCartItem,
@@ -13,7 +13,7 @@ import {
   type CampusActivity, type CampusActivityWithUser, type InsertCampusActivity
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, sql, gte } from "drizzle-orm";
+import { eq, and, or, like, desc, sql, gte, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -66,8 +66,14 @@ export interface IStorage {
   // Categories
   getAllCategories(): Promise<Category[]>;
   getCategoryById(id: number): Promise<Category | undefined>;
-  createCategory(category: { name: string; icon: string; color: string }): Promise<Category>;
+  createCategory(category: { name: string; icon: string; color: string; parentId?: number | null }): Promise<Category>;
   deleteCategory(id: number): Promise<boolean>;
+
+  // Bookmarks
+  createBookmark(bookmark: any): Promise<any>;
+  getBookmarksByUserId(userId: number): Promise<any[]>;
+  updateBookmarkStatus(id: number, status: string): Promise<any>;
+  deleteBookmark(id: number): Promise<boolean>;
 
   // Products
   createProduct(product: InsertProduct): Promise<Product>;
@@ -689,7 +695,7 @@ export class DatabaseStorage implements IStorage {
     return category || undefined;
   }
 
-  async createCategory(insertCategory: { name: string; icon: string; color: string }): Promise<Category> {
+  async createCategory(insertCategory: { name: string; icon: string; color: string; parentId?: number | null }): Promise<Category> {
     const [category] = await db.insert(categories).values(insertCategory).returning();
     return category;
   }
@@ -698,6 +704,25 @@ export class DatabaseStorage implements IStorage {
     // Unlink products from this category first to default category 1
     await db.update(products).set({ categoryId: 1 }).where(eq(products.categoryId, id));
     const result = await db.delete(categories).where(eq(categories.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async createBookmark(insertBookmark: any): Promise<any> {
+    const [bookmark] = await db.insert(bookmarks).values(insertBookmark).returning();
+    return bookmark;
+  }
+
+  async getBookmarksByUserId(userId: number): Promise<any[]> {
+    return await db.select().from(bookmarks).where(eq(bookmarks.userId, userId)).orderBy(desc(bookmarks.createdAt));
+  }
+
+  async updateBookmarkStatus(id: number, status: string): Promise<any> {
+    const [bookmark] = await db.update(bookmarks).set({ status }).where(eq(bookmarks.id, id)).returning();
+    return bookmark;
+  }
+
+  async deleteBookmark(id: number): Promise<boolean> {
+    const result = await db.delete(bookmarks).where(eq(bookmarks.id, id));
     return (result.rowCount || 0) > 0;
   }
 
@@ -767,7 +792,17 @@ export class DatabaseStorage implements IStorage {
     ];
 
     if (filters?.categoryId) {
-      conditions.push(eq(products.categoryId, filters.categoryId));
+      // Get all categories to find children
+      const allCategories = await this.getAllCategories();
+      const childIds = allCategories
+        .filter(c => c.parentId === filters.categoryId)
+        .map(c => c.id);
+      
+      if (childIds.length > 0) {
+        conditions.push(or(eq(products.categoryId, filters.categoryId), inArray(products.categoryId, childIds))!);
+      } else {
+        conditions.push(eq(products.categoryId, filters.categoryId));
+      }
     }
 
     if (filters?.search) {

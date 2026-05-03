@@ -1,7 +1,7 @@
 import { VertexAI } from '@google-cloud/vertexai';
 
 const project = process.env.GOOGLE_CLOUD_PROJECT || 'chromatic-force-480509-j5';
-const location = 'europe-west1';
+const location = 'us-central1';
 
 const vertexAI = new VertexAI({ project: project, location: location });
 
@@ -17,7 +17,7 @@ async function callGenerativeModel(options: {
   responseMimeType?: string;
   imagePart?: any;
 }) {
-  const modelName = options.modelName || "gemini-2.0-flash-001";
+  const modelName = options.modelName || "gemini-1.5-flash-002";
   
   // If we had a working MCP, we'd use the promptId here.
   // For now, we use the SDK to generate content with local fallback.
@@ -155,7 +155,13 @@ export async function analyzeProductImage(base64Image: string) {
     Analyze this product image and generate:
     1. A short, catchy title (max 50 chars).
     2. A professional 2-3 sentence description highlighting benefits for students.
-    3. The most appropriate category name from this list: ["Electronics", "Books", "Clothing", "Furniture", "Sports", "Other"].
+    3. The most appropriate subcategory name from this list:
+       - Laptops, Smartphones, Headphones, Accessories
+       - Textbooks, Stationery, Lab Gear
+       - Clothing, Shoes, Accessories (Fashion)
+       - Furniture, Kitchenware, Bedding
+       - Gym Gear, Musical Instruments, Games
+       - Tutoring, Delivery, Hair & Beauty
 
     Return ONLY a JSON object:
     {
@@ -284,9 +290,19 @@ export async function extractProductFromHtml(html: string) {
     const truncatedHtml = html.substring(0, 50000); 
 
     const text = await callGenerativeModel({
-      defaultSystemInstruction: "You are an expert e-commerce data extraction assistant.",
+      defaultSystemInstruction: "You are an expert e-commerce data extraction assistant for a campus marketplace in Ghana.",
       defaultPrompt: `
     Extract product information from the following HTML content. 
+    Also, categorize the product into one of our standard categories and subcategories.
+
+    Categories and Subcategories:
+    - Electronics: Laptops, Smartphones, Headphones, Accessories
+    - Academic: Textbooks, Stationery, Lab Gear
+    - Fashion: Clothing, Shoes, Accessories
+    - Home & Dorm: Furniture, Kitchenware, Bedding
+    - Sports & Leisure: Gym Gear, Musical Instruments, Games
+    - Services: Tutoring, Delivery, Hair & Beauty
+
     Look for:
     - Title/Name
     - Description
@@ -294,6 +310,8 @@ export async function extractProductFromHtml(html: string) {
     - Original Price (if on sale)
     - Condition (usually 'new')
     - Images (array of absolute URLs)
+    - Category (e.g., "Electronics")
+    - Subcategory (e.g., "Laptops")
 
     Return ONLY a JSON object:
     {
@@ -302,16 +320,25 @@ export async function extractProductFromHtml(html: string) {
       "price": number,
       "originalPrice": number | null,
       "condition": "new" | "used",
-      "images": string[]
+      "images": string[],
+      "categoryName": string,
+      "subcategoryName": string
     }
 
     HTML Content:
     ${truncatedHtml}`,
       responseMimeType: "application/json"
     });
-    return JSON.parse(text);
+    
+    // Clean up the response text - remove markdown code blocks if present
+    const cleanedText = text.replace(/```json\n?|```\n?/g, '').trim();
+    return JSON.parse(cleanedText);
   } catch (error) {
     console.error("AI Extraction Error:", error);
+    // If it's a JSON parse error, try to return a partial object instead of throwing
+    if (error instanceof SyntaxError) {
+       throw new Error("The AI returned an invalid response. This can happen with some websites. Please try again or use a different link.");
+    }
     throw new Error("Failed to extract product data from this URL.");
   }
 }

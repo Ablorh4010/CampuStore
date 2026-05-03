@@ -17,8 +17,20 @@ import {
   ChevronRight,
   Clock,
   ExternalLink,
-  Wallet
+  Wallet,
+  Laptop,
+  Book,
+  Shirt,
+  Home as HomeIcon,
+  Trophy,
+  Briefcase,
+  Smartphone,
+  Gamepad,
+  Music,
+  Heart,
+  Utensils
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -329,16 +341,50 @@ export default function Home() {
               </div>
            </div>
            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-             {categories.map((category) => (
-               <Link key={category.id} href={`/gh/browse?categoryId=${category.id}`}>
-                 <div className="flex flex-col items-center p-8 rounded-[2.5rem] bg-gray-50 hover:bg-white hover:shadow-xl transition-all group cursor-pointer border border-transparent hover:border-primary/5">
-                   <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-sm transition-all group-hover:scale-110 group-hover:bg-[#2E5BFF] group-hover:text-white">
-                     {category.icon === 'fas fa-book' ? '📚' : category.icon === 'fas fa-laptop' ? '💻' : category.icon === 'fas fa-tshirt' ? '👕' : '📦'}
-                   </div>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary transition-colors">{category.name}</span>
-                 </div>
-               </Link>
-             ))}
+             {categories.filter(c => !c.parentId).map((category, idx) => {
+               const getModernIcon = (name: string) => {
+                 const n = name.toLowerCase();
+                 if (n.includes('electronics')) return <Laptop className="w-8 h-8" />;
+                 if (n.includes('academic')) return <Book className="w-8 h-8" />;
+                 if (n.includes('fashion')) return <Shirt className="w-8 h-8" />;
+                 if (n.includes('home')) return <HomeIcon className="w-8 h-8" />;
+                 if (n.includes('sports')) return <Trophy className="w-8 h-8" />;
+                 if (n.includes('services')) return <Briefcase className="w-8 h-8" />;
+                 return <ShoppingBag className="w-8 h-8" />;
+               };
+
+               const colors = [
+                 'from-blue-500/20 to-indigo-500/20 text-blue-600',
+                 'from-yellow-500/20 to-orange-500/20 text-yellow-600',
+                 'from-pink-500/20 to-rose-500/20 text-pink-600',
+                 'from-green-500/20 to-emerald-500/20 text-green-600',
+                 'from-purple-500/20 to-violet-500/20 text-purple-600',
+                 'from-cyan-500/20 to-blue-500/20 text-cyan-600'
+               ];
+
+               return (
+                 <motion.div
+                   key={category.id}
+                   initial={{ opacity: 0, y: 20 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   transition={{ delay: idx * 0.1 }}
+                   viewport={{ once: true }}
+                 >
+                   <Link href={`/gh/browse?categoryId=${category.id}`}>
+                     <div className="flex flex-col items-center p-8 rounded-[2.5rem] bg-gray-50 hover:bg-white hover:shadow-2xl transition-all duration-500 group cursor-pointer border border-transparent hover:border-primary/10 relative overflow-hidden">
+                        <div className={`absolute inset-0 bg-gradient-to-br ${colors[idx % colors.length]} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 group-hover:shadow-xl z-10 relative">
+                           <div className={`transition-all duration-500 ${colors[idx % colors.length].split(' ').pop()} group-hover:text-white group-hover:bg-primary p-4 rounded-2xl w-full h-full flex items-center justify-center`}>
+                              {getModernIcon(category.name)}
+                           </div>
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary transition-colors duration-300 z-10 relative">{category.name}</span>
+                        <div className="mt-2 h-1 w-0 bg-primary group-hover:w-12 transition-all duration-500 rounded-full z-10 relative" />
+                     </div>
+                   </Link>
+                 </motion.div>
+               );
+             })}
            </div>
         </div>
       </section>

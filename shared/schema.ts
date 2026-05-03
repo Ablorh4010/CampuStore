@@ -89,6 +89,20 @@ export const categories = pgTable("categories", {
   name: text("name").notNull().unique(),
   icon: text("icon").notNull(),
   color: text("color").notNull(),
+  parentId: integer("parent_id"), // For sub-categories
+});
+
+export const bookmarks = pgTable("bookmarks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  url: text("url").notNull(),
+  title: text("title"),
+  description: text("description"),
+  image: text("image"),
+  price: text("price"),
+  category: text("category"),
+  status: text("status").notNull().default("pending"), // pending, imported, failed
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const products = pgTable("products", {
@@ -551,6 +565,11 @@ export const insertCampusActivitySchema = createInsertSchema(campusActivity).omi
 
 export const insertAppConfigSchema = createInsertSchema(appConfig);
 
+export const insertBookmarkSchema = createInsertSchema(bookmarks).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -567,6 +586,8 @@ export type CartItem = typeof cartItems.$inferSelect;
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
 export type OtpCode = typeof otpCodes.$inferSelect;
 export type InsertOtp = z.infer<typeof insertOtpSchema>;
+export type Bookmark = typeof bookmarks.$inferSelect;
+export type InsertBookmark = z.infer<typeof insertBookmarkSchema>;
 
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;

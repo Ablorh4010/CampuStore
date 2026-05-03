@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -51,9 +51,10 @@ interface ProductFormProps {
   isOpen: boolean;
   onClose: () => void;
   userStores: Store[];
+  initialData?: Partial<ProductFormData> | null;
 }
 
-export default function ProductForm({ isOpen, onClose, userStores }: ProductFormProps) {
+export default function ProductForm({ isOpen, onClose, userStores, initialData }: ProductFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -82,18 +83,44 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      price: '',
-      originalPrice: '',
-      condition: 'new',
-      specialOffer: '',
-      stockQuantity: 1,
-      sizes: '',
-      images: [],
-      mediaGifUrl: '',
+      title: initialData?.title || '',
+      description: initialData?.description || '',
+      price: initialData?.price || '',
+      originalPrice: initialData?.originalPrice || '',
+      condition: initialData?.condition || 'new',
+      categoryId: initialData?.categoryId,
+      storeId: initialData?.storeId || (availableStores.length > 0 ? availableStores[0].id : undefined),
+      specialOffer: initialData?.specialOffer || '',
+      stockQuantity: initialData?.stockQuantity || 1,
+      sizes: initialData?.sizes || '',
+      images: initialData?.images || [],
+      mediaGifUrl: initialData?.mediaGifUrl || '',
     },
   });
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        title: initialData.title || '',
+        description: initialData.description || '',
+        price: initialData.price || '',
+        originalPrice: initialData.originalPrice || '',
+        condition: initialData.condition || 'new',
+        categoryId: initialData.categoryId,
+        storeId: initialData.storeId || (availableStores.length > 0 ? availableStores[0].id : undefined),
+        specialOffer: initialData.specialOffer || '',
+        stockQuantity: initialData.stockQuantity || 1,
+        sizes: initialData.sizes || '',
+        images: initialData.images || [],
+        mediaGifUrl: initialData.mediaGifUrl || '',
+      });
+
+      if (initialData.images && initialData.images.length > 0) {
+        setImagePreviews(initialData.images);
+      }
+    }
+  }, [initialData, form, availableStores]);
 
   const generateAiDescription = async () => {
     const title = form.getValues('title');
@@ -463,7 +490,43 @@ export default function ProductForm({ isOpen, onClose, userStores }: ProductForm
                     </div>
                   </div>
                   <FormField control={form.control} name="categoryId" render={({ field }) => (
-                    <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest text-center block">Category</FormLabel><div className="flex flex-wrap justify-center gap-2">{categories.map(c => <Badge key={c.id} variant={field.value === c.id ? 'default' : 'outline'} className={`px-4 py-2 rounded-xl cursor-pointer transition-all ${field.value === c.id ? 'scale-110 shadow-lg' : 'hover:bg-gray-50'}`} onClick={() => field.onChange(c.id)}>{c.name}</Badge>)}</div><FormMessage /></FormItem>
+                    <FormItem>
+                      <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest text-center block">Category</FormLabel>
+                      <ScrollArea className="h-[200px] pr-4">
+                        <div className="space-y-6">
+                          {categories.filter(c => !c.parentId).map(parent => (
+                            <div key={parent.id} className="space-y-3">
+                              <p className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-2">
+                                <span className="w-4 h-px bg-primary/20"></span>
+                                {parent.name}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {categories.filter(c => c.parentId === parent.id).map(sub => (
+                                  <Badge 
+                                    key={sub.id} 
+                                    variant={field.value === sub.id ? 'default' : 'outline'} 
+                                    className={`px-4 py-2 rounded-xl cursor-pointer transition-all ${field.value === sub.id ? 'scale-110 shadow-lg' : 'hover:bg-gray-50'}`} 
+                                    onClick={() => field.onChange(sub.id)}
+                                  >
+                                    {sub.name}
+                                  </Badge>
+                                ))}
+                                {categories.filter(c => c.parentId === parent.id).length === 0 && (
+                                  <Badge 
+                                    variant={field.value === parent.id ? 'default' : 'outline'} 
+                                    className={`px-4 py-2 rounded-xl cursor-pointer transition-all ${field.value === parent.id ? 'scale-110 shadow-lg' : 'hover:bg-gray-50'}`} 
+                                    onClick={() => field.onChange(parent.id)}
+                                  >
+                                    {parent.name} (General)
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      <FormMessage />
+                    </FormItem>
                   )} />
                 </div>
               )}

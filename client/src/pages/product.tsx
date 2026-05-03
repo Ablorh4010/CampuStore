@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRoute, Link, useLocation } from 'wouter';
 import { 
@@ -32,6 +32,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import ProductCard from '@/components/product/product-card';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
@@ -49,6 +57,7 @@ export default function Product() {
   const productId = match ? parseInt(match[1]) : null;
   
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [api, setApi] = useState<CarouselApi>();
   const [brokenImages, setBrokenImages] = useState<Record<number, boolean>>({});
   const { user } = useAuth();
   const { addToCart } = useCart();
@@ -66,6 +75,14 @@ export default function Product() {
   });
 
   const hasPurchasedFromSeller = purchases.some(order => order.sellerId === product?.store.userId);
+
+  useEffect(() => {
+    if (!api) return;
+
+    api.on("select", () => {
+      setCurrentMediaIndex(api.selectedScrollSnap());
+    });
+  }, [api]);
 
   // Combine images and mediaGifUrl into a single media array with fallback
   const rawMedia = product ? [
@@ -192,7 +209,9 @@ export default function Product() {
   };
 
   const nextMedia = () => {
-    if (mediaItems.length > 0) {
+    if (api) {
+      api.scrollNext();
+    } else if (mediaItems.length > 0) {
       setCurrentMediaIndex((prev) => 
         prev === mediaItems.length - 1 ? 0 : prev + 1
       );
@@ -200,11 +219,18 @@ export default function Product() {
   };
 
   const prevMedia = () => {
-    if (mediaItems.length > 0) {
+    if (api) {
+      api.scrollPrev();
+    } else if (mediaItems.length > 0) {
       setCurrentMediaIndex((prev) => 
         prev === 0 ? mediaItems.length - 1 : prev - 1
       );
     }
+  };
+
+  const scrollToMedia = (index: number) => {
+    setCurrentMediaIndex(index);
+    api?.scrollTo(index);
   };
 
   if (isLoading) {
@@ -314,7 +340,7 @@ export default function Product() {
               {mediaItems.map((item, index) => (
                 <button
                   key={index}
-                  onClick={() => setCurrentMediaIndex(index)}
+                  onClick={() => scrollToMedia(index)}
                   className={`aspect-[3/4] rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all duration-300 ${
                     index === currentMediaIndex ? 'border-black' : 'border-transparent hover:border-gray-200'
                   }`}
@@ -331,35 +357,61 @@ export default function Product() {
               ))}
             </div>
 
-            {/* Main Media Display */}
+            {/* Main Media Display with Carousel */}
             <div className="flex-1 relative aspect-[3/4] bg-gray-50 rounded-3xl overflow-hidden group">
-               {isVideo(mediaItems[currentMediaIndex]) ? (
-                  <video
-                    src={mediaItems[currentMediaIndex]}
-                    className="w-full h-full object-cover"
-                    controls
-                    autoPlay
-                    muted
-                    loop
-                  />
-               ) : (
-                  <img
-                    src={mediaItems[currentMediaIndex] || '/placeholder-product.png'}
-                    alt={product.title}
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                    onError={() => setBrokenImages(prev => ({ ...prev, [currentMediaIndex]: true }))}
-                  />
-               )}
-               
-               {mediaItems.length > 1 && (
-                  <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={prevMedia}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl" onClick={nextMedia}><ChevronRight className="h-4 w-4" /></Button>
-                  </div>
-               )}
+               <Carousel setApi={setApi} className="w-full h-full">
+                  <CarouselContent className="h-full ml-0">
+                    {mediaItems.map((item, index) => (
+                      <CarouselItem key={index} className="pl-0 h-full">
+                        <div className="w-full h-full flex items-center justify-center">
+                          {isVideo(item) ? (
+                            <video
+                              src={item}
+                              className="w-full h-full object-cover"
+                              controls
+                              autoPlay={index === currentMediaIndex}
+                              muted
+                              loop
+                            />
+                          ) : (
+                            <img
+                              src={item || '/placeholder-product.png'}
+                              alt={`${product.title} - image ${index + 1}`}
+                              className="w-full h-full object-cover transition-transform duration-1000"
+                              onError={() => setBrokenImages(prev => ({ ...prev, [index]: true }))}
+                            />
+                          )}
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  
+                  {mediaItems.length > 1 && (
+                    <>
+                      <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">
+                        <Button 
+                          variant="secondary" 
+                          size="icon" 
+                          className="rounded-full bg-white/90 shadow-xl pointer-events-auto lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" 
+                          onClick={prevMedia}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="secondary" 
+                          size="icon" 
+                          className="rounded-full bg-white/90 shadow-xl pointer-events-auto lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" 
+                          onClick={nextMedia}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </>
+                  )}
+               </Carousel>
 
                {savings && (
-                  <div className="absolute top-6 left-6">
+                  <div className="absolute top-6 left-6 z-10">
                     <Badge className="bg-black text-white border-none font-black text-xs px-4 py-1.5 rounded-lg shadow-xl uppercase tracking-widest">
                       {savings}% Off
                     </Badge>
@@ -367,9 +419,13 @@ export default function Product() {
                )}
 
                {/* Mobile Thumbnails / Dots */}
-               <div className="lg:hidden absolute bottom-6 inset-x-0 flex justify-center gap-2">
+               <div className="lg:hidden absolute bottom-6 inset-x-0 flex justify-center gap-2 z-10">
                   {mediaItems.map((_, i) => (
-                    <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === currentMediaIndex ? 'bg-black w-4' : 'bg-black/20'}`} />
+                    <button 
+                      key={i} 
+                      onClick={() => scrollToMedia(i)}
+                      className={`w-2 h-2 rounded-full transition-all ${i === currentMediaIndex ? 'bg-black w-4' : 'bg-black/20'}`} 
+                    />
                   ))}
                </div>
             </div>

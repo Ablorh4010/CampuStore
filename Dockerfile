@@ -12,7 +12,6 @@ RUN npm install
 COPY . .
 
 # Build the application
-# This runs 'vite build' and 'esbuild' as defined in package.json
 RUN npm run build
 
 # Final stage
@@ -23,21 +22,20 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies
-RUN npm install --include=dev
+# Install ONLY production dependencies
+RUN npm install --omit=dev
 
 # Copy the build artifacts from the builder stage
 COPY --from=builder /app/dist ./dist
-# Copy uploads folder if it exists, or create it
+
+# Create uploads folder
 RUN mkdir -p uploads
 
-# The server expects to serve from dist/public
-# The esbuild output is dist/index.js
-
-EXPOSE 8080
-
+# Set production environment
 ENV NODE_ENV=production
 ENV PORT=8080
+
+EXPOSE 8080
 
 # Start the application
 CMD ["npm", "start"]
