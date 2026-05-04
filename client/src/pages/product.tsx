@@ -152,32 +152,19 @@ export default function Product() {
     }
   };
 
-  const handleContactSeller = () => {
-    if (!user) {
-      toast({
-        title: 'Please sign in',
-        description: 'You need to be signed in to contact sellers.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const { data: whatsapp1 } = useQuery<{ value: string }>({ 
+    queryKey: ['/api/admin/config/whatsapp_support_1'] 
+  });
 
+  const handleContactSeller = () => {
     if (!product) return;
 
-    if (!hasPurchasedFromSeller) {
-      toast({
-        title: 'Payment Required',
-        description: 'Communication is only enabled after a successful purchase for security.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    createMessageMutation.mutate({
-      toId: product.store.userId,
-      productId: product.id,
-      content: `Hi! I'm interested in your ${product.title}. Is it still available?`,
-    });
+    const adminWhatsApp = whatsapp1?.value || '233240000001';
+    const cleanNumber = adminWhatsApp.replace(/\D/g, '');
+    const message = encodeURIComponent(`Hi Admin! I'm interested in the product: ${product.title} (ID: ${product.id}). Can you help me connect with the seller or provide more details?`);
+    
+    const url = `https://wa.me/${cleanNumber}?text=${message}`;
+    window.open(url, '_blank');
   };
 
   const handleShare = async () => {
@@ -488,7 +475,7 @@ export default function Product() {
                   variant="outline" 
                   className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50"
                   onClick={handleContactSeller}
-                  disabled={!user || createMessageMutation.isPending}
+                  disabled={createMessageMutation.isPending}
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
                   {createMessageMutation.isPending ? 'Sending...' : 'Contact Seller'}

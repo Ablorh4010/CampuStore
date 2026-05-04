@@ -15,7 +15,7 @@ npm run build
 # 2. Extract environment variables from app.yaml
 echo "🔍 Extracting environment variables from app.yaml..."
 # This is a bit hacky but works for simple app.yaml files
-ENV_VARS=$(grep -A 20 "env_variables:" app.yaml | grep "  [A-Z_]*:" | sed 's/  //g' | tr '\n' ',' | sed 's/,$//')
+ENV_VARS=$(grep -A 20 "env_variables:" app.yaml | grep "  [A-Z_]*:" | sed 's/  //g' | sed 's/: /=/g' | tr '\n' ',' | sed 's/,$//')
 
 # 3. Deploy to Cloud Run
 echo "☁️ Deploying to Cloud Run..."

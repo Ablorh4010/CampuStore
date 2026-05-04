@@ -1,99 +1,52 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
+import useEmblaCarousel from 'embla-carousel-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowRight, 
-  ShoppingBag, 
   Store, 
-  TrendingUp, 
   MapPin, 
-  ShieldCheck, 
-  CreditCard, 
+  ShieldCheck,
+  CreditCard,
   Users,
   Search,
-  Sparkles,
   Zap,
-  ChevronLeft,
-  ChevronRight,
+  Star,
   Clock,
-  ExternalLink,
-  Wallet,
-  Laptop,
-  Book,
-  Shirt,
-  Home as HomeIcon,
-  Trophy,
-  Briefcase,
+  ChevronRight,
+  ChevronLeft,
   Smartphone,
-  Gamepad,
-  Music,
-  Heart,
-  Utensils
+  Sparkles
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import ProductCard from '@/components/product/product-card';
 import { useAuth } from '@/lib/auth-context';
-import { useToast } from '@/hooks/use-toast';
-import type { ProductWithStore, StoreWithUser, Category, WeeklyDealWithProduct, CampusActivityWithUser } from '@shared/schema';
-import SEO from '@/components/seo/SEO';
+import type { ProductWithStore, StoreWithUser, Category, CampusActivityWithUser, WeeklyDealWithProduct } from '@shared/schema';
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [bokooIndex, setBokooIndex] = useState(0);
-  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
-
-  const bokooSlides = [
-    { title: "Buy Now. Pay Later.", desc: "Split your payments into 4 easy installments.", icon: <Wallet className="w-6 h-6" /> },
-    { title: "0% Interest.", desc: "No hidden fees, no extra costs. Just pure campus convenience.", icon: <Zap className="w-6 h-6 text-yellow-400" /> },
-    { title: "Quick Approval.", desc: "Get approved in minutes with our secure campus verification.", icon: <ShieldCheck className="w-6 h-6 text-green-400" /> }
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBokooIndex((prev) => (prev + 1) % bokooSlides.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const { data: deals = [], isLoading: dealsLoading } = useQuery<WeeklyDealWithProduct[]>({
-    queryKey: ['/api/weekly-deals'],
-  });
-
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
-  });
-
-  const { data: campusActivity = [], isLoading: activityLoading } = useQuery<CampusActivityWithUser[]>({
-    queryKey: ['/api/campus-activity', user?.university],
-    queryFn: () => {
-       const params = new URLSearchParams();
-       if (user?.university) params.append('university', user.university);
-       return fetch(`/api/campus-activity?${params}`).then(res => res.json());
-    }
-  });
-
-  const handleImageError = (id: string) => {
-    setBrokenImages(prev => ({ ...prev, [id]: true }));
-  };
 
   const isGh = window.location.pathname.startsWith('/gh');
   const basePrefix = isGh ? '/gh' : '';
 
-  useEffect(() => {
-    if (deals.length > 0) {
-      const interval = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % deals.length);
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [deals.length]);
+  const [emblaRef, emblaApi] = useEmblaCarousel({ 
+    align: 'start',
+    loop: false,
+    dragFree: true
+  });
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
 
   const { data: featuredProducts = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/featured', user?.university, user?.city, user?.campus],
@@ -106,409 +59,345 @@ export default function Home() {
     },
   });
 
-  const handleShareHub = async () => {
-    // Add referral code if user is logged in
-    const shareUrl = new URL(window.location.origin);
-    if (user) {
-      shareUrl.searchParams.set('ref', user.id.toString());
+  const { data: featuredStores = [], isLoading: storesLoading } = useQuery<StoreWithUser[]>({
+    queryKey: ['/api/stores/featured', user?.university, user?.city, user?.campus],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (user?.university) params.append('userUniversity', user.university);
+      if (user?.city) params.append('userCity', user.city);
+      if (user?.campus) params.append('userCampus', user.campus);
+      return fetch(`/api/stores/featured?${params}`).then(res => res.json());
+    },
+  });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+  });
+
+  const { data: campusActivity = [], isLoading: activityLoading } = useQuery<CampusActivityWithUser[]>({
+    queryKey: ['/api/campus-activity', user?.university],
+    queryFn: () => {
+       const params = new URLSearchParams();
+       if (user?.university) params.append('university', user.university);
+       return fetch(`/api/campus-activity?${params}`).then(res => res.json());
     }
+  });
 
-    const shareData = {
-      title: 'The University Hub',
-      text: 'Join Africa\'s leading student marketplace. Buy, sell, and discover everything campus!',
-      url: shareUrl.toString(),
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        toast({ title: 'Shared!', description: 'The University Hub link shared successfully.' });
-      } else {
-        await navigator.clipboard.writeText(shareUrl.toString());
-        toast({ title: 'Link Copied', description: 'The University Hub link with your referral code copied to clipboard.' });
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
-
-  const handleGetStarted = () => {
-    const exploreUrl = user ? `/gh/browse?ref=${user.id}` : '/gh/browse';
-    setLocation(exploreUrl);
-  };
-
-  const currentDeal = deals[currentIndex];
-
-  const bokooLink = user ? `/gh/browse?installment=true&ref=${user.id}` : "/gh/browse?installment=true";
-  const exploreLink = user ? `/gh/browse?ref=${user.id}` : "/gh/browse";
+  const { data: weeklyDeals = [], isLoading: dealsLoading } = useQuery<WeeklyDealWithProduct[]>({
+    queryKey: ['/api/weekly-deals'],
+  });
 
   return (
-    <div className="min-h-screen bg-white">
-      <SEO 
-        title="The Hub - #1 Student Marketplace in Ghana"
-        description="Buy and sell textbooks, electronics, fashion and campus essentials. Ghana's most trusted marketplace for student entrepreneurs."
-        keywords="student market ghana, knust marketplace, legon marketplace, buy sell ghana, student deals accra, campus marketplace ghana"
-      />
-      {/* Top Banner / Share Hub */}
-      <div className="bg-black py-2 px-4 text-center">
-         <button 
-           onClick={handleShareHub}
-           className="text-[10px] font-black uppercase tracking-widest text-white hover:text-primary transition-colors flex items-center justify-center gap-2 mx-auto"
-         >
-           <ExternalLink className="w-3 h-3" /> Invite your friends & earn rewards
-         </button>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      {/* Hero Section - Redesigned for Maximum Impact */}
+      <section className="relative overflow-hidden bg-white pt-16 pb-24 lg:pt-24 lg:pb-32">
+        {/* Background Patterns */}
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-secondary/5 rounded-full blur-3xl"></div>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-24 lg:pt-32 lg:pb-40">
-        <div className="absolute inset-0 z-0">
-           <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-           <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-secondary/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="text-center lg:text-left animate-reveal-up">
-              <Badge className="mb-6 px-4 py-1.5 rounded-full bg-primary/10 text-primary border-none font-black uppercase tracking-widest text-[10px]">
-                Built for {user?.university || 'Your Campus'}
-              </Badge>
-              <h1 className="text-5xl lg:text-8xl font-black font-heading tracking-tighter text-gray-900 leading-[0.9] mb-8">
-                UPGRADE YOUR <br />
-                <span className="text-primary italic">CAMPUS LIFE.</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="lg:grid lg:grid-cols-2 lg:gap-16 items-center">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest mb-6">
+                <Sparkles className="w-3 h-3" />
+                <span>2026 University Marketplace</span>
+              </div>
+              <h1 className="text-6xl sm:text-7xl font-black tracking-tighter text-gray-900 leading-[0.9] mb-8 uppercase">
+                BUY. SELL. <br />
+                <span className="text-primary italic">CAMPUS.</span>
               </h1>
-              <p className="text-xl text-gray-500 font-medium mb-10 max-w-xl mx-auto lg:mx-0">
-                The ultimate marketplace for students. Buy gear, sell your old textbooks, and discover what's happening on campus today.
+              <p className="text-lg text-gray-500 font-medium leading-relaxed mb-10 max-w-lg">
+                The most secure marketplace for university students. Verified student IDs, safe on-campus pickups, and instant WhatsApp support.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Button onClick={handleGetStarted} size="lg" className="h-16 px-10 rounded-2xl bg-black text-white font-black text-lg shadow-2xl shadow-black/20 hover:scale-105 transition-all">
-                  Start Shopping <ArrowRight className="ml-2 h-5 w-5" />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button 
+                  size="lg" 
+                  className="h-16 px-10 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-xs shadow-2xl shadow-black/20 group active:scale-95 transition-all"
+                  onClick={() => setLocation(`${basePrefix}/browse`)}
+                >
+                  Start Shopping
+                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
-                <Button onClick={() => setLocation('/seller-auth')} size="lg" variant="outline" className="h-16 px-10 rounded-2xl border-2 border-gray-100 font-black text-lg hover:bg-gray-50 transition-all">
-                   List an Item
+                <Button 
+                  size="lg" 
+                  variant="outline"
+                  className="h-16 px-10 rounded-2xl border-2 border-gray-100 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 active:scale-95 transition-all"
+                  onClick={() => setLocation('/seller-auth')}
+                >
+                  Open Your Store
                 </Button>
               </div>
-              <div className="mt-12 flex items-center justify-center lg:justify-start gap-8">
-                 <div className="text-center">
-                    <p className="text-3xl font-black text-gray-900 leading-none">5k+</p>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Students</p>
-                 </div>
-                 <div className="w-px h-8 bg-gray-100"></div>
-                 <div className="text-center">
-                    <p className="text-3xl font-black text-gray-900 leading-none">12k+</p>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Items Sold</p>
-                 </div>
-                 <div className="w-px h-8 bg-gray-100"></div>
-                 <div className="text-center">
-                    <p className="text-3xl font-black text-gray-900 leading-none">100%</p>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Secure</p>
-                 </div>
-              </div>
-            </div>
-
-            <div className="relative animate-reveal-up delay-200">
-               {dealsLoading ? (
-                 <Skeleton className="aspect-[4/5] w-full rounded-[3rem]" />
-               ) : currentDeal && (
-                 <div className="relative group">
-                    <div className="absolute inset-0 bg-black rounded-[3rem] blur-2xl opacity-10 group-hover:opacity-20 transition-opacity"></div>
-                    <div className="relative aspect-[4/5] bg-gray-100 rounded-[3rem] overflow-hidden border-8 border-white shadow-2xl">
-                       <img 
-                         src={(currentDeal.product.images?.[0] && currentDeal.product.images[0] !== 'uploaded') ? currentDeal.product.images[0] : '/placeholder-product.png'} 
-                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                         alt={currentDeal.product.title} 
-                       />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                       <div className="absolute bottom-4 left-4 right-4">
-                          <p className="text-white font-black text-lg leading-tight mb-1">{currentDeal.product.title}</p>
-                          <div className="flex items-center gap-2">
-                             <span className="text-secondary font-black text-xl">GH₵{currentDeal.product.price}</span>
-                             <span className="text-white/60 line-through text-xs font-bold">GH₵{currentDeal.product.originalPrice || (parseFloat(currentDeal.product.price) * 1.5).toFixed(2)}</span>
-                          </div>
+              
+              <div className="mt-12 flex items-center space-x-6">
+                 <div className="flex -space-x-3">
+                    {[1, 2, 3, 4].map(i => (
+                       <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-sm">
+                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} alt="" />
                        </div>
-                    </div>
-
-                    <Link href={`${basePrefix}/product/${currentDeal.productId}${user ? `?ref=${user.id}` : ''}`}>
-                      <Button className="w-full h-12 rounded-xl bg-primary text-white font-black shadow-lg">
-                         Shop This Deal
-                      </Button>
-                    </Link>
-
-                    <div className="mt-4 flex justify-center gap-1.5">
-                       {deals.map((_, i) => (
-                          <div key={i} className={`h-1 rounded-full transition-all ${i === currentIndex ? 'w-4 bg-primary' : 'w-1 bg-gray-200'}`}></div>
-                       ))}
-                    </div>
+                    ))}
                  </div>
-               )}
+                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <span className="text-black font-black">10,000+</span> Students Trust Us
+                 </div>
+              </div>
+            </div>
+
+            <div className="hidden lg:block relative">
+               <div className="relative z-10 animate-float">
+                  <img 
+                    src="/attached_assets/app-preview.png" 
+                    alt="The Hub Mobile App" 
+                    className="w-full h-auto drop-shadow-2xl" 
+                    onError={(e) => {
+                      // Fallback if image doesn't exist
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+               </div>
+               {/* Floating elements for visual interest */}
+               <div className="absolute top-1/4 -right-12 w-24 h-24 bg-primary/20 rounded-3xl rotate-12 blur-xl animate-pulse"></div>
+               <div className="absolute bottom-1/4 -left-12 w-32 h-32 bg-secondary/20 rounded-full blur-xl animate-pulse delay-700"></div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Bɔkɔɔ Pay Slide Advert */}
-      <section className="py-8 bg-black overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gradient-to-r from-gray-900 to-black rounded-[2rem] p-6 border border-white/5 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
-            
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-white">
-                  {bokooSlides[bokooIndex].icon}
-                </div>
-                <div className="space-y-1">
-                  <Badge className="bg-primary/20 text-primary border-none font-black text-[8px] uppercase tracking-widest px-2 mb-1">
-                    Bɔkɔɔ Pay
-                  </Badge>
-                  <h3 className="text-white text-xl font-black italic tracking-tight animate-in fade-in slide-in-from-left-4 duration-500">
-                    {bokooSlides[bokooIndex].title}
-                  </h3>
-                  <p className="text-gray-400 text-xs font-bold animate-in fade-in slide-in-from-left-6 duration-700">
-                    {bokooSlides[bokooIndex].desc}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="hidden md:flex gap-1.5 mr-4">
-                  {bokooSlides.map((_, i) => (
-                    <div key={i} className={`h-1 rounded-full transition-all ${i === bokooIndex ? 'w-6 bg-primary' : 'w-2 bg-white/10'}`}></div>
-                  ))}
-                </div>
-                <Link href={bokooLink}>
-                  <Button className="h-12 px-8 rounded-xl bg-white text-black font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all">
-                    Shop with Bɔkɔɔ <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Items Grid */}
+      {/* Categories Grid - Minimalist High Fashion Style */}
       <section className="py-24 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
-              <div className="text-left">
-                 <Badge className="mb-4 px-3 py-1 rounded-full bg-white text-gray-900 border-gray-100 font-black uppercase tracking-widest text-[9px] shadow-sm">
-                    Trending Now
-                 </Badge>
-                 <h2 className="text-4xl lg:text-5xl font-black text-gray-900 uppercase tracking-tighter leading-none">
-                    Fresh from <br /><span className="text-primary italic">Our Community.</span>
-                 </h2>
-                 <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">Top listings from student entrepreneurs and local vendors</p>
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-gray-900 leading-none">Browse Hubs.</h2>
+              <p className="text-xs font-black uppercase tracking-widest text-gray-400 mt-3">Select a category to explore</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {categoriesLoading ? (
+              Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-3xl" />)
+            ) : (
+              categories.slice(0, 6).map((category) => (
+                <Link key={category.id} href={`${basePrefix}/browse?categoryId=${category.id}`}>
+                  <div className="group cursor-pointer">
+                    <div className={`h-48 rounded-3xl ${category.color || 'bg-white'} border border-black/5 p-6 flex flex-col justify-between transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-xl group-hover:border-black/10`}>
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                        <i className={`${category.icon} text-lg`} />
+                      </div>
+                      <div>
+                         <h3 className="font-black uppercase tracking-tighter text-sm mb-1">{category.name}</h3>
+                         <div className="w-0 group-hover:w-full h-0.5 bg-black transition-all duration-500"></div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products - Carousel Style */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+            <div>
+              <div className="inline-flex items-center gap-2 mb-4">
+                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-primary">New Arrivals</span>
               </div>
-              <Link href={exploreLink}>
-                 <Button variant="ghost" className="font-black uppercase tracking-widest text-xs hover:bg-white px-8 h-12 rounded-xl group transition-all">
-                    Explore All <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              <h2 className="text-4xl font-black uppercase tracking-tighter text-gray-900 leading-[0.8]">
+                TRENDING <br />EXPLORATIONS.
+              </h2>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="rounded-full h-12 w-12 border-2"
+                  onClick={scrollPrev}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="rounded-full h-12 w-12 border-2"
+                  onClick={scrollNext}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </div>
+              <Link href={`${basePrefix}/browse`}>
+                 <Button variant="link" className="font-black uppercase tracking-widest text-[10px] p-0 h-auto group">
+                   See Catalog <ArrowRight className="ml-2 w-3 h-3 group-hover:translate-x-1 transition-transform" />
                  </Button>
               </Link>
-           </div>
+            </div>
+          </div>
 
-           {productsLoading ? (
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-               {[...Array(8)].map((_, i) => (
-                 <div key={i} className="space-y-4">
-                   <Skeleton className="h-64 w-full rounded-3xl" />
-                   <Skeleton className="h-4 w-3/4 rounded-full" />
-                   <Skeleton className="h-4 w-1/2 rounded-full" />
-                 </div>
-               ))}
-             </div>
-           ) : (
-             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-               {Array.isArray(featuredProducts) && featuredProducts.map((product) => (
-                 <ProductCard key={product.id} product={product} />
-               ))}
-             </div>
-           )}
+          <div className="overflow-hidden" ref={emblaRef}>
+            <div className="flex -ml-4">
+              {productsLoading ? (
+                Array(6).fill(0).map((_, i) => (
+                  <div key={i} className="flex-[0_0_80%] sm:flex-[0_0_40%] lg:flex-[0_0_25%] pl-4">
+                    <Skeleton className="h-[400px] rounded-3xl" />
+                  </div>
+                ))
+              ) : (
+                featuredProducts.map((product) => (
+                  <div key={product.id} className="flex-[0_0_80%] sm:flex-[0_0_40%] lg:flex-[0_0_25%] pl-4">
+                    <ProductCard product={product} />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Categories Grid */}
-      <section className="py-24 border-y border-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
-              <div className="text-left">
-                 <Badge className="mb-4 px-3 py-1 rounded-full bg-primary/5 text-primary border-none font-black uppercase tracking-widest text-[9px]">
-                    Browse Categories
-                 </Badge>
-                 <h2 className="text-4xl lg:text-5xl font-black text-gray-900 uppercase tracking-tighter leading-none">
-                    What are you <br /><span className="text-secondary italic">looking for?</span>
-                 </h2>
-                 <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">Choose your department</p>
+      {/* Weekly Deals / Flash Sales - Sleek Version */}
+      {weeklyDeals.length > 0 && (
+        <section className="py-16 bg-black overflow-hidden relative">
+           <div className="absolute top-0 right-0 w-96 h-96 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
+           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+              <div className="flex items-center justify-between mb-8">
+                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Shop the Deal.</h2>
+                 <Badge className="bg-primary text-black font-black text-[10px] uppercase px-4 py-1.5 rounded-full animate-bounce">Limited Time</Badge>
+              </div>
+
+              <div className="flex overflow-x-auto gap-6 pb-4 scrollbar-hide snap-x">
+                 {weeklyDeals.slice(0, 4).map((deal) => (
+                    <Link key={deal.id} href={`${basePrefix}/product/${deal.productId}`}>
+                       <div className="flex-shrink-0 w-[280px] bg-white/5 border border-white/10 rounded-3xl p-4 hover:bg-white/10 transition-all cursor-pointer group snap-start">
+                          <div className="flex gap-4 items-center">
+                             <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0">
+                                <img src={deal.product.images[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                             </div>
+                             <div className="min-w-0">
+                                <h4 className="text-white font-bold text-xs mb-1 truncate">{deal.product.title}</h4>
+                                <div className="flex items-center gap-2 mb-2">
+                                   <span className="text-white font-black text-sm">GH₵{deal.dealPrice}</span>
+                                   <span className="text-white/30 line-through text-[10px]">GH₵{deal.product.price}</span>
+                                </div>
+                                <div className="text-[9px] font-black text-primary uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded inline-block">
+                                   -{deal.discountPercentage}% OFF
+                                </div>
+                             </div>
+                          </div>
+                       </div>
+                    </Link>
+                 ))}
               </div>
            </div>
-           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-             {categories.filter(c => !c.parentId).map((category, idx) => {
-               const getModernIcon = (name: string) => {
-                 const n = name.toLowerCase();
-                 if (n.includes('electronics')) return <Laptop className="w-8 h-8" />;
-                 if (n.includes('academic')) return <Book className="w-8 h-8" />;
-                 if (n.includes('fashion')) return <Shirt className="w-8 h-8" />;
-                 if (n.includes('home')) return <HomeIcon className="w-8 h-8" />;
-                 if (n.includes('sports')) return <Trophy className="w-8 h-8" />;
-                 if (n.includes('services')) return <Briefcase className="w-8 h-8" />;
-                 return <ShoppingBag className="w-8 h-8" />;
-               };
+        </section>
+      )}
 
-               const colors = [
-                 'from-blue-500/20 to-indigo-500/20 text-blue-600',
-                 'from-yellow-500/20 to-orange-500/20 text-yellow-600',
-                 'from-pink-500/20 to-rose-500/20 text-pink-600',
-                 'from-green-500/20 to-emerald-500/20 text-green-600',
-                 'from-purple-500/20 to-violet-500/20 text-purple-600',
-                 'from-cyan-500/20 to-blue-500/20 text-cyan-600'
-               ];
+      {/* Campus Activity Feed - Compact */}
+      <section className="py-20 bg-white border-y border-gray-50">
+         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+               <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">Campus Pulse.</h2>
+               <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px]">What's happening at {user?.university || 'your university'}</p>
+            </div>
 
-               return (
-                 <motion.div
-                   key={category.id}
-                   initial={{ opacity: 0, y: 20 }}
-                   whileInView={{ opacity: 1, y: 0 }}
-                   transition={{ delay: idx * 0.1 }}
-                   viewport={{ once: true }}
-                 >
-                   <Link href={`/gh/browse?categoryId=${category.id}`}>
-                     <div className="flex flex-col items-center p-8 rounded-[2.5rem] bg-gray-50 hover:bg-white hover:shadow-2xl transition-all duration-500 group cursor-pointer border border-transparent hover:border-primary/10 relative overflow-hidden">
-                        <div className={`absolute inset-0 bg-gradient-to-br ${colors[idx % colors.length]} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-sm transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 group-hover:shadow-xl z-10 relative">
-                           <div className={`transition-all duration-500 ${colors[idx % colors.length].split(' ').pop()} group-hover:text-white group-hover:bg-primary p-4 rounded-2xl w-full h-full flex items-center justify-center`}>
-                              {getModernIcon(category.name)}
+            <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-6 pb-4 scrollbar-hide snap-x">
+               {activityLoading ? (
+                  Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[280px] md:w-auto h-48 rounded-3xl" />)
+               ) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
+                  <div className="col-span-full text-center py-12">
+                     <p className="text-gray-400 font-medium italic">No recent activity detected.</p>
+                  </div>
+               ) : (
+                  campusActivity.slice(0, 3).map((activity) => (
+                     <div key={activity.id} className="flex-shrink-0 w-[280px] md:w-auto bg-gray-50/50 rounded-3xl p-6 border border-transparent hover:border-gray-100 transition-all group snap-start">
+                        <div className="flex items-center gap-2 mb-4 text-[9px] font-black uppercase tracking-widest text-primary">
+                           <Zap className="w-3 h-3" />
+                           {activity.activityType || 'Update'}
+                        </div>
+                        <h3 className="text-md font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
+                        <p className="text-xs text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                           <span className="text-[9px] font-black uppercase tracking-widest text-gray-300">{activity.source}</span>
+                           <Button variant="ghost" size="sm" className="h-7 w-7 rounded-full hover:bg-white p-0">
+                              <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-black transition-colors" />
+                           </Button>
+                        </div>
+                     </div>
+                  ))
+               )}
+            </div>
+         </div>
+      </section>
+
+      {/* Featured Stores - Compact Grid/Scroll */}
+      <section className="py-20 bg-gray-50/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-gray-900 leading-none">HUB <br />VENDORS.</h2>
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-4">Top performers this week</p>
+            </div>
+            <Link href={`${basePrefix}/browse?view=stores`}>
+               <Button variant="link" className="font-black uppercase tracking-widest text-[10px] p-0 h-auto group">
+                 All Stores <ArrowRight className="ml-2 w-3 h-3 group-hover:translate-x-1 transition-transform" />
+               </Button>
+            </Link>
+          </div>
+
+          <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 gap-8 pb-6 scrollbar-hide snap-x">
+            {storesLoading ? (
+              Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[300px] md:w-auto h-64 rounded-3xl" />)
+            ) : (
+              featuredStores.map((store) => (
+                <Link key={store.id} href={`${basePrefix}/store/${store.id}`}>
+                  <Card className="flex-shrink-0 w-[300px] md:w-auto group cursor-pointer rounded-[2rem] border-none shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden bg-white snap-start">
+                    <CardContent className="p-0">
+                      <div className="h-24 bg-gray-100 relative overflow-hidden">
+                        {store.bannerUrl ? (
+                          <img src={store.bannerUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10" />
+                        )}
+                      </div>
+                      <div className="px-6 pb-8 -mt-8 relative z-10">
+                        <div className="flex justify-between items-end mb-4">
+                           <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-lg ring-4 ring-white">
+                              {store.logoUrl ? (
+                                <img src={store.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+                              ) : (
+                                <div className="w-full h-full bg-black text-white flex items-center justify-center font-black rounded-xl text-lg">
+                                  {store.name[0]}
+                                </div>
+                              )}
+                           </div>
+                           <div className="flex gap-1 mb-2">
+                              {[1, 2, 3, 4, 5].map(i => (
+                                 <Star key={i} className={`w-2 h-2 ${i <= (store.rating || 5) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
+                              ))}
                            </div>
                         </div>
-                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary transition-colors duration-300 z-10 relative">{category.name}</span>
-                        <div className="mt-2 h-1 w-0 bg-primary group-hover:w-12 transition-all duration-500 rounded-full z-10 relative" />
-                     </div>
-                   </Link>
-                 </motion.div>
-               );
-             })}
-           </div>
-        </div>
-      </section>
-
-      {/* Campus Activity Feed */}
-      <section className="py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
-              <div className="text-left">
-                 <Badge className="mb-4 px-3 py-1 rounded-full bg-accent/10 text-accent border-none font-black uppercase tracking-widest text-[9px]">
-                    Happening Now
-                 </Badge>
-                 <h2 className="text-4xl lg:text-5xl font-black text-gray-900 uppercase tracking-tighter leading-none">
-                    The Community <br /><span className="text-accent italic">Activity Feed.</span>
-                 </h2>
-                 <p className="text-gray-400 font-bold mt-2 uppercase tracking-widest text-xs">Events, news and updates from your education hub</p>
-              </div>
-           </div>
-
-           <div className="grid lg:grid-cols-3 gap-8">
-               <div className="lg:col-span-2 space-y-4">
-                  {activityLoading ? (
-                     [...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-[2rem]" />)
-                  ) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
-                     <div className="bg-gray-50 rounded-[3rem] p-12 text-center border-2 border-dashed border-gray-100">
-                        <p className="text-gray-400 font-black uppercase tracking-widest text-xs">No recent activity for {user?.university || 'your hub'}.</p>
-                     </div>
-                  ) : (
-                    campusActivity.map((activity) => (
-                     <Card key={activity.id} className="rounded-3xl border-2 border-gray-50 hover:border-primary/20 transition-all group overflow-hidden">
-                        <CardContent className="p-0 flex flex-col sm:flex-row h-full">
-                           {activity.imageUrl && !brokenImages[`activity-${activity.id}`] && (
-                              <div className="sm:w-48 h-48 sm:h-auto overflow-hidden">
-                                 <img 
-                                   src={activity.imageUrl} 
-                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                                   alt="" 
-                                   onError={() => handleImageError(`activity-${activity.id}`)}
-                                 />
-                              </div>
-                           )}
-                           <div className="flex-1 p-6 flex flex-col justify-between">
-                              <div>
-                                 <div className="flex items-center gap-2 mb-2">
-                                    <Badge variant="secondary" className="text-[8px] font-black uppercase tracking-[0.2em]">{activity.activityType}</Badge>
-                                    <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{activity.source}</span>
-                                 </div>
-                                 <h3 className="text-lg font-black text-gray-900 leading-tight mb-2 group-hover:text-primary transition-colors">{activity.title}</h3>
-                                 <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{activity.content}</p>
-                              </div>
-                              <div className="mt-4 flex items-center justify-between">
-                                 {activity.user && (
-                                    <div className="flex items-center gap-2">
-                                       <div className="w-8 h-8 rounded-full border-2 border-white shadow-sm overflow-hidden bg-gray-100 flex items-center justify-center">
-                                          {!brokenImages[`user-${activity.user.firstName}-${activity.id}`] ? (
-                                            <img 
-                                              src={activity.user.avatar || `https://i.pravatar.cc/100?u=${activity.user.firstName}`} 
-                                              alt="" 
-                                              onError={() => activity.user && handleImageError(`user-${activity.user.firstName}-${activity.id}`)}
-                                            />
-                                          ) : (
-                                            <Users className="w-4 h-4 text-gray-400" />
-                                          )}
-                                       </div>
-                                       <span className="text-[10px] font-black uppercase tracking-widest">{activity.user.firstName} {activity.user.lastName?.[0]}.</span>
-                                    </div>
-                                 )}
-                                 {activity.externalLink && (
-                                    <Link href={activity.externalLink}>
-                                       <Button variant="ghost" size="sm" className="h-8 rounded-lg text-primary hover:bg-primary/5 font-black uppercase tracking-widest text-[9px]">
-                                          Read More <ExternalLink className="ml-1 h-3 w-3" />
-                                       </Button>
-                                    </Link>
-                                 )}
-                              </div>
-                           </div>
-                        </CardContent>
-                     </Card>
-                    ))
-                  )}
-               </div>
-
-               <div className="lg:col-span-1">
-                  <div className="bg-black rounded-[3rem] p-10 h-full relative overflow-hidden text-white">
-                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                     <h3 className="text-3xl font-black mb-4 relative z-10">Trending <br /><span className="text-[#B2FCE4]">Sellers.</span></h3>
-                     <div className="space-y-6 mt-8 relative z-10">
-                       {Array.isArray(featuredProducts) && featuredProducts.slice(0, 5).map((p) => (
-                           <Link key={p.id} href={`${basePrefix}/store/${p.store.id}${user ? `?ref=${user.id}` : ''}`}>
-                             <div className="flex items-center gap-4 group/item cursor-pointer">
-                                <div className="w-12 h-12 rounded-2xl border-2 border-white/10 overflow-hidden group-hover/item:border-[#B2FCE4] transition-colors flex items-center justify-center bg-white/5">
-                                   {!brokenImages[`seller-${p.id}`] ? (
-                                     <img 
-                                       src={p.store.user.avatar || `https://i.pravatar.cc/100?u=${p.store.user.firstName}`} 
-                                       className="w-full h-full object-cover" 
-                                       alt="" 
-                                       onError={() => handleImageError(`seller-${p.id}`)}
-                                     />
-                                   ) : (
-                                     <Users className="w-6 h-6 text-white/20" />
-                                   )}
-                                </div>
-                                <div>
-                                   <p className="font-black text-sm uppercase tracking-tight leading-none mb-1">{p.store.name}</p>
-                                   <p className="text-[9px] font-black text-white/40 uppercase tracking-widest">{p.store.university}</p>
-                                </div>
-                                <ChevronRight className="ml-auto w-4 h-4 text-white/20 group-hover/item:text-[#B2FCE4] group-hover/item:translate-x-1 transition-all" />
-                             </div>
-                           </Link>
-                        ))}
-                     </div>
-                     <Link href={`${basePrefix}/browse?sortBy=popular${user ? `&ref=${user.id}` : ''}`}>
-                        <Button variant="ghost" className="w-full mt-10 h-14 rounded-2xl border-2 border-white/10 text-white font-black uppercase tracking-widest text-[10px] hover:bg-white hover:text-black transition-all">
-                           View Ranking
+                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-1 group-hover:text-primary transition-colors truncate">{store.name}</h3>
+                        <div className="flex items-center text-[9px] font-black uppercase tracking-widest text-gray-400 gap-1.5 mb-3">
+                          <MapPin className="h-2.5 w-2.5" />
+                          {store.university}
+                        </div>
+                        <p className="text-xs text-gray-500 font-medium line-clamp-2 leading-relaxed h-8 mb-6">{store.description}</p>
+                        <Button className="w-full h-10 rounded-xl bg-gray-50 text-black border border-gray-100 font-black uppercase tracking-widest text-[9px] group-hover:bg-black group-hover:text-white transition-all">
+                          Enter Store
                         </Button>
-                     </Link>
-                  </div>
-               </div>
-           </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Trust Badges */}
-      <section className="py-24 border-t border-gray-50">
+      {/* Trust Badges - Hidden on mobile */}
+      <section className="py-20 border-t border-gray-50 hidden md:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
            <div className="grid md:grid-cols-4 gap-12">
               <div className="flex flex-col items-center text-center">
@@ -522,7 +411,6 @@ export default function Home() {
                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6">
                     <MapPin className="w-8 h-8 text-primary" />
                  </div>
-                 <h4 className="font-black uppercase tracking-widest text-xs mb-2">Campus Pickup</h4>
                  <h4 className="font-black uppercase tracking-widest text-xs mb-2">Campus Pickup</h4>
                  <p className="text-gray-400 text-xs font-medium">Safe meeting spots on campus</p>
               </div>

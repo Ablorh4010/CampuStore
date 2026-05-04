@@ -58,31 +58,19 @@ export default function Store() {
     },
   });
 
-  const handleContactSeller = () => {
-    if (!user) {
-      toast({
-        title: 'Please sign in',
-        description: 'You need to be signed in to contact sellers.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const { data: whatsapp1 } = useQuery<{ value: string }>({ 
+    queryKey: ['/api/admin/config/whatsapp_support_1'] 
+  });
 
+  const handleContactSeller = () => {
     if (!store) return;
 
-    if (!hasPurchasedFromSeller) {
-      toast({
-        title: 'Payment Required',
-        description: 'Communication is only enabled after a successful purchase for security.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    createMessageMutation.mutate({
-      toId: store.userId,
-      content: `Hi! I'm interested in your store ${store.name}. Can we chat?`,
-    });
+    const adminWhatsApp = whatsapp1?.value || '233240000001';
+    const cleanNumber = adminWhatsApp.replace(/\D/g, '');
+    const message = encodeURIComponent(`Hi Admin! I'm interested in the store: ${store.name} (ID: ${store.id}). Can you help me connect with this seller?`);
+    
+    const url = `https://wa.me/${cleanNumber}?text=${message}`;
+    window.open(url, '_blank');
   };
 
   const handleShare = async () => {
