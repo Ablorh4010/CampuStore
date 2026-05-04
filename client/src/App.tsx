@@ -30,7 +30,7 @@ import ResetPassword from "./pages/reset-password";
 import About from "./pages/about";
 import Contact from "./pages/contact";
 import NotFound from "@/pages/not-found";
-import GeminiAssistant from "./components/chat-assistant";
+import WhatsAppSupport from "./components/whatsapp-support";
 
 function Router() {
   return (
@@ -81,7 +81,7 @@ function App() {
                   <Footer />
                   <CartSidebar />
                   <PWAInstallPrompt />
-                  <GeminiAssistant />
+                  <WhatsAppSupport />
                 </div>
                 <Toaster />
               </CartProvider>

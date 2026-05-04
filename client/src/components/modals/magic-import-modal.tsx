@@ -18,14 +18,23 @@ interface MagicImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   userStores: Store[];
+  initialUrl?: string;
 }
 
 type ImportStep = 'url' | 'bookmarking' | 'extracting' | 'preview' | 'editing';
 
-export default function MagicImportModal({ isOpen, onClose, userStores }: MagicImportModalProps) {
+export default function MagicImportModal({ isOpen, onClose, userStores, initialUrl }: MagicImportModalProps) {
   const { user } = useAuth();
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(initialUrl || '');
   const [step, setStep] = useState<ImportStep>('url');
+
+  useEffect(() => {
+    if (isOpen && initialUrl) {
+      setUrl(initialUrl);
+      setStep('bookmarking');
+      bookmarkMutation.mutate(initialUrl);
+    }
+  }, [isOpen, initialUrl]);
   const [extractedData, setExtractedData] = useState<any>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<number>(userStores[0]?.id || -1);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number>(1);
@@ -186,11 +195,26 @@ export default function MagicImportModal({ isOpen, onClose, userStores }: MagicI
                 "Cast Magic Spell"
               </Button>
 
-              <div className="p-4 bg-gray-50 rounded-2xl flex gap-3 items-start">
-                 <AlertCircle className="w-4 h-4 text-gray-400 mt-0.5" />
-                 <p className="text-[10px] font-bold text-gray-400 uppercase leading-relaxed">
-                   Works best with Amazon, Jumia, and Alibaba. We'll bookmark the URL and extract details automatically.
-                 </p>
+              <div className="p-4 bg-gray-50 rounded-2xl flex flex-col gap-3">
+                 <div className="flex gap-3 items-start">
+                   <AlertCircle className="w-4 h-4 text-gray-400 mt-0.5" />
+                   <p className="text-[10px] font-bold text-gray-400 uppercase leading-relaxed">
+                     Works best with Amazon, Jumia, Alibaba, and WooCommerce. We'll bookmark the URL and extract details automatically.
+                   </p>
+                 </div>
+                 <div className="mt-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
+                   <p className="text-[9px] font-black uppercase text-primary mb-1">Store Owner? Use our Sync Plugin</p>
+                   <p className="text-[9px] font-bold text-gray-500 lowercase leading-tight">
+                     Download our WooCommerce plugin to add a "Sync to CampuStore" button directly to your WordPress dashboard.
+                   </p>
+                   <a 
+                     href="/attached_assets/campustore-woocommerce-sync.php" 
+                     download 
+                     className="inline-block mt-2 text-[9px] font-black uppercase text-primary underline"
+                   >
+                     Download Sync Plugin
+                   </a>
+                 </div>
               </div>
             </form>
           )}

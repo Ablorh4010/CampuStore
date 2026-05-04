@@ -13,6 +13,7 @@ import multer from "multer";
 import fs, { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
 import { generateStoreProfile, generateProductDescription, analyzeProductImage, verifyFaceMatch, extractProductFromHtml } from "./ai";
+import { isWooCommerce, extractWooCommerceProduct } from "./woocommerce-service";
 import { uploadToGCS } from "./gcs-storage";
 import { sendVerificationEmail, sendEmail as sendLocalEmail, sendPurchaseConfirmationEmail } from "./email";
 import crypto from 'crypto';
@@ -384,7 +385,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let extractedData;
       try {
-        extractedData = await extractProductFromHtml(html);
+        if (isWooCommerce(html)) {
+          console.log("Magic Import: WooCommerce site detected, using specialized extraction");
+          extractedData = await extractWooCommerceProduct(html, url);
+        } else {
+          extractedData = await extractProductFromHtml(html);
+        }
       } catch (aiErr) {
         console.error("AI Extraction error in route:", aiErr);
         return res.status(400).json({ message: aiErr instanceof Error ? aiErr.message : "AI extraction failed" });

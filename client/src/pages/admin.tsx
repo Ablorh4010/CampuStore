@@ -33,6 +33,19 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
+  const [initialMagicUrl, setInitialMagicUrl] = useState('');
+
+  // Handle magic_url query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const magicUrl = params.get('magic_url');
+    if (magicUrl) {
+      setInitialMagicUrl(magicUrl);
+      setIsMagicImportOpen(true);
+      // Clean up the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // Category management state
   const [newCategory, setNewCategory] = useState({ name: '', icon: '📦', color: '#6366f1', parentId: null as number | null });
@@ -48,17 +61,36 @@ export default function AdminDashboard() {
   const [modModalOpen, setModModalOpen] = useState(false);
   const [modItem, setModItem] = useState<{ id: number; type: 'product' | 'store' | 'user' | 'deal' | 'activity'; action: 'delete' | 'reject' | 'suspend' | 'needs_correction'; title: string } | null>(null);
   const [adminMomoNumber, setAdminMomoNumber] = useState('');
+  const [whatsappSupport1, setWhatsappSupport1] = useState('');
+  const [whatsappSupport2, setWhatsappSupport2] = useState('');
+  const [whatsappSupport3, setWhatsappSupport3] = useState('');
 
   const { data: configData } = useQuery<{ value: string }>({
     queryKey: ['/api/admin/config/admin_momo_number'],
     enabled: !!user?.isAdmin,
   });
 
+  const { data: ws1Data } = useQuery<{ value: string }>({
+    queryKey: ['/api/admin/config/whatsapp_support_1'],
+    enabled: !!user?.isAdmin,
+  });
+  
+  const { data: ws2Data } = useQuery<{ value: string }>({
+    queryKey: ['/api/admin/config/whatsapp_support_2'],
+    enabled: !!user?.isAdmin,
+  });
+
+  const { data: ws3Data } = useQuery<{ value: string }>({
+    queryKey: ['/api/admin/config/whatsapp_support_3'],
+    enabled: !!user?.isAdmin,
+  });
+
   useEffect(() => {
-    if (configData?.value) {
-      setAdminMomoNumber(configData.value);
-    }
-  }, [configData]);
+    if (configData?.value) setAdminMomoNumber(configData.value);
+    if (ws1Data?.value) setWhatsappSupport1(ws1Data.value);
+    if (ws2Data?.value) setWhatsappSupport2(ws2Data.value);
+    if (ws3Data?.value) setWhatsappSupport3(ws3Data.value);
+  }, [configData, ws1Data, ws2Data, ws3Data]);
 
   const saveConfigMutation = useMutation({
     mutationFn: (data: { key: string, value: string }) =>
@@ -970,15 +1002,59 @@ export default function AdminDashboard() {
                             className="h-14 rounded-2xl border-2 text-xl font-black tracking-widest"
                          />
                          <p className="text-[10px] font-bold text-gray-400 leading-relaxed uppercase tracking-wider">
-                            All buyer payments via Mobile Money will be directed to this account. Ensure this number is correct and has a high transaction limit.
+                            All buyer payments via Mobile Money will be directed to this account.
                          </p>
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2">
+                           <MessageCircle className="w-5 h-5 text-[#25D366]" />
+                           <h4 className="font-black uppercase tracking-widest text-[10px] text-gray-400">WhatsApp Support Hub</h4>
+                        </div>
+                        
+                        <div className="space-y-4">
+                           <div className="space-y-2">
+                              <Label className="text-[9px] font-black uppercase text-gray-400">General Support Number</Label>
+                              <Input 
+                                 value={whatsappSupport1} 
+                                 onChange={e => setWhatsappSupport1(e.target.value)} 
+                                 placeholder="233..." 
+                                 className="h-12 rounded-xl border-2 font-bold"
+                              />
+                           </div>
+                           <div className="space-y-2">
+                              <Label className="text-[9px] font-black uppercase text-gray-400">Seller Desk Number</Label>
+                              <Input 
+                                 value={whatsappSupport2} 
+                                 onChange={e => setWhatsappSupport2(e.target.value)} 
+                                 placeholder="233..." 
+                                 className="h-12 rounded-xl border-2 font-bold"
+                              />
+                           </div>
+                           <div className="space-y-2">
+                              <Label className="text-[9px] font-black uppercase text-gray-400">Technical Help Number</Label>
+                              <Input 
+                                 value={whatsappSupport3} 
+                                 onChange={e => setWhatsappSupport3(e.target.value)} 
+                                 placeholder="233..." 
+                                 className="h-12 rounded-xl border-2 font-bold"
+                              />
+                           </div>
+                        </div>
                       </div>
 
                       <Separator />
 
                       <Button 
                         className="w-full h-16 rounded-[1.5rem] font-black uppercase tracking-widest text-sm shadow-xl shadow-primary/20"
-                        onClick={() => saveConfigMutation.mutate({ key: 'admin_momo_number', value: adminMomoNumber })}
+                        onClick={() => {
+                           saveConfigMutation.mutate({ key: 'admin_momo_number', value: adminMomoNumber });
+                           saveConfigMutation.mutate({ key: 'whatsapp_support_1', value: whatsappSupport1 });
+                           saveConfigMutation.mutate({ key: 'whatsapp_support_2', value: whatsappSupport2 });
+                           saveConfigMutation.mutate({ key: 'whatsapp_support_3', value: whatsappSupport3 });
+                        }}
                         disabled={saveConfigMutation.isPending}
                       >
                          {saveConfigMutation.isPending ? 'Saving...' : 'Save All Changes'}
@@ -1265,8 +1341,9 @@ export default function AdminDashboard() {
 
         <MagicImportModal
           isOpen={isMagicImportOpen}
-          onClose={() => setIsMagicImportOpen(false)}
+          onClose={() => {setIsMagicImportOpen(false); setInitialMagicUrl('');}}
           userStores={[]} 
+          initialUrl={initialMagicUrl}
         />
       </div>
     </div>

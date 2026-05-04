@@ -33,6 +33,19 @@ export default function Dashboard() {
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
+  const [initialMagicUrl, setInitialMagicUrl] = useState('');
+
+  // Handle magic_url query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const magicUrl = params.get('magic_url');
+    if (magicUrl) {
+      setInitialMagicUrl(magicUrl);
+      setIsMagicImportOpen(true);
+      // Clean up the URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const fetchAiInsight = async (orderId: number) => {
     setIsGeneratingInsight(true);
@@ -586,12 +599,12 @@ export default function Dashboard() {
           userStores={userStores} 
         />
 
-        <MagicImportModal
-          isOpen={isMagicImportOpen}
-          onClose={() => setIsMagicImportOpen(false)}
+        <MagicImportModal 
+          isOpen={isMagicImportOpen} 
+          onClose={() => {setIsMagicImportOpen(false); setInitialMagicUrl('');}} 
           userStores={userStores}
-        />
-      </div>
+          initialUrl={initialMagicUrl}
+        />      </div>
     </div>
   );
 }
