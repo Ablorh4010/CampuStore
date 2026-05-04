@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown, Mic, MicOff, Truck } from 'lucide-react';
+import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown, Mic, MicOff, Truck, LayoutDashboard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useVoiceSearch } from '@/hooks/use-voice-search';
 import { Button } from '@/components/ui/button';
@@ -71,36 +71,6 @@ export default function Header() {
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-      {/* Scrolling Announcement Bar */}
-      <div className="bg-primary overflow-hidden py-1.5 border-b border-black/5">
-        <motion.div 
-          animate={{ x: [0, -1000] }}
-          transition={{ 
-            x: {
-              repeat: Infinity,
-              repeatType: "loop",
-              duration: 30,
-              ease: "linear",
-            },
-          }}
-          className="flex whitespace-nowrap"
-        >
-          {[...Array(10)].map((_, i) => (
-            <div key={i} className="flex items-center mx-12 text-black font-black text-[9px] uppercase tracking-[0.15em]">
-              <div className="w-8 h-8 rounded-full overflow-hidden mr-3 border-2 border-white/50 shadow-sm flex-shrink-0">
-                <img 
-                  src="https://images.unsplash.com/photo-1622146433296-61329a27c74c?auto=format&fit=crop&q=80&w=100&h=100" 
-                  alt="Delivery" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span>Free delivery for items across all Ghana campuses and schools</span>
-              <span className="mx-8 opacity-20">•</span>
-            </div>
-          ))}
-        </motion.div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
@@ -249,10 +219,10 @@ export default function Header() {
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
+                  <DropdownMenuContent className="w-64 p-2" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal p-4">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">
+                        <p className="text-sm font-black uppercase tracking-tight leading-none">
                           {user.firstName} {user.lastName}
                         </p>
                         <p className="text-xs leading-none text-muted-foreground">
@@ -261,17 +231,27 @@ export default function Header() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleProfileAction('dashboard')}>
+                    <DropdownMenuItem 
+                      className="h-11 rounded-lg cursor-pointer font-bold uppercase tracking-widest text-[10px]"
+                      onClick={() => handleProfileAction('dashboard')}
+                    >
+                      <LayoutDashboard className="mr-3 h-4 w-4 text-primary" />
                       Seller Dashboard
                     </DropdownMenuItem>
                     {user.isAdmin && (
-                      <DropdownMenuItem onClick={() => handleProfileAction('admin')}>
-                        <Shield className="mr-2 h-4 w-4" />
+                      <DropdownMenuItem 
+                        className="h-11 rounded-lg cursor-pointer font-bold uppercase tracking-widest text-[10px]"
+                        onClick={() => handleProfileAction('admin')}
+                      >
+                        <Shield className="mr-3 h-4 w-4 text-secondary" />
                         Admin Portal
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleProfileAction('logout')} className="text-red-600 focus:text-red-600">
+                    <DropdownMenuItem 
+                      className="h-11 rounded-lg cursor-pointer font-bold uppercase tracking-widest text-[10px] text-red-600 focus:text-red-600"
+                      onClick={() => handleProfileAction('logout')}
+                    >
                       Log out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -292,59 +272,76 @@ export default function Header() {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px]">
-                <div className="flex flex-col space-y-4 mt-4">
-                  {user ? (
-                    <>
+              <SheetContent side="right" className="w-[300px] p-0">
+                <div className="flex flex-col h-full bg-white">
+                  <div className="p-6 bg-gray-50/50 border-b">
+                    {user ? (
                       <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
                           <AvatarImage src={user.avatar || ''} alt={user.firstName || 'User'} />
-                          <AvatarFallback>
+                          <AvatarFallback className="bg-primary/5 text-primary">
                             {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{user.firstName} {user.lastName}</p>
-                          <p className="text-sm text-gray-600">{user.email}</p>
+                          <p className="font-black uppercase tracking-tight text-sm">{user.firstName} {user.lastName}</p>
+                          <p className="text-xs text-gray-500 font-medium truncate max-w-[150px]">{user.email}</p>
                         </div>
                       </div>
-                      <Button onClick={() => { handleProfileAction('dashboard'); setIsMobileMenuOpen(false); }} className="w-full">
-                        Dashboard
-                      </Button>
-                      {user.isAdmin && (
-                        <Button onClick={() => { handleProfileAction('admin'); setIsMobileMenuOpen(false); }} variant="outline" className="w-full">
-                          <Shield className="mr-2 h-4 w-4" />
-                          Admin Portal
-                        </Button>
-                      )}
-                      <Button variant="outline" onClick={() => { handleProfileAction('logout'); setIsMobileMenuOpen(false); }} className="w-full">
-                        Log out
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="flex flex-col space-y-3">
-                       <p className="text-sm text-gray-500 font-medium px-1">Welcome to the Hub</p>
+                    ) : (
+                      <div>
+                        <h3 className="text-xl font-black uppercase tracking-tighter">Welcome Student.</h3>
+                        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">University Hub Marketplace</p>
+                      </div>
+                    )}
+                  </div>
 
-                       <Link href="/auth" onClick={() => setIsMobileMenuOpen(false)}>
-                         <Button className="w-full" data-testid="button-sign-in-mobile">Sign In</Button>
-                       </Link>
-                       <Button 
-                         variant="outline" 
-                         className="w-full"
-                         onClick={() => { setLocation('/seller-auth'); setIsMobileMenuOpen(false); }}
-                       >
-                         Start Selling
-                       </Button>
-                       <div className="h-px bg-gray-100 my-2"></div>
-                       <div className="space-y-1">
-                          {categories.slice(0, 5).map(cat => (
-                             <Button key={cat.id} variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation(`${basePrefix}/browse?categoryId=${cat.id}`); setIsMobileMenuOpen(false); }}>
-                                {cat.name}
-                             </Button>
-                          ))}
+                  <ScrollArea className="flex-grow p-6">
+                    <div className="space-y-8">
+                       {user ? (
+                         <div className="space-y-2">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Account Navigation</h4>
+                            <Button variant="ghost" onClick={() => { handleProfileAction('dashboard'); setIsMobileMenuOpen(false); }} className="w-full justify-start h-12 rounded-xl font-bold uppercase tracking-widest text-[10px]">
+                               <LayoutDashboard className="mr-3 h-4 w-4" /> Seller Dashboard
+                            </Button>
+                            {user.isAdmin && (
+                              <Button variant="ghost" onClick={() => { handleProfileAction('admin'); setIsMobileMenuOpen(false); }} className="w-full justify-start h-12 rounded-xl font-bold uppercase tracking-widest text-[10px]">
+                                 <Shield className="mr-3 h-4 w-4 text-secondary" /> Admin Portal
+                              </Button>
+                            )}
+                            <Button variant="ghost" onClick={() => { handleProfileAction('logout'); setIsMobileMenuOpen(false); }} className="w-full justify-start h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] text-red-600">
+                               Log out
+                            </Button>
+                         </div>
+                       ) : (
+                         <div className="space-y-3">
+                            <Button onClick={() => { setLocation('/auth'); setIsMobileMenuOpen(false); }} className="w-full h-12 rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px]">
+                               Sign In
+                            </Button>
+                            <Button variant="outline" onClick={() => { setLocation('/seller-auth'); setIsMobileMenuOpen(false); }} className="w-full h-12 rounded-xl border-2 font-black uppercase tracking-widest text-[10px]">
+                               Start Selling
+                            </Button>
+                         </div>
+                       )}
+
+                       <div className="space-y-4">
+                          <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Marketplace categories</h4>
+                          <div className="grid grid-cols-1 gap-2">
+                             {categories.filter(c => !c.parentId).map(cat => (
+                               <Button 
+                                 key={cat.id} 
+                                 variant="ghost" 
+                                 className="w-full justify-start h-11 rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-primary/5 hover:text-primary transition-all" 
+                                 onClick={() => { setLocation(`${basePrefix}/browse?categoryId=${cat.id}`); setIsMobileMenuOpen(false); }}
+                               >
+                                  <i className={`${cat.icon} mr-3 text-gray-400`} />
+                                  {cat.name}
+                               </Button>
+                             ))}
+                          </div>
                        </div>
                     </div>
-                  )}
+                  </ScrollArea>
                 </div>
               </SheetContent>
             </Sheet>

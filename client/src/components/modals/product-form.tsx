@@ -25,12 +25,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
-import { ImagePlus, Loader2, X, Plus, Sparkles, Video, Trash2, Wand2, ChevronRight, ChevronLeft, Type, Ruler, Image as ImageIcon, Package, FileText, Globe } from 'lucide-react';
+import { ImagePlus, Loader2, X, Plus, Sparkles, Video, Trash2, Wand2, ChevronRight, ChevronLeft, Type, Ruler, Image as ImageIcon, Package, FileText, Globe, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Category, Store } from '@shared/schema';
 
 const productSchema = z.object({
+  id: z.number().optional(),
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
   price: z.coerce.string().min(1, 'Price is required'),
@@ -53,7 +54,7 @@ interface ProductFormProps {
   isOpen: boolean;
   onClose: () => void;
   userStores: Store[];
-  initialData?: Partial<ProductFormData> | null;
+  initialData?: any | null;
 }
 
 export default function ProductForm({ isOpen, onClose, userStores, initialData }: ProductFormProps) {
@@ -206,13 +207,13 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
     }, 2000);
   };
 
-  const createProductMutation = useMutation({
+  const productMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
-      console.log('Starting product creation mutation with data:', data);
-      console.log('Additional images count:', imageFiles.length);
+      const isEditing = !!initialData?.id;
+      console.log(`Starting product ${isEditing ? 'update' : 'creation'} mutation...`);
       setIsUploading(true);
       try {
-        let mediaGifUrl = '';
+        let mediaGifUrl = data.mediaGifUrl;
         
         // 1. Upload optional Video if present
         if (videoFile) {
@@ -222,41 +223,49 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
           const videoRes = await apiRequest('POST', '/api/upload/product', videoFormData);
           const videoData = await videoRes.json();
           mediaGifUrl = videoData.url;
-          console.log('Video uploaded successfully:', mediaGifUrl);
         }
         
         // 2. Upload other images in parallel
-        console.log(`Uploading ${imageFiles.length} additional images...`);
-        const uploadPromises = imageFiles.map(async (file, index) => {
-          console.log(`Uploading image ${index + 1}/${imageFiles.length}...`);
+        // If editing, some images might be existing URLs (don't start with data:image)
+        // Others might be new files in imageFiles
+        const existingUrls = imagePreviews.filter(p => !p.startsWith('data:'));
+        
+        console.log(`Uploading ${imageFiles.length} new images...`);
+        const uploadPromises = imageFiles.map(async (file) => {
           const formData = new FormData();
           formData.append('image', file);
           const res = await apiRequest('POST', '/api/upload/product', formData);
           const resData = await res.json();
-          console.log(`Image ${index + 1} uploaded successfully:`, resData.url);
           return resData.url;
         });
 
-        const imageUrls = await Promise.all(uploadPromises);
-        console.log('All images uploaded successfully:', imageUrls);
+        const newImageUrls = await Promise.all(uploadPromises);
+        const finalImageUrls = [...existingUrls, ...newImageUrls];
 
-        // 3. Create Product
-        const finalData = { 
+        // 3. Create/Update Product
+        const finalData: any = { 
           ...data, 
-          mediaGifUrl: mediaGifUrl || undefined,
-          images: imageUrls,
-          isAvailable: true
+          mediaGifUrl: mediaGifUrl || (isEditing ? initialData.mediaGifUrl : undefined),
+          images: finalImageUrls,
+          isAvailable: isEditing ? initialData.isAvailable : true
         };
-        console.log('Sending final product data to server:', finalData);
+
+        // For updates, remove id and other metadata if present
+        if (isEditing) {
+          delete finalData.id;
+          delete finalData.createdAt;
+          delete finalData.updatedAt;
+          delete finalData.approvalStatus;
+        }
         
-        // Admins use a specialized endpoint for broadcasting/official posts
-        const endpoint = user?.isAdmin ? '/api/admin/products' : '/api/products';
-        const response = await apiRequest('POST', endpoint, finalData);
+        const endpoint = isEditing ? `/api/products/${initialData.id}` : (user?.isAdmin ? '/api/admin/products' : '/api/products');
+        const method = isEditing ? 'PUT' : 'POST';
+        
+        const response = await apiRequest(method, endpoint, finalData);
         const result = await response.json();
-        console.log('Product created successfully on server:', result);
         return result;
       } catch (error) {
-        console.error('Error in product creation mutation:', error);
+        console.error('Error in product mutation:', error);
         throw error;
       } finally {
         setIsUploading(false);
@@ -266,7 +275,7 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/products/store'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
-      toast({ title: 'Success', description: 'Product launched successfully!' });
+      toast({ title: 'Success', description: `Product ${initialData?.id ? 'updated' : 'launched'} successfully!` });
       onClose();
       form.reset();
       setImageFiles([]);
@@ -278,7 +287,7 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
       console.error('Submission error:', error);
       toast({ 
         title: 'Submission failed', 
-        description: error.message || 'An unexpected error occurred during product creation.', 
+        description: error.message || 'An unexpected error occurred.', 
         variant: 'destructive' 
       });
     }
@@ -301,7 +310,7 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + imageFiles.length > 8) {
+    if (files.length + imagePreviews.length > 8) {
       toast({ title: 'Limit Exceeded', description: 'At most 8 other images allowed.', variant: 'destructive' });
       return;
     }
@@ -331,8 +340,7 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
       return;
     }
 
-    const updatedFiles = [...imageFiles, ...files];
-    setImageFiles(updatedFiles);
+    setImageFiles(prev => [...prev, ...files]);
     
     files.forEach(file => {
       const reader = new FileReader();
@@ -340,7 +348,7 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
       reader.readAsDataURL(file);
     });
     
-    form.setValue('images', updatedFiles.map((_, i) => `img-${i}`));
+    form.setValue('images', ['placeholder']); // Just to satisfy zod
   };
 
   const aiEnhanceImage = (index: number) => {
@@ -352,7 +360,7 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
   };
 
   const onSubmit = (data: ProductFormData) => {
-    createProductMutation.mutate(data);
+    productMutation.mutate(data);
   };
 
   const onFormError = (errors: any) => {
@@ -727,9 +735,16 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
               type="button" 
               className="h-16 rounded-[1.5rem] flex-[2] font-black uppercase tracking-widest text-xs shadow-2xl shadow-primary/30 animate-pulse-slow"
               onClick={form.handleSubmit(onSubmit, onFormError)}
-              disabled={isUploading || createProductMutation.isPending}
+              disabled={isUploading || productMutation.isPending}
             >
-               {isUploading ? <><Loader2 className="w-6 h-6 animate-spin mr-2" /> Processing...</> : <><Plus className="w-6 h-6 mr-2" /> Launch Product</>}
+               {isUploading ? (
+                 <><Loader2 className="w-6 h-6 animate-spin mr-2" /> Processing...</>
+               ) : (
+                 <>
+                   {initialData?.id ? <CheckCircle2 className="w-6 h-6 mr-2" /> : <Plus className="w-6 h-6 mr-2" />}
+                   {initialData?.id ? 'Save Changes' : 'Launch Product'}
+                 </>
+               )}
             </Button>
           )}
         </div>

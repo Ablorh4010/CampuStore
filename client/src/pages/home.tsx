@@ -17,7 +17,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Smartphone,
-  Sparkles
+  Sparkles,
+  Truck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,8 +34,8 @@ const CATEGORY_IMAGES: Record<string, string> = {
   'Academic': 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&q=80&w=300', // Books
   'Fashion': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=300', // Sneaker
   'Home & Dorm': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Modern Desk Lamp/Chair
-  'Dorm': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Fallback for "Dorm"
-  'Home': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Fallback for "Home"
+  'Home and Decor': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // FALLBACK
+  'Home': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300',
   'Sports & Leisure': 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=300', // Fitness
   'Services': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80&w=300', // Work/Desk
   'Phones': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=300', // Smartphone
@@ -46,7 +47,10 @@ const getCategoryImage = (name: string) => {
   const exact = CATEGORY_IMAGES[name];
   if (exact) return exact;
   
-  const key = Object.keys(CATEGORY_IMAGES).find(k => name.toLowerCase().includes(k.toLowerCase()));
+  const key = Object.keys(CATEGORY_IMAGES).find(k => 
+    name.toLowerCase().includes(k.toLowerCase()) || 
+    k.toLowerCase().includes(name.toLowerCase())
+  );
   return key ? CATEGORY_IMAGES[key] : 'https://images.unsplash.com/photo-1586769852044-692d6e3703a0?auto=format&fit=crop&q=80&w=300'; // Fallback package box
 };
 
@@ -253,6 +257,32 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Scrolling Announcement Bar - Repositioned and Styled */}
+      <div className="bg-gray-100 overflow-hidden py-3 border-y border-gray-200 shadow-sm">
+        <motion.div 
+          animate={{ x: [0, -1000] }}
+          transition={{ 
+            x: {
+              repeat: Infinity,
+              repeatType: "loop",
+              duration: 40,
+              ease: "linear",
+            },
+          }}
+          className="flex whitespace-nowrap"
+        >
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="flex items-center mx-16 text-gray-900 font-black text-[10px] uppercase tracking-[0.2em]">
+              <div className="w-8 h-8 rounded-full overflow-hidden mr-4 border-2 border-white shadow-md flex-shrink-0 bg-primary/10 flex items-center justify-center">
+                 <Truck className="w-4 h-4 text-primary" />
+              </div>
+              <span>Free delivery for items across all Ghana campuses and schools</span>
+              <span className="mx-8 text-primary font-black opacity-40">•</span>
+            </div>
+          ))}
+        </motion.div>
+      </div>
 
       {/* Featured Products - Carousel Style */}
       <section className="py-20 bg-white">

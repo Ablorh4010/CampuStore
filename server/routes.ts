@@ -1671,18 +1671,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const product = await storage.createProduct(productData);
       console.log(`Product created successfully: ${product.id}`);
       res.json(product);
-    } catch (error) {
+      } catch (error) {
       console.error("Product creation error:", error);
-      res.status(400).json({ 
-        message: "Invalid product data or creation failed", 
+      res.status(400).json({
+        message: "Invalid product data or creation failed",
         error: error instanceof Error ? error.message : String(error),
         details: error
       });
-    }
-  });
+      }
+      });
 
-  app.get("/api/products", async (req, res) => {
-    try {
+      app.put("/api/products/:id", authenticateToken, async (req: AuthRequest, res) => {
+      try {
+      const id = parseInt(req.params.id);
+      const productData = req.body;
+
+      const existingProduct = await storage.getProductById(id);
+      if (!existingProduct) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+
+      const store = await storage.getStoreById(existingProduct.storeId);
+      if (!store) {
+        return res.status(404).json({ message: "Store not found" });
+      }
+
+      if (store.userId !== req.userId && !req.user?.isAdmin) {
+        return res.status(403).json({ message: "Cannot update another user's product" });
+      }
+
+      const product = await storage.updateProduct(id, productData);
+      res.json(product);
+      } catch (error) {
+      res.status(500).json({ message: "Failed to update product" });
+      }
+      });
+
+      app.get("/api/products", async (req, res) => {    try {
       const { categoryId, search, limit, userUniversity, userCity, userCampus } = req.query;
       const filters = {
         categoryId: categoryId ? parseInt(categoryId as string) : undefined,

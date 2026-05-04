@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
   const [initialMagicUrl, setInitialMagicUrl] = useState('');
 
@@ -385,9 +386,25 @@ export default function Dashboard() {
                           </div>
                           <p className="text-primary font-black">GH₵{parseFloat(product.price).toFixed(2)}</p>
                        </div>
-                       <div className="flex flex-wrap gap-1">
+                       <div className="flex flex-wrap gap-1 mb-6">
                           <Badge variant="outline" className="rounded-lg font-bold border-2 text-[9px]">{product.condition.toUpperCase()}</Badge>
                           {product.sizes && <Badge variant="outline" className="rounded-lg font-bold border-2 text-[9px]">SIZES: {product.sizes}</Badge>}
+                       </div>
+                       <div className="flex gap-2">
+                          <Button 
+                             className="flex-1 rounded-xl bg-gray-50 text-black border border-gray-100 font-black uppercase tracking-widest text-[9px] h-10 hover:bg-black hover:text-white transition-all"
+                             onClick={() => {
+                               setEditingProduct(product);
+                               setIsProductFormOpen(true);
+                             }}
+                          >
+                             Edit Listing
+                          </Button>
+                          <Link href={`/product/${product.id}`}>
+                             <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl">
+                                <Eye className="h-4 w-4" />
+                             </Button>
+                          </Link>
                        </div>
                     </CardContent>
                   </Card>
@@ -606,8 +623,12 @@ export default function Dashboard() {
 
         <ProductForm 
           isOpen={isProductFormOpen} 
-          onClose={() => setIsProductFormOpen(false)} 
+          onClose={() => {
+            setIsProductFormOpen(false);
+            setEditingProduct(null);
+          }} 
           userStores={userStores} 
+          initialData={editingProduct}
         />
 
         <MagicImportModal 
