@@ -119,13 +119,15 @@ export default function Checkout() {
 
   const eligibleItems = cartItems.filter((item: any) => item.product.isInstallmentEligible);
   const nonEligibleItems = cartItems.filter((item: any) => !item.product.isInstallmentEligible);
+  const digitalItems = cartItems.filter((item: any) => item.product.isDigital);
+  const hasDigitalOnly = cartItems.length > 0 && cartItems.every((item: any) => item.product.isDigital);
 
   const eligibleTotal = eligibleItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
   const nonEligibleTotal = nonEligibleItems.reduce((sum, item) => sum + (parseFloat(item.product.price) * item.quantity), 0);
 
-  const isFreeDeliveryQualified = cartTotal < 100;
-  const shippingFee = shippingMode === 'ghana_post_ems' && !isFreeDeliveryQualified ? 70 : 0;
-  const codFee = paymentMode === 'cod' ? (cartTotal * 0.10) : 0;
+  const isFreeDeliveryQualified = cartTotal < 100 || digitalItems.length === cartItems.length;
+  const shippingFee = (shippingMode === 'ghana_post_ems' && !isFreeDeliveryQualified && !hasDigitalOnly) ? 70 : 0;
+  const codFee = (paymentMode === 'cod' && !hasDigitalOnly) ? (cartTotal * 0.10) : 0;
   
   const grandTotal = cartTotal + shippingFee + codFee;
   

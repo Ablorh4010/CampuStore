@@ -123,6 +123,8 @@ export const products = pgTable("products", {
   approvalStatus: text("approval_status").notNull().default("pending"), // pending, approved, rejected
   viewCount: integer("view_count").notNull().default(0),
   isInstallmentEligible: boolean("is_installment_eligible").notNull().default(false),
+  isDigital: boolean("is_digital").notNull().default(false),
+  downloadUrl: text("download_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

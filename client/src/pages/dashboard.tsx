@@ -10,7 +10,7 @@ import {
   Plus, Package, ShoppingCart, TrendingUp, Settings, 
   Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
   Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
-  Sparkles, Wallet, Smartphone, ChevronRight, Info
+  Sparkles, Wallet, Smartphone, ChevronRight, Info, Download
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
@@ -514,8 +514,19 @@ export default function Dashboard() {
                           </div>
                           <div className="flex flex-col gap-2">
                              <Button className="rounded-xl h-10 px-6 font-black uppercase tracking-widest text-[10px]" onClick={() => { setViewingTracking(order); fetchAiInsight(order.id); }}>Track</Button>
-                             {order.deliveryStatus === 'delivered' && order.status === 'confirmed' && (
-                               <div className="flex gap-2 mt-2">
+
+                             {order.product.isDigital && order.status === 'completed' && order.product.downloadUrl && (
+                               <Button 
+                                 variant="outline"
+                                 className="rounded-xl h-10 px-6 font-black uppercase tracking-widest text-[10px] bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" 
+                                 onClick={() => window.open(order.product.downloadUrl as string, '_blank')}
+                               >
+                                 <Download className="w-3 h-3 mr-2" />
+                                 Download
+                               </Button>
+                             )}
+
+                             {order.deliveryStatus === 'delivered' && order.status === 'confirmed' && (                               <div className="flex gap-2 mt-2">
                                   <Button 
                                     className="bg-green-500 hover:bg-green-600 h-8 px-4 text-[9px] font-black uppercase rounded-lg"
                                     onClick={() => updateBuyerConfirmationMutation.mutate({ orderId: order.id, confirmation: 'received' })}

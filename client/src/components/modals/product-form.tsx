@@ -25,7 +25,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth-context';
-import { ImagePlus, Loader2, X, Plus, Sparkles, Video, Trash2, Wand2, ChevronRight, ChevronLeft, Type, Ruler, Image as ImageIcon, Package } from 'lucide-react';
+import { ImagePlus, Loader2, X, Plus, Sparkles, Video, Trash2, Wand2, ChevronRight, ChevronLeft, Type, Ruler, Image as ImageIcon, Package, FileText, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Category, Store } from '@shared/schema';
@@ -43,6 +43,8 @@ const productSchema = z.object({
   sizes: z.string().optional().nullable(), // For clothing/shoes
   images: z.array(z.string()).max(8, 'Maximum 8 other images allowed'),
   mediaGifUrl: z.string().optional(),
+  isDigital: z.boolean().default(false),
+  downloadUrl: z.string().optional().nullable(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -95,8 +97,15 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
       sizes: initialData?.sizes || '',
       images: initialData?.images || [],
       mediaGifUrl: initialData?.mediaGifUrl || '',
+      isDigital: initialData?.isDigital || false,
+      downloadUrl: initialData?.downloadUrl || '',
     },
   });
+
+  const isDigital = form.watch('isDigital');
+  const selectedCategoryId = form.watch('categoryId');
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+  const isAcademic = selectedCategory?.name === 'Academic' || categories.find(c => c.id === selectedCategory?.parentId)?.name === 'Academic';
 
   // Reset form when initialData changes
   useEffect(() => {
@@ -114,6 +123,8 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
         sizes: initialData.sizes || '',
         images: initialData.images || [],
         mediaGifUrl: initialData.mediaGifUrl || '',
+        isDigital: initialData.isDigital || false,
+        downloadUrl: initialData.downloadUrl || '',
       });
 
       if (initialData.images && initialData.images.length > 0) {
@@ -443,11 +454,64 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
                             <FormMessage />
                           </FormItem>
                         )} />
-                      </div>
                       <FormField control={form.control} name="condition" render={({ field }) => (
                         <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="excellent">Excellent</SelectItem><SelectItem value="good">Good</SelectItem></SelectContent></Select></FormItem>
                       )} />
-                    </div>
+                      </div>
+
+                      {isAcademic && (
+                      <div className="bg-blue-50/50 p-6 rounded-3xl border-2 border-blue-100/50 space-y-4">
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                               <FileText className="w-4 h-4 text-blue-600" />
+                               <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">Digital Product / PDF</span>
+                            </div>
+                            <FormField
+                              control={form.control}
+                              name="isDigital"
+                              render={({ field }) => (
+                                <FormItem className="flex items-center space-x-2">
+                                  <FormControl>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={field.value} 
+                                      onChange={(e) => field.onChange(e.target.checked)}
+                                      className="w-4 h-4 accent-blue-600"
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                         </div>
+
+                         {isDigital && (
+                           <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                              <FormField
+                                control={form.control}
+                                name="downloadUrl"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-[9px] font-black uppercase text-blue-400 tracking-widest">Download URL (Google Drive/Dropbox)</FormLabel>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <Input 
+                                          placeholder="https://drive.google.com/..." 
+                                          className="pl-10 h-12 rounded-xl border-blue-100" 
+                                          {...field} 
+                                          value={field.value || ''}
+                                        />
+                                      </div>
+                                    </FormControl>
+                                    <p className="text-[8px] text-blue-400 font-bold mt-1 uppercase tracking-wider">Ensure the link is accessible to anyone with the link.</p>
+                                  </FormItem>
+                                )}
+                              />
+                           </div>
+                         )}
+                      </div>
+                      )}
+                      </div>
                     <div className="space-y-6">
                       <div className="bg-primary/5 p-8 rounded-[2.5rem] border-2 border-dashed border-primary/20">
                          <div className="flex items-center gap-2 mb-4">

@@ -181,8 +181,8 @@ export default function Contact() {
                   <Phone className="h-5 w-5 text-green-600 mr-3 mt-1" />
                   <div>
                     <h3 className="font-semibold text-gray-900">Phone</h3>
-                    <p className="text-gray-600">+1 (555) 123-4567</p>
-                    <p className="text-sm text-gray-500 mt-1">Mon-Fri, 9am-5pm EST</p>
+                    <p className="text-gray-600">0201786132</p>
+                    <p className="text-sm text-gray-500 mt-1">Available 24/7 for support</p>
                   </div>
                 </div>
 
@@ -190,8 +190,8 @@ export default function Contact() {
                   <MapPin className="h-5 w-5 text-green-600 mr-3 mt-1" />
                   <div>
                     <h3 className="font-semibold text-gray-900">Location</h3>
-                    <p className="text-gray-600">123 University Ave</p>
-                    <p className="text-gray-600">Campus District, ST 12345</p>
+                    <p className="text-gray-600">Agushie Street Lashibi</p>
+                    <p className="text-gray-600">Tema, Ghana</p>
                   </div>
                 </div>
               </CardContent>

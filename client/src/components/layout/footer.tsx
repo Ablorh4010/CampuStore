@@ -85,9 +85,17 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-gray-300">
-              <li>
-                <Link href="/about" className="hover:text-white transition-colors">
-                  Help Center
+              <li className="flex items-start gap-2 text-sm">
+                <i className="fas fa-map-marker-alt mt-1 text-primary"></i>
+                <span>Agushie Street Lashibi, Tema, Ghana</span>
+              </li>
+              <li className="flex items-center gap-2 text-sm">
+                <i className="fas fa-phone text-primary"></i>
+                <span>0201786132</span>
+              </li>
+              <li className="pt-2">
+                <Link href="/contact" className="hover:text-white transition-colors">
+                  Contact Us
                 </Link>
               </li>
               <li>
@@ -95,22 +103,15 @@ export default function Footer() {
                   Safety Tips
                 </Link>
               </li>
-              <li>
-                <Link href="/contact" className="hover:text-white transition-colors">
-                  Contact Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="hover:text-white transition-colors">
-                  Community Guidelines
-                </Link>
-              </li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-gray-700 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-300 text-sm">© 2024 The University Hub. All rights reserved.</p>
+          <div className="text-gray-300 text-sm">
+            <p>© 2024 The University Hub. All rights reserved.</p>
+            <p className="mt-1 font-bold text-xs uppercase tracking-widest text-primary/80">Powered by Kaydem Ghana Group</p>
+          </div>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <Link href="/about" className="text-gray-300 hover:text-white text-sm transition-colors">
               Privacy Policy

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown, Mic, MicOff } from 'lucide-react';
+import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown, Mic, MicOff, Truck } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useVoiceSearch } from '@/hooks/use-voice-search';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,6 +71,36 @@ export default function Header() {
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+      {/* Scrolling Announcement Bar */}
+      <div className="bg-primary overflow-hidden py-1.5 border-b border-black/5">
+        <motion.div 
+          animate={{ x: [0, -1000] }}
+          transition={{ 
+            x: {
+              repeat: Infinity,
+              repeatType: "loop",
+              duration: 30,
+              ease: "linear",
+            },
+          }}
+          className="flex whitespace-nowrap"
+        >
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="flex items-center mx-12 text-black font-black text-[9px] uppercase tracking-[0.15em]">
+              <div className="w-8 h-8 rounded-full overflow-hidden mr-3 border-2 border-white/50 shadow-sm flex-shrink-0">
+                <img 
+                  src="https://images.unsplash.com/photo-1622146433296-61329a27c74c?auto=format&fit=crop&q=80&w=100&h=100" 
+                  alt="Delivery" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span>Free delivery for items across all Ghana campuses and schools</span>
+              <span className="mx-8 opacity-20">•</span>
+            </div>
+          ))}
+        </motion.div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}

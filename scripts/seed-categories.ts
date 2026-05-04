@@ -20,6 +20,7 @@ const categoryData = [
     icon: "fas fa-book",
     color: "yellow-100",
     subcategories: [
+      { name: "Books & eBooks", icon: "fas fa-book-open", color: "yellow-100" },
       { name: "Textbooks", icon: "fas fa-book", color: "yellow-100" },
       { name: "Stationery", icon: "fas fa-pen", color: "yellow-100" },
       { name: "Lab Gear", icon: "fas fa-microscope", color: "yellow-100" },

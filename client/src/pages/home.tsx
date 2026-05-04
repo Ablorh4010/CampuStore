@@ -33,6 +33,8 @@ const CATEGORY_IMAGES: Record<string, string> = {
   'Academic': 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&q=80&w=300', // Books
   'Fashion': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=300', // Sneaker
   'Home & Dorm': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Modern Desk Lamp/Chair
+  'Dorm': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Fallback for "Dorm"
+  'Home': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Fallback for "Home"
   'Sports & Leisure': 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=300', // Fitness
   'Services': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80&w=300', // Work/Desk
   'Phones': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=300', // Smartphone
@@ -151,9 +153,18 @@ export default function Home() {
               
               <div className="mt-12 flex items-center space-x-6">
                  <div className="flex -space-x-3">
-                    {[1, 2, 3, 4].map(i => (
+                    {[
+                      "photo-1531123897727-8f129e1688ce",
+                      "photo-1506277886164-e25aa3f4ef7f",
+                      "photo-1521572267360-ee0c2909d518",
+                      "photo-1523910088385-d313124c68aa"
+                    ].map((id, i) => (
                        <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-sm">
-                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i}`} alt="" />
+                          <img 
+                            src={`https://images.unsplash.com/${id}?auto=format&fit=crop&q=80&w=100&h=100`} 
+                            alt="Student face"
+                            className="w-full h-full object-cover"
+                          />
                        </div>
                     ))}
                  </div>

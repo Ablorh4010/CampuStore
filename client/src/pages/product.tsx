@@ -18,7 +18,9 @@ import {
   ShieldCheck,
   Wallet,
   ChevronDown,
-  Video
+  Video,
+  Download,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -460,15 +462,33 @@ export default function Product() {
 
             {/* Actions */}
             <div className="space-y-4 mb-12">
-              <Button 
-                size="lg" 
-                className="w-full h-16 bg-black hover:bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-black/10 transition-all active:scale-[0.98]"
-                onClick={handleAddToCart}
-                disabled={!product.isAvailable}
-              >
-                <ShoppingCart className="mr-3 h-5 w-5" />
-                {product.isAvailable ? 'Add to Bag' : 'Sold Out'}
-              </Button>
+              {product.isDigital ? (
+                <div className="space-y-3">
+                  <Button 
+                    size="lg" 
+                    className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-blue-200 transition-all active:scale-[0.98]"
+                    onClick={handleAddToCart}
+                    disabled={!product.isAvailable}
+                  >
+                    <ShoppingCart className="mr-3 h-5 w-5" />
+                    {product.isAvailable ? 'Buy eBook / PDF' : 'Sold Out'}
+                  </Button>
+                  <div className="flex items-center gap-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <Download className="w-4 h-4 text-blue-600" />
+                    <p className="text-[10px] font-bold text-blue-700 uppercase tracking-tight">Instant access after purchase</p>
+                  </div>
+                </div>
+              ) : (
+                <Button 
+                  size="lg" 
+                  className="w-full h-16 bg-black hover:bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-black/10 transition-all active:scale-[0.98]"
+                  onClick={handleAddToCart}
+                  disabled={!product.isAvailable}
+                >
+                  <ShoppingCart className="mr-3 h-5 w-5" />
+                  {product.isAvailable ? 'Add to Bag' : 'Sold Out'}
+                </Button>
+              )}
               
               <div className="grid grid-cols-2 gap-4">
                 <Button 
