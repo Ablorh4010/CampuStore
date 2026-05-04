@@ -34,6 +34,8 @@ const CATEGORY_IMAGES: Record<string, string> = {
   'Academic': 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&q=80&w=300', // Books
   'Fashion': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=300', // Sneaker
   'Home & Dorm': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Modern Desk Lamp/Chair
+  'Home & Dormitory': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300',
+  'Home and Decor': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300',
   'Home': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300',
   'Sports & Leisure': 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=300', // Fitness
   'Services': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80&w=300', // Work/Desk
@@ -181,18 +183,65 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="hidden lg:block relative">
-               <div className="relative z-10 animate-float">
-                  <img 
-                    src="/attached_assets/app-preview.png" 
-                    alt="The Hub Mobile App" 
-                    className="w-full h-auto drop-shadow-2xl" 
-                    onError={(e) => {
-                      // Fallback if image doesn't exist
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-               </div>
+            <div className="hidden lg:flex justify-center lg:justify-end relative">
+               {/* iPhone Frame for Weekly Deals - Positioned Beside Hero Text */}
+               {weeklyDeals.length > 0 && (
+                  <motion.div 
+                     initial={{ x: 50, opacity: 0 }}
+                     animate={{ x: 0, opacity: 1 }}
+                     transition={{ duration: 0.8 }}
+                     className="relative w-[300px] h-[600px] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-[8px] border-[#333] overflow-hidden group z-20"
+                  >
+                     {/* Speaker/Camera Notch */}
+                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-[#333] rounded-b-2xl z-30 flex items-center justify-center gap-2">
+                        <div className="w-8 h-1 bg-white/10 rounded-full"></div>
+                        <div className="w-2 h-2 bg-white/10 rounded-full"></div>
+                     </div>
+
+                     {/* Screen Content */}
+                     <div className="relative h-full w-full bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
+                        <div className="p-5 pt-10 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-20">
+                           <h4 className="font-black uppercase tracking-tighter text-[11px]">Deals of the Week</h4>
+                           <Badge className="bg-primary text-black font-black text-[7px] uppercase px-2 py-0.5 rounded-full animate-pulse">Live Now</Badge>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
+                           {weeklyDeals.map((deal) => (
+                              <Link key={deal.id} href={`${basePrefix}/product/${deal.productId}`}>
+                                 <div className="bg-gray-50 rounded-2xl p-3 border border-transparent hover:border-primary/20 transition-all cursor-pointer group/deal">
+                                    <div className="flex gap-4 items-center">
+                                       <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white">
+                                          <img 
+                                             src={deal.product.images[0]} 
+                                             alt="" 
+                                             className="w-full h-full object-cover group-hover/deal:scale-110 transition-transform duration-500" 
+                                          />
+                                       </div>
+                                       <div className="min-w-0">
+                                          <h4 className="text-gray-900 font-black text-[10px] uppercase truncate mb-1">{deal.product.title}</h4>
+                                          <div className="flex items-center gap-2 mb-1">
+                                             <span className="text-primary font-black text-xs">GH₵{deal.dealPrice}</span>
+                                             <span className="text-gray-300 line-through text-[8px]">GH₵{deal.product.price}</span>
+                                          </div>
+                                          <Badge className="bg-primary/10 text-primary border-none font-black text-[7px] uppercase tracking-widest px-2 py-0.5">
+                                             -{deal.discountPercentage}% OFF
+                                          </Badge>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </Link>
+                           ))}
+                        </div>
+
+                        <div className="p-4 bg-gray-50 border-t border-gray-100">
+                           <Button className="w-full h-10 rounded-xl bg-black text-white font-black uppercase tracking-widest text-[8px]">
+                              View Catalog
+                           </Button>
+                        </div>
+                     </div>
+                  </motion.div>
+               )}
+
                {/* Floating elements for visual interest */}
                <div className="absolute top-1/4 -right-12 w-24 h-24 bg-primary/20 rounded-3xl rotate-12 blur-xl animate-pulse"></div>
                <div className="absolute bottom-1/4 -left-12 w-32 h-32 bg-secondary/20 rounded-full blur-xl animate-pulse delay-700"></div>
@@ -346,99 +395,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Weekly Deals / Flash Sales - iPhone Frame Version */}
-      {weeklyDeals.length > 0 && (
-        <section className="py-24 bg-gray-50 overflow-hidden relative">
-           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
-           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="grid lg:grid-cols-2 gap-16 items-center">
-                 <div>
-                    <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-black text-white rounded-full">
-                       <Zap className="w-4 h-4 text-primary fill-primary" />
-                       <span className="text-[10px] font-black uppercase tracking-[0.2em]">Deals of the Week</span>
-                    </div>
-                    <h2 className="text-5xl font-black uppercase tracking-tighter text-gray-900 leading-[0.9] mb-8">
-                       EXCLUSIVE <br />
-                       <span className="text-primary italic">HUB DISCOUNTS.</span>
-                    </h2>
-                    <p className="text-lg text-gray-500 font-medium leading-relaxed mb-10 max-w-md">
-                       Grab the hottest campus essentials at unbeatable prices. Updated every Monday morning for your university.
-                    </p>
-                    <Link href={`${basePrefix}/browse?view=deals`}>
-                       <Button className="h-14 px-8 rounded-xl font-black uppercase tracking-widest text-[10px]">
-                          View All Deals
-                       </Button>
-                    </Link>
-                 </div>
-
-                 <div className="relative flex justify-center lg:justify-end">
-                    {/* iPhone Frame */}
-                    <motion.div 
-                       initial={{ y: 20, opacity: 0 }}
-                       whileInView={{ y: 0, opacity: 1 }}
-                       transition={{ duration: 0.8 }}
-                       className="relative w-[320px] h-[640px] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-[8px] border-[#333] overflow-hidden group"
-                    >
-                       {/* Speaker/Camera Notch */}
-                       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-[#333] rounded-b-2xl z-30 flex items-center justify-center gap-2">
-                          <div className="w-8 h-1 bg-white/10 rounded-full"></div>
-                          <div className="w-2 h-2 bg-white/10 rounded-full"></div>
-                       </div>
-
-                       {/* Screen Content */}
-                       <div className="relative h-full w-full bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
-                          <div className="p-6 pt-10 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-20">
-                             <h4 className="font-black uppercase tracking-tighter text-sm">Active Deals</h4>
-                             <div className="flex items-center gap-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                                <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Live</span>
-                             </div>
-                          </div>
-
-                          <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
-                             {weeklyDeals.map((deal) => (
-                                <Link key={deal.id} href={`${basePrefix}/product/${deal.productId}`}>
-                                   <div className="bg-gray-50 rounded-2xl p-3 border border-transparent hover:border-primary/20 transition-all cursor-pointer group/deal">
-                                      <div className="flex gap-4 items-center">
-                                         <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white">
-                                            <img 
-                                               src={deal.product.images[0]} 
-                                               alt="" 
-                                               className="w-full h-full object-cover group-hover/deal:scale-110 transition-transform duration-500" 
-                                            />
-                                         </div>
-                                         <div className="min-w-0">
-                                            <h4 className="text-gray-900 font-black text-[10px] uppercase truncate mb-1">{deal.product.title}</h4>
-                                            <div className="flex items-center gap-2 mb-1">
-                                               <span className="text-primary font-black text-xs">GH₵{deal.dealPrice}</span>
-                                               <span className="text-gray-300 line-through text-[8px]">GH₵{deal.product.price}</span>
-                                            </div>
-                                            <Badge className="bg-primary/10 text-primary border-none font-black text-[7px] uppercase tracking-widest px-2 py-0.5">
-                                               -{deal.discountPercentage}% OFF
-                                            </Badge>
-                                         </div>
-                                      </div>
-                                   </div>
-                                </Link>
-                             ))}
-                          </div>
-
-                          <div className="p-4 bg-gray-50 border-t border-gray-100">
-                             <Button className="w-full h-10 rounded-xl bg-black text-white font-black uppercase tracking-widest text-[8px]">
-                                Shop Mobile App
-                             </Button>
-                          </div>
-                       </div>
-                    </motion.div>
-
-                    {/* Floating Badge Background Effect */}
-                    <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-secondary/10 rounded-full blur-3xl -z-10 animate-pulse"></div>
-                 </div>
-              </div>
-           </div>
-        </section>
-      )}
 
       {/* Campus Activity Feed - Compact */}
       <section className="py-20 bg-white border-y border-gray-50">
