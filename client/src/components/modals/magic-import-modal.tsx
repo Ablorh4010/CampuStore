@@ -202,19 +202,6 @@ export default function MagicImportModal({ isOpen, onClose, userStores, initialU
                      Works best with Amazon, Jumia, Alibaba, and WooCommerce. We'll bookmark the URL and extract details automatically.
                    </p>
                  </div>
-                 <div className="mt-2 p-3 bg-primary/5 rounded-xl border border-primary/10">
-                   <p className="text-[9px] font-black uppercase text-primary mb-1">Store Owner? Use our Sync Plugin</p>
-                   <p className="text-[9px] font-bold text-gray-500 lowercase leading-tight">
-                     Download our WooCommerce plugin to add a "Sync to CampuStore" button directly to your WordPress dashboard.
-                   </p>
-                   <a 
-                     href="/attached_assets/campustore-woocommerce-sync.php" 
-                     download 
-                     className="inline-block mt-2 text-[9px] font-black uppercase text-primary underline"
-                   >
-                     Download Sync Plugin
-                   </a>
-                 </div>
               </div>
             </form>
           )}

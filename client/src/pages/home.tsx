@@ -27,6 +27,27 @@ import ProductCard from '@/components/product/product-card';
 import { useAuth } from '@/lib/auth-context';
 import type { ProductWithStore, StoreWithUser, Category, CampusActivityWithUser, WeeklyDealWithProduct } from '@shared/schema';
 
+// High-quality category thumbnails for a modern, innovative look
+const CATEGORY_IMAGES: Record<string, string> = {
+  'Electronics': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&q=80&w=300', // MacBook/Laptop
+  'Academic': 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&q=80&w=300', // Books
+  'Fashion': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=300', // Sneaker
+  'Home & Dorm': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Modern Desk Lamp/Chair
+  'Sports & Leisure': 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=300', // Fitness
+  'Services': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80&w=300', // Work/Desk
+  'Phones': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=300', // Smartphone
+  'Beauty': 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=300', // Skincare
+};
+
+const getCategoryImage = (name: string) => {
+  // Try exact match or partial match
+  const exact = CATEGORY_IMAGES[name];
+  if (exact) return exact;
+  
+  const key = Object.keys(CATEGORY_IMAGES).find(k => name.toLowerCase().includes(k.toLowerCase()));
+  return key ? CATEGORY_IMAGES[key] : 'https://images.unsplash.com/photo-1586769852044-692d6e3703a0?auto=format&fit=crop&q=80&w=300'; // Fallback package box
+};
+
 export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
@@ -162,32 +183,58 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categories Grid - Minimalist High Fashion Style */}
-      <section className="py-24 bg-gray-50/50">
+      {/* Hub Circle Scroll - Redesigned for Space Efficiency & Innovation */}
+      <section className="py-12 bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-12">
+          <div className="flex justify-between items-end mb-10">
             <div>
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-gray-900 leading-none">Browse Hubs.</h2>
-              <p className="text-xs font-black uppercase tracking-widest text-gray-400 mt-3">Select a category to explore</p>
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 leading-none">The Marketplaces.</h2>
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-2">Swipe to explore campus hubs</p>
             </div>
+            <Link href={`${basePrefix}/browse`}>
+              <Button variant="link" className="font-black uppercase tracking-widest text-[9px] p-0 h-auto group">
+                Browse All <ArrowRight className="ml-1 w-2.5 h-2.5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="flex overflow-x-auto scrollbar-hide gap-6 sm:gap-10 pb-4 px-2 -mx-2">
             {categoriesLoading ? (
-              Array(6).fill(0).map((_, i) => <Skeleton key={i} className="h-48 rounded-3xl" />)
+              Array(8).fill(0).map((_, i) => (
+                <div key={i} className="flex-shrink-0 flex flex-col items-center gap-3">
+                  <Skeleton className="w-20 h-20 sm:w-24 sm:h-24 rounded-full" />
+                  <Skeleton className="w-12 h-2 rounded-full" />
+                </div>
+              ))
             ) : (
-              categories.slice(0, 6).map((category) => (
+              categories.filter(c => !c.parentId).map((category) => (
                 <Link key={category.id} href={`${basePrefix}/browse?categoryId=${category.id}`}>
-                  <div className="group cursor-pointer">
-                    <div className={`h-48 rounded-3xl ${category.color || 'bg-white'} border border-black/5 p-6 flex flex-col justify-between transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-xl group-hover:border-black/10`}>
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                        <i className={`${category.icon} text-lg`} />
+                  <div className="group cursor-pointer flex-shrink-0 flex flex-col items-center gap-4 w-20 sm:w-24">
+                    <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+                      {/* Background Circle with Glassmorphism */}
+                      <div className={`absolute inset-0 rounded-full ${category.color || 'bg-gray-100'} opacity-30 group-hover:opacity-50 transition-all duration-500 scale-90 group-hover:scale-100`} />
+                      
+                      {/* Interactive Glow Effect */}
+                      <div className="absolute inset-0 rounded-full bg-primary/0 group-hover:bg-primary/10 blur-xl transition-all duration-500" />
+                      
+                      {/* Category Image - "Floating" out of the circle */}
+                      <div className="absolute inset-0 flex items-center justify-center p-2">
+                         <img 
+                           src={getCategoryImage(category.name)} 
+                           alt={category.name}
+                           className="w-16 h-16 sm:w-20 sm:h-20 object-contain drop-shadow-2xl transform group-hover:scale-125 group-hover:-translate-y-2 transition-all duration-500"
+                         />
                       </div>
-                      <div>
-                         <h3 className="font-black uppercase tracking-tighter text-sm mb-1">{category.name}</h3>
-                         <div className="w-0 group-hover:w-full h-0.5 bg-black transition-all duration-500"></div>
+
+                      {/* Floating Mini Icon */}
+                      <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-50 transform group-hover:rotate-12 transition-transform">
+                        <i className={`${category.icon} text-[10px] text-gray-900`} />
                       </div>
                     </div>
+                    
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-black transition-colors text-center leading-tight">
+                      {category.name}
+                    </span>
                   </div>
                 </Link>
               ))

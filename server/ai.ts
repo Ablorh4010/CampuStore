@@ -286,14 +286,46 @@ export async function verifyFaceMatch(idPhotoBase64: string, liveSelfieBase64: s
 
 export async function extractProductFromHtml(html: string) {
   try {
-    // Truncate HTML to avoid token limits, focusing on head and body start where meta tags usually are
-    const truncatedHtml = html.substring(0, 50000); 
+    // 1. Pre-extract structured data to help the AI and save tokens
+    const metaTags: any = {};
+    
+    // Extract JSON-LD
+    const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
+    if (jsonLdMatch) {
+      metaTags.jsonLd = jsonLdMatch.slice(0, 2).map(s => {
+        try {
+          return JSON.parse(s.replace(/<script type="application\/ld\+json">|<\/script>/gi, '').trim());
+        } catch (e) { return null; }
+      }).filter(Boolean);
+    }
+
+    // Extract OpenGraph and standard Meta tags
+    const metaMatches = html.match(/<meta (?:property|name)="(.*?)" content="(.*?)"/gi);
+    if (metaMatches) {
+      metaMatches.forEach(m => {
+        const propMatch = m.match(/(?:property|name)="(.*?)"/);
+        const contMatch = m.match(/content="(.*?)"/);
+        if (propMatch && contMatch) {
+          const key = propMatch[1];
+          const val = contMatch[1];
+          if (key.startsWith('og:') || key.startsWith('product:') || key === 'description' || key.includes('price')) {
+            metaTags[key] = val;
+          }
+        }
+      });
+    }
+
+    // 2. Truncate HTML to avoid token limits, but keep the head and body start
+    const truncatedHtml = html.substring(0, 30000); 
 
     const text = await callGenerativeModel({
-      defaultSystemInstruction: "You are an expert e-commerce data extraction assistant for a campus marketplace in Ghana.",
+      defaultSystemInstruction: "You are an expert e-commerce data extraction assistant for a campus marketplace in Ghana. Your goal is to return a clean JSON object representing a product.",
       defaultPrompt: `
-    Extract product information from the following HTML content. 
-    Also, categorize the product into one of our standard categories and subcategories.
+    Extract product information from the provided HTML and Meta Data. 
+    Prioritize the Meta Data (JSON-LD and OpenGraph) as they are more accurate.
+
+    Meta Data Found:
+    ${JSON.stringify(metaTags, null, 2)}
 
     Categories and Subcategories:
     - Electronics: Laptops, Smartphones, Headphones, Accessories
@@ -303,17 +335,7 @@ export async function extractProductFromHtml(html: string) {
     - Sports & Leisure: Gym Gear, Musical Instruments, Games
     - Services: Tutoring, Delivery, Hair & Beauty
 
-    Look for:
-    - Title/Name
-    - Description
-    - Price (numeric value only)
-    - Original Price (if on sale)
-    - Condition (usually 'new')
-    - Images (array of absolute URLs)
-    - Category (e.g., "Electronics")
-    - Subcategory (e.g., "Laptops")
-
-    Return ONLY a JSON object:
+    Target JSON structure:
     {
       "title": string,
       "description": string,
@@ -325,7 +347,7 @@ export async function extractProductFromHtml(html: string) {
       "subcategoryName": string
     }
 
-    HTML Content:
+    HTML Content (Partial):
     ${truncatedHtml}`,
       responseMimeType: "application/json"
     });
