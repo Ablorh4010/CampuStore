@@ -220,7 +220,9 @@ export default function Home() {
                                        <div className="min-w-0">
                                           <h4 className="text-gray-900 font-black text-[10px] uppercase truncate mb-1">{deal.product.title}</h4>
                                           <div className="flex items-center gap-2 mb-1">
-                                             <span className="text-primary font-black text-xs">GH₵{deal.dealPrice}</span>
+                                             <span className="text-primary font-black text-xs">
+                                               GH₵{(parseFloat(deal.product.price.toString()) * (1 - (deal.discountPercentage || 0) / 100)).toFixed(2)}
+                                             </span>
                                              <span className="text-gray-300 line-through text-[8px]">GH₵{deal.product.price}</span>
                                           </div>
                                           <Badge className="bg-primary/10 text-primary border-none font-black text-[7px] uppercase tracking-widest px-2 py-0.5">
@@ -519,8 +521,8 @@ export default function Home() {
                   <Card className="flex-shrink-0 w-[300px] md:w-auto group cursor-pointer rounded-[2rem] border-none shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden bg-white snap-start">
                     <CardContent className="p-0">
                       <div className="h-24 bg-gray-100 relative overflow-hidden">
-                        {store.bannerUrl ? (
-                          <img src={store.bannerUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                        {store.logoUrl ? (
+                          <img src={store.logoUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10" />
                         )}
@@ -538,7 +540,7 @@ export default function Home() {
                            </div>
                            <div className="flex gap-1 mb-2">
                               {[1, 2, 3, 4, 5].map(i => (
-                                 <Star key={i} className={`w-2 h-2 ${i <= (store.rating || 5) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
+                                 <Star key={i} className={`w-2 h-2 ${i <= parseFloat(store.rating?.toString() || "0") ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
                               ))}
                            </div>
                         </div>

@@ -188,12 +188,29 @@ async function finalizePaystackOrder(data: any) {
     
     createdOrders.push(order);
 
-    // Send confirmation email
+    // Send confirmation emails
     try {
+      const { sendOrderConfirmation, notifySellerOfNewOrder, notifyAdminOfNewOrder } = await import('./notifications');
       const buyerForEmail = buyerInfo || { firstName: buyerName.split(' ')[0], email: buyerEmail };
+      const seller = await storage.getUserById(store.userId);
+
+      // 1. Notify Buyer
       await sendOrderConfirmation(order, buyerForEmail, product);
-    } catch (emailErr) {
-      console.error('Failed to send confirmation email for order:', order.id, emailErr);
+      
+      // 2. Notify Seller
+      if (seller) {
+        await notifySellerOfNewOrder(order, seller, product);
+      }
+
+      // 3. Notify Admins
+      const admins = await storage.getAdminUsers();
+      for (const admin of admins) {
+        if (admin.email) {
+          await notifyAdminOfNewOrder(order, admin.email, product, seller || { username: 'Unknown', email: 'N/A' });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to send order notifications:', err);
     }
   }
 
@@ -1030,6 +1047,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fulfillmentStatus: approval === 'approved' ? 'seller_approved' : 'order_received',
         status: approval === 'rejected' ? 'rejected' : order.status
       });
+
+      if (approval === 'approved') {
+        try {
+          const { notifyBuyerOfOrderApproval } = await import('./notifications');
+          const buyer = await storage.getUserById(order.buyerId);
+          const product = await storage.getProductById(order.productId);
+          if (buyer && product) {
+            await notifyBuyerOfOrderApproval(updatedOrder, buyer, product);
+          }
+        } catch (err) {
+          console.error('Failed to notify buyer of seller approval:', err);
+        }
+      }
 
       // Notify Admin
       const adminUsers = await storage.getAdminUsers();
@@ -1954,12 +1984,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdOrders.push(order);
       }
 
-      // Send secondary "Thank You" email with tracking info
+      // Send confirmation emails
       try {
         const { sendPurchaseConfirmationEmail } = await import('./email');
+        const { sendOrderConfirmation, notifySellerOfNewOrder, notifyAdminOfNewOrder } = await import('./notifications');
         const trackingUrl = `${process.env.APP_URL || 'https://uniexchangehub.com'}/gh/orders`;
         const buyerName = details ? `${details.firstName} ${details.lastName}` : "Customer";
         
+        // 1. Send "Thank You" with tracking to Buyer
         await sendPurchaseConfirmationEmail(
           details?.email || '',
           buyerName,
@@ -1969,8 +2001,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           paymentMode === 'cod',
           totalAmount ? totalAmount.toString() : "0"
         );
-      } catch (emailErr) {
-        console.error('Failed to send secondary purchase confirmation email:', emailErr);
+
+        // 2. Notify Seller & Admin for each order
+        for (const order of createdOrders) {
+          const product = await storage.getProductById(order.productId);
+          if (!product) continue;
+          const seller = await storage.getUserById(order.sellerId);
+          
+          // Notify Seller
+          if (seller) {
+            await notifySellerOfNewOrder(order, seller, product);
+          }
+
+          // Notify Admin
+          const admins = await storage.getAdminUsers();
+          for (const admin of admins) {
+            if (admin.email) {
+              await notifyAdminOfNewOrder(order, admin.email, product, seller || { username: 'Unknown', email: 'N/A' });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to send order notifications:', err);
       }
 
       res.json({ message: "Order placed successfully", orders: createdOrders });

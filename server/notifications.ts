@@ -40,7 +40,7 @@ export async function sendOrderConfirmation(order: any, buyer: any, product: any
       <p>Your order for <strong>${product.title}</strong> has been successfully placed.</p>
       <div style="background-color: #f9fafb; padding: 20px; border-radius: 10px; margin: 20px 0;">
         <p><strong>Order ID:</strong> #${order.id}</p>
-        <p><strong>Amount Paid:</strong> $${parseFloat(order.totalAmount).toFixed(2)}</p>
+        <p><strong>Amount:</strong> GH₵${parseFloat(order.totalAmount).toFixed(2)}</p>
         <p><strong>Shipping Mode:</strong> ${order.shippingMode.replace(/_/g, ' ')}</p>
       </div>
       <p>The seller has been notified and will begin processing your order shortly.</p>
@@ -49,13 +49,67 @@ export async function sendOrderConfirmation(order: any, buyer: any, product: any
   `;
   
   await sendEmailNotification(buyer.email, subject, html);
+}
+
+export async function notifySellerOfNewOrder(order: any, seller: any, product: any) {
+  const subject = `New Order Received: #${order.id}`;
+  const isCOD = order.paymentGateway === 'manual' || order.paymentMode === 'cod';
   
-  // Also send WhatsApp notification if available
-  if (buyer.whatsappNumber || buyer.phoneNumber) {
-    const message = `Order Confirmed! Your order for ${product.title} (ID: #${order.id}) has been placed. Track it here: ${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard`;
-    // We can extend whatsappOtpService to send generic messages
-    console.log('WhatsApp Notification:', { to: buyer.whatsappNumber || buyer.phoneNumber, message });
-  }
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #10b981;">New Order Received!</h1>
+      <p>Hi ${seller.username},</p>
+      <p>You have received a new order for <strong>${product.title}</strong>.</p>
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 10px; margin: 20px 0;">
+        <p><strong>Order ID:</strong> #${order.id}</p>
+        <p><strong>Quantity:</strong> ${order.quantity}</p>
+        <p><strong>Total Amount:</strong> GH₵${parseFloat(order.totalAmount).toFixed(2)}</p>
+        <p><strong>Payment Method:</strong> ${isCOD ? 'Cash on Delivery' : 'Paid Online'}</p>
+      </div>
+      <p>Please login to your <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard">seller dashboard</a> to approve or reject this order.</p>
+      <p>Once approved, Kaydem Logistics will be notified for pickup.</p>
+    </div>
+  `;
+  
+  await sendEmailNotification(seller.email, subject, html);
+}
+
+export async function notifyAdminOfNewOrder(order: any, adminEmail: string, product: any, seller: any) {
+  const subject = `Admin Alert: New Order #${order.id}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #f59e0b;">New Order Alert</h1>
+      <p>A new order has been placed on the platform.</p>
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 10px; margin: 20px 0;">
+        <p><strong>Order ID:</strong> #${order.id}</p>
+        <p><strong>Product:</strong> ${product.title}</p>
+        <p><strong>Seller:</strong> ${seller.username} (${seller.email})</p>
+        <p><strong>Amount:</strong> GH₵${parseFloat(order.totalAmount).toFixed(2)}</p>
+      </div>
+      <p>View details in the <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/admin">admin panel</a>.</p>
+    </div>
+  `;
+  
+  await sendEmailNotification(adminEmail, subject, html);
+}
+
+export async function notifyBuyerOfOrderApproval(order: any, buyer: any, product: any) {
+  const subject = `Order Approved: ${product.title}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #10b981;">Great News!</h1>
+      <p>Hi ${buyer.firstName},</p>
+      <p>The seller has approved your order for <strong>${product.title}</strong>.</p>
+      <div style="background-color: #f9fafb; padding: 20px; border-radius: 10px; margin: 20px 0;">
+        <p><strong>Order ID:</strong> #${order.id}</p>
+        <p><strong>Status:</strong> Seller Approved</p>
+      </div>
+      <p>Our logistics partner, Kaydem Logistics, has been notified to pick up your item. You will receive another update when it's on its way.</p>
+      <p>Track progress in your <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard">dashboard</a>.</p>
+    </div>
+  `;
+  
+  await sendEmailNotification(buyer.email, subject, html);
 }
 
 export async function sendTrackingUpdate(order: any, buyer: any, product: any) {

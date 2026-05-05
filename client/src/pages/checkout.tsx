@@ -57,6 +57,7 @@ export default function Checkout() {
 
   const [paymentMode, setPaymentMode] = useState<'card' | 'momo' | 'bank' | 'cod'>('momo');
   const [isBokoo, setIsBokoo] = useState(false);
+  const [verificationUrls, setVerificationUrls] = useState<{ idUrl?: string, faceUrl?: string } | null>(null);
   const [shippingMode, setShippingMode] = useState<string>('express_kaydem');
   const [isLoading, setIsLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -78,7 +79,8 @@ export default function Checkout() {
           guestDetails: !user ? details : undefined,
           codFee: codFee > 0 ? codFee : undefined,
           shippingMode,
-          shippingFee
+          shippingFee,
+          verificationUrls
         }
       });
       return response.json();
@@ -131,8 +133,6 @@ export default function Checkout() {
   
   const grandTotal = cartTotal + shippingFee + codFee;
   
-  // Mixed checkout calculation
-  // If Bɔkɔɔ Pay is selected: Pay upfront (Non-eligible items + 1st quarter of eligible items) + all fees
   const upfrontAmount = isBokoo 
     ? nonEligibleTotal + (eligibleTotal / 4) + shippingFee + codFee
     : grandTotal;
@@ -153,6 +153,17 @@ export default function Checkout() {
     } else if (step === 2) {
       if (!details.address) return toast({ title: "Missing Address", description: "Please provide a delivery address." });
       if (!agreedToTerms) return toast({ title: "Agreement Required", description: "Please agree to our Buyer Protection terms to proceed.", variant: "destructive" });
+      
+      if (isBokoo && !user) {
+        toast({ 
+          title: "Account Required", 
+          description: "Please login or create an account to use Bɔkɔɔ Pay installments.", 
+          variant: "destructive" 
+        });
+        setLocation('/auth?redirect=/checkout');
+        return;
+      }
+      
       isBokoo ? setStep(3) : setStep(4);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (step === 3) {
@@ -174,21 +185,36 @@ export default function Checkout() {
     setIsVerifying(true);
     try {
       const formData = new FormData();
-      formData.append('buyerId', buyerIdFile);
-      formData.append('buyerFace', buyerFaceFile);
+      formData.append('buyerIdScan', buyerIdFile);
+      formData.append('buyerFaceScan', buyerFaceFile);
+      
+      if (location) {
+        formData.append('latitude', location.latitude.toString());
+        formData.append('longitude', location.longitude.toString());
+      }
 
-      const response = await fetch("/api/buyer-verification", {
-        method: "POST",
-        body: formData,
+      const response = await apiRequest("POST", "/api/upload/buyer-verification", formData);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to upload verification documents");
+      }
+
+      const data = await response.json();
+      setVerificationUrls({
+        idUrl: data.buyerIdScanUrl,
+        faceUrl: data.buyerFaceScanUrl
       });
-
-      if (!response.ok) throw new Error("Failed to upload verification");
 
       setStep(4);
       toast({ title: "Verification Uploaded", description: "Your documents have been submitted for review." });
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (e) {
-      toast({ title: "Upload Error", description: "Could not upload verification documents. Please try again.", variant: "destructive" });
+    } catch (e: any) {
+      toast({ 
+        title: "Upload Error", 
+        description: e.message || "Could not upload verification documents. Please try again.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsVerifying(false);
     }
@@ -205,7 +231,8 @@ export default function Checkout() {
         totalAmount: grandTotal,
         codFee: codFee > 0 ? codFee : undefined,
         shippingMode,
-        shippingFee
+        shippingFee,
+        verificationUrls
       });
       setLocation('/payment-success');
     } catch (e) {
@@ -227,362 +254,457 @@ export default function Checkout() {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
         <Loader2 className="w-12 h-12 animate-spin text-black mb-4" />
-        <h2 className="text-2xl font-black italic">Verifying Payment...</h2>
-        <p className="text-gray-400 font-bold mt-2">Please do not close this window.</p>
+        <h2 className="text-2xl font-bold tracking-tight mb-4">Verifying Payment...</h2>
+        <p className="text-gray-400 font-medium mt-2">Please do not close this window.</p>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-5xl mx-auto px-4">
-        {/* Step Indicator */}
-        <div className="flex items-center justify-between mb-12 max-w-2xl mx-auto">
-          {[{ n: 1, label: 'Info', icon: User }, { n: 2, label: 'Delivery', icon: MapPin }, { n: 3, label: 'Verify', icon: ShieldCheck, hide: !isBokoo }, { n: 4, label: 'Pay', icon: CreditCard }].filter(s => !s.hide).map((s, i, arr) => (
-            <div key={s.n} className="flex items-center flex-1 last:flex-none">
-              <div className="flex flex-col items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${step >= s.n ? 'bg-black border-black text-white' : 'bg-white border-gray-200 text-gray-300'}`}>
-                  <s.icon className="h-5 w-5" />
-                </div>
-                <span className={`text-[9px] font-black uppercase mt-2 tracking-widest transition-colors ${step >= s.n ? 'text-black' : 'text-gray-300'}`}>{s.label}</span>
-              </div>
-              {i < arr.length - 1 && <div className={`h-0.5 flex-1 mx-2 transition-all duration-700 ${step > s.n ? 'bg-black' : 'bg-gray-200'}`} />}
-            </div>
-          ))}
+  const StepHeader = ({ n, title, summary, onEdit, isActive, isCompleted }: { n: number, title: string, summary?: string, onEdit?: () => void, isActive: boolean, isCompleted: boolean }) => (
+    <div className={`py-6 px-8 ${!isActive && isCompleted ? 'cursor-pointer hover:bg-gray-50/50' : ''}`} onClick={!isActive && isCompleted ? onEdit : undefined}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${isActive ? 'bg-black text-white ring-4 ring-black/5' : isCompleted ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+            {isCompleted && !isActive ? <CheckCircle2 className="h-4 w-4" /> : n}
+          </div>
+          <div>
+            <h3 className={`font-bold uppercase text-[10px] tracking-[0.15em] ${isActive ? 'text-black' : 'text-gray-400'}`}>{title}</h3>
+            {!isActive && isCompleted && summary && (
+              <p className="text-sm text-gray-600 font-medium mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">{summary}</p>
+            )}
+          </div>
         </div>
+        {!isActive && isCompleted && (
+          <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onEdit?.(); }} className="text-[10px] font-bold uppercase tracking-widest text-primary hover:bg-primary/5 px-3">
+            Change
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {step === 1 && (
-                <Card className="rounded-[2.5rem] p-8 border-none shadow-xl">
-                  <CardHeader className="px-0">
-                    <CardTitle className="text-3xl font-black italic">Personal Info.</CardTitle>
-                    <CardDescription className="font-bold text-gray-400">Tell us who you are.</CardDescription>
-                  </CardHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input placeholder="First Name" value={details.firstName} onChange={e => setDetails({...details, firstName: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-bold" />
-                      <Input placeholder="Last Name" value={details.lastName} onChange={e => setDetails({...details, lastName: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-bold" />
+  return (
+    <div className="min-h-screen bg-gray-50/30 py-12">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="grid lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-7">
+            <div className="mb-10">
+               <h1 className="text-4xl font-bold tracking-tight mb-3 italic">Checkout.</h1>
+               <p className="text-gray-400 font-medium">Securely complete your university purchase.</p>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+              {/* Step 1: Personal Info */}
+              <div className="border-b border-gray-50">
+                <StepHeader 
+                  n={1} 
+                  title="Contact Information" 
+                  summary={`${details.firstName} ${details.lastName} • ${details.email}`}
+                  isActive={step === 1}
+                  isCompleted={step > 1}
+                  onEdit={() => setStep(1)}
+                />
+                {step === 1 && (
+                  <div className="px-8 pb-10 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <Input placeholder="First Name" value={details.firstName} onChange={e => setDetails({...details, firstName: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-semibold placeholder:text-gray-300" />
+                      <Input placeholder="Last Name" value={details.lastName} onChange={e => setDetails({...details, lastName: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-semibold placeholder:text-gray-300" />
                     </div>
-                    <Input placeholder="Email Address" type="email" value={details.email} onChange={e => setDetails({...details, email: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-bold" />
-                    <Input placeholder="Phone Number" value={details.phoneNumber} onChange={e => setDetails({...details, phoneNumber: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-bold" />
-                    
-                    <Button onClick={handleNextStep} className="w-full h-16 rounded-2xl bg-black text-white font-black text-lg mt-4 group">
-                      Continue to Shipping <ArrowLeft className="ml-2 h-5 w-5 rotate-180 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
-              {step === 2 && (
-                <Card className="rounded-[2.5rem] p-8 border-none shadow-xl">
-                  <CardHeader className="px-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Button variant="ghost" size="sm" onClick={handlePrevStep} className="p-0 h-auto hover:bg-transparent font-black text-xs uppercase tracking-widest text-gray-400">
-                        <ArrowLeft className="w-4 h-4 mr-1" /> Back
+                    <div className="space-y-4">
+                      <Input placeholder="Email Address" type="email" value={details.email} onChange={e => setDetails({...details, email: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-semibold placeholder:text-gray-300" />
+                      <Input placeholder="Phone Number" value={details.phoneNumber} onChange={e => setDetails({...details, phoneNumber: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-semibold placeholder:text-gray-300" />
+                      <Button onClick={handleNextStep} className="w-full h-16 rounded-2xl bg-black text-white font-bold text-lg mt-4 group shadow-xl shadow-black/5 hover:bg-black/90 transition-all">
+                        Continue to Shipping <ArrowLeft className="ml-2 h-5 w-5 rotate-180 transition-transform group-hover:translate-x-1" />
                       </Button>
                     </div>
-                    <CardTitle className="text-3xl font-black italic">Shipping.</CardTitle>
-                    <CardDescription className="font-bold text-gray-400">Where should we deliver?</CardDescription>
-                  </CardHeader>
-                  <div className="space-y-4">
-                    <Input placeholder="University / Workplace / Area" value={details.university} onChange={e => setDetails({...details, university: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-bold" />
-                    <Input placeholder="Address / Hall / Room / Landmark" value={details.address} onChange={e => setDetails({...details, address: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-bold" />
-                    <Input placeholder="City" value={details.city} onChange={e => setDetails({...details, city: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-bold" />
+                  </div>
+                )}
+              </div>
 
-                    <RadioGroup value={shippingMode} onValueChange={(v) => setShippingMode(v)} className="space-y-3 mt-6">
-                      <h3 className="font-black uppercase text-xs tracking-widest text-gray-400">Delivery Method</h3>
-                      <div 
-                        className={`p-6 rounded-3xl border-2 transition-all cursor-pointer ${shippingMode === 'express_kaydem' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white'}`} 
-                        onClick={() => setShippingMode('express_kaydem')}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Truck className={`h-6 w-6 ${shippingMode === 'express_kaydem' ? 'text-black' : 'text-gray-400'}`} />
-                            <div>
-                              <h3 className="font-black uppercase text-xs">Express by Kaydem Logistics</h3>
-                              <p className="text-[10px] text-gray-500 font-bold">1-5 days • FREE</p>
+              {/* Step 2: Shipping */}
+              <div className="border-b border-gray-50">
+                <StepHeader 
+                  n={2} 
+                  title="Delivery Details" 
+                  summary={`${details.address}, ${details.city}`}
+                  isActive={step === 2}
+                  isCompleted={step > 2}
+                  onEdit={() => setStep(2)}
+                />
+                {step === 2 && (
+                  <div className="px-8 pb-10 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className="space-y-4">
+                      <Input placeholder="University / Workplace / Area" value={details.university} onChange={e => setDetails({...details, university: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-semibold placeholder:text-gray-300" />
+                      <Input placeholder="Address / Hall / Room / Landmark" value={details.address} onChange={e => setDetails({...details, address: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-semibold placeholder:text-gray-300" />
+                      <Input placeholder="City" value={details.city} onChange={e => setDetails({...details, city: e.target.value})} className="h-14 rounded-2xl bg-gray-50 border-none focus-visible:ring-2 focus-visible:ring-black font-semibold placeholder:text-gray-300" />
+
+                      <div className="mt-8">
+                        <h3 className="font-bold uppercase text-[10px] tracking-[0.2em] text-gray-400 mb-4">Delivery Method</h3>
+                        <RadioGroup value={shippingMode} onValueChange={(v) => setShippingMode(v)} className="grid grid-cols-1 gap-3">
+                          <div 
+                            className={`p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${shippingMode === 'express_kaydem' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-200'}`} 
+                            onClick={() => setShippingMode('express_kaydem')}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className={`p-2 rounded-xl ${shippingMode === 'express_kaydem' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                  <Truck className="h-5 w-5" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-sm tracking-tight">Express by Kaydem</h3>
+                                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">1-5 days • FREE</p>
+                                </div>
+                              </div>
+                              <RadioGroupItem value="express_kaydem" checked={shippingMode === 'express_kaydem'} />
                             </div>
                           </div>
-                          <RadioGroupItem value="express_kaydem" checked={shippingMode === 'express_kaydem'} />
-                        </div>
+
+                          <div 
+                            className={`p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${shippingMode === 'ghana_post_ems' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-200'}`} 
+                            onClick={() => setShippingMode('ghana_post_ems')}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className={`p-2 rounded-xl ${shippingMode === 'ghana_post_ems' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                  <Building2 className="h-5 w-5" />
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-sm tracking-tight">Ghana Post EMS</h3>
+                                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                                    1-14 days • {isFreeDeliveryQualified ? 'FREE' : `GH₵${shippingFee.toFixed(2)}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <RadioGroupItem value="ghana_post_ems" checked={shippingMode === 'ghana_post_ems'} />
+                            </div>
+                          </div>
+                        </RadioGroup>
                       </div>
 
                       <div 
-                        className={`p-6 rounded-3xl border-2 transition-all cursor-pointer ${shippingMode === 'ghana_post_ems' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white'}`} 
-                        onClick={() => setShippingMode('ghana_post_ems')}
+                        className={`mt-6 p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${isBokoo ? 'border-primary bg-primary/5' : 'border-gray-100 bg-white hover:border-gray-200'} ${cartTotal < 300 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`} 
+                        onClick={() => {
+                          if (cartTotal < 300) {
+                            toast({
+                              title: "Minimum Order GH₵300",
+                              description: "Add more items to unlock Bɔkɔɔ Pay installments.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          setIsBokoo(!isBokoo);
+                        }}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Building2 className={`h-6 w-6 ${shippingMode === 'ghana_post_ems' ? 'text-black' : 'text-gray-400'}`} />
-                            <div>
-                              <h3 className="font-black uppercase text-xs">Ghana Post EMS Delivery</h3>
-                              <p className="text-[10px] text-gray-500 font-bold">
-                                1-14 days • {isFreeDeliveryQualified ? 'FREE (Under GH₵100)' : 'GH₵70.00'}
-                              </p>
-                            </div>
+                          <div className="flex items-center gap-4">
+                             <div className={`p-2 rounded-xl ${isBokoo ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}>
+                               <Wallet className="h-5 w-5" />
+                             </div>
+                             <div>
+                               <h3 className="font-bold text-sm tracking-tight">Bɔkɔɔ Pay (Installments)</h3>
+                               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                                 {cartTotal < 300 ? "Requires GH₵300+ order" : "Pay 25% today • 0% Interest"}
+                               </p>
+                             </div>
                           </div>
-                          <RadioGroupItem value="ghana_post_ems" checked={shippingMode === 'ghana_post_ems'} />
+                          <Checkbox 
+                            checked={isBokoo} 
+                            disabled={cartTotal < 300}
+                            onCheckedChange={(v) => {
+                              if (cartTotal >= 300) setIsBokoo(v as boolean);
+                            }} 
+                            className="h-5 w-5 rounded-full border-gray-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary" 
+                          />
                         </div>
                       </div>
-                    </RadioGroup>
 
-                    <div 
-                      className={`p-6 rounded-3xl border-2 transition-all cursor-pointer ${isBokoo ? 'border-primary bg-primary/5' : 'border-gray-100 bg-gray-50'} ${cartTotal < 300 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`} 
-                      onClick={() => {
-                        if (cartTotal < 300) {
-                          toast({
-                            title: "Minimum Order Required",
-                            description: "Orders must be GH₵300 or more to qualify for Bɔkɔɔ Pay installments.",
-                            variant: "destructive"
-                          });
-                          return;
-                        }
-                        setIsBokoo(!isBokoo);
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                           <Wallet className={`h-6 w-6 ${isBokoo ? 'text-primary' : ''}`} />
-                           <div>
-                             <h3 className="font-black uppercase text-xs">Bɔkɔɔ Pay</h3>
-                             <p className="text-[10px] text-gray-500 font-bold">
-                               {cartTotal < 300 ? "Requires GH₵300+ order" : "4 installments, 0% interest."}
-                             </p>
-                           </div>
-                        </div>
+                      <div className="flex items-start gap-3 p-4 mt-6 bg-gray-50/50 rounded-2xl border border-gray-100">
                         <Checkbox 
-                          checked={isBokoo} 
-                          disabled={cartTotal < 300}
-                          onCheckedChange={(v) => {
-                            if (cartTotal >= 300) setIsBokoo(v as boolean);
-                          }} 
-                          className="h-6 w-6" 
+                          id="terms" 
+                          checked={agreedToTerms} 
+                          onCheckedChange={(v) => setAgreedToTerms(v as boolean)} 
+                          className="mt-0.5 border-gray-300"
                         />
+                        <Label htmlFor="terms" className="text-[11px] leading-relaxed font-medium cursor-pointer text-gray-400">
+                          I agree to <span className="text-black underline font-bold">Buyer Protection</span>: Full refund if not delivered, 7-day electronics warranty, and money-back guarantee.
+                        </Label>
                       </div>
-                    </div>
 
-                    <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                      <Checkbox 
-                        id="terms" 
-                        checked={agreedToTerms} 
-                        onCheckedChange={(v) => setAgreedToTerms(v as boolean)} 
-                        className="mt-1"
-                      />
-                      <Label htmlFor="terms" className="text-[11px] leading-tight font-bold cursor-pointer">
-                        I agree to the <span className="text-black underline">Buyer Protection terms</span>: Full refund if not delivered on time, 7-day electronics warranty, and money-back guarantee for damaged goods.
-                      </Label>
+                      <Button onClick={handleNextStep} className="w-full h-16 rounded-2xl bg-black text-white font-bold text-lg group shadow-xl shadow-black/5 hover:bg-black/90 transition-all">
+                        {isBokoo ? "Continue to Verification" : "Continue to Payment"} <ArrowLeft className="ml-2 h-5 w-5 rotate-180 transition-transform group-hover:translate-x-1" />
+                      </Button>
                     </div>
-
-                    <Button onClick={handleNextStep} className="w-full h-16 rounded-2xl bg-black text-white font-black text-lg group">
-                      Review & Pay <ArrowLeft className="ml-2 h-5 w-5 rotate-180 transition-transform group-hover:translate-x-1" />
-                    </Button>
                   </div>
-                </Card>
-              )}
+                )}
+              </div>
 
-              {step === 3 && (
-                <Card className="rounded-[2.5rem] p-8 border-none shadow-xl">
-                  <CardHeader className="px-0">
-                    <Button variant="ghost" size="sm" onClick={handlePrevStep} className="p-0 h-auto hover:bg-transparent font-black text-xs uppercase tracking-widest text-gray-400 mb-2">
-                      <ArrowLeft className="w-4 h-4 mr-1" /> Back
-                    </Button>
-                    <CardTitle className="text-3xl font-black italic">Verification.</CardTitle>
-                    <CardDescription className="font-bold text-gray-400 leading-relaxed">
-                      To enable Bɔkɔɔ Pay (Installments), we need to verify your identity. This process is secure and takes less than 2 minutes.
-                    </CardDescription>
-                  </CardHeader>
-                  <div className="space-y-8">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-black text-xs">1</div>
-                        <h4 className="font-black uppercase text-xs tracking-widest">Identify Yourself</h4>
-                      </div>
-                      <div className="bg-gray-50 p-6 rounded-[2rem] border-2 border-dashed border-gray-200">
-                         <IdScanCapture onCapture={(file) => setBuyerIdFile(file)} />
-                         <div className="mt-4 flex items-start gap-2">
-                            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                            <p className="text-[10px] text-gray-500 font-bold leading-tight">
-                              Upload a clear photo of your Student ID or National ID. Ensure all text is readable and your face is visible.
-                            </p>
-                         </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center font-black text-xs">2</div>
-                        <h4 className="font-black uppercase text-xs tracking-widest">Live Face Verification</h4>
-                      </div>
-                      <div className="bg-gray-50 p-6 rounded-[2rem] border-2 border-dashed border-gray-200">
-                         <FacialCapture onCapture={(file) => setBuyerFaceFile(file)} />
-                         <div className="mt-4 flex items-start gap-2">
-                            <Sparkles className="w-4 h-4 text-secondary shrink-0 mt-0.5" />
-                            <p className="text-[10px] text-gray-500 font-bold leading-tight">
-                              Look directly into the camera in a well-lit area. This helps us ensure it's really you.
-                            </p>
-                         </div>
-                      </div>
-                    </div>
-
-                    <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 flex items-start gap-4">
-                       <ShieldCheck className="w-6 h-6 text-blue-600 shrink-0" />
-                       <p className="text-[11px] text-blue-800 font-bold leading-relaxed italic">
-                         Your data is encrypted and handled according to Data Protection laws. We only use this for installment approval.
-                       </p>
-                    </div>
-
-                    <Button onClick={handleNextStep} disabled={isVerifying || !buyerIdFile || !buyerFaceFile} className="w-full h-16 rounded-2xl bg-black text-white font-black text-lg shadow-xl shadow-black/10">
-                      {isVerifying ? <><Loader2 className="animate-spin mr-2" /> Processing...</> : "Complete Verification"}
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
-              {step === 4 && (
-                <Card className="rounded-[2.5rem] p-8 border-none shadow-xl">
-                  <CardHeader className="px-0">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Button variant="ghost" size="sm" onClick={handlePrevStep} className="p-0 h-auto hover:bg-transparent font-black text-xs uppercase tracking-widest text-gray-400 mb-2">
-                          <ArrowLeft className="w-4 h-4 mr-1" /> Back
-                        </Button>
-                        <CardTitle className="text-3xl font-black italic">Payment.</CardTitle>
-                      </div>
-                      <Badge className="bg-green-100 text-green-700 border-none font-black text-[9px] uppercase tracking-widest px-3 py-1">
-                        <Smartphone className="w-3 h-3 mr-1" /> Secure Gateway
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <div className="space-y-6">
-                    {/* Buyer Trust & Terms Notice */}
-                    <div className="bg-black text-white p-6 rounded-[2rem] space-y-4 shadow-xl">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-5 h-5 text-green-400" />
-                        <h3 className="font-black uppercase text-xs tracking-widest">Buyer Protection.</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="w-3 h-3 text-yellow-400" />
-                            <p className="text-[10px] font-black uppercase text-gray-400">Refund Guarantee</p>
-                          </div>
-                          <p className="text-[11px] font-bold italic leading-tight">If your item isn't delivered within the specified dates, you get a 100% full refund immediately.</p>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Info className="w-3 h-3 text-blue-400" />
-                            <p className="text-[10px] font-black uppercase text-gray-400">Electronics & Damage</p>
-                          </div>
-                          <p className="text-[11px] font-bold italic leading-tight">Electronics carry a 7-day warranty. Arrived damaged? We'll replace or refund you with no stress.</p>
-                        </div>
-                      </div>
-                      <p className="text-[9px] text-gray-400 font-bold border-t border-white/10 pt-3">
-                        Shop with 100% confidence. Your money is held in escrow and only released to the seller after you confirm delivery. You are 100% safe from scams.
+              {/* Step 3: Verification (Only for Bɔkɔɔ) */}
+              {isBokoo && (
+                <div className="border-b border-gray-50">
+                  <StepHeader 
+                    n={3} 
+                    title="Identity Verification" 
+                    summary="Documents uploaded successfully"
+                    isActive={step === 3}
+                    isCompleted={step > 3}
+                    onEdit={() => setStep(3)}
+                  />
+                  {step === 3 && (
+                    <div className="px-8 pb-10 animate-in fade-in slide-in-from-top-2 duration-500">
+                      <p className="text-sm font-medium text-gray-400 mb-8 max-w-md">
+                        To enable Bɔkɔɔ Pay installments, we need to verify your student or national ID.
                       </p>
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <IdScanCapture onCapture={(file) => setBuyerIdFile(file)} />
+                          <FacialCapture onCapture={(file) => setBuyerFaceFile(file)} />
+                        </div>
+                        
+                        <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-start gap-3">
+                           <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                           <p className="text-[11px] text-blue-700 font-semibold italic leading-relaxed">
+                             Your biometric data is encrypted and handled according to Data Protection laws. We only use this for installment approval.
+                           </p>
+                        </div>
+
+                        <Button onClick={handleNextStep} disabled={isVerifying || !buyerIdFile || !buyerFaceFile} className="w-full h-16 rounded-2xl bg-black text-white font-bold text-lg shadow-xl shadow-black/5 hover:bg-black/90 transition-all">
+                          {isVerifying ? <><Loader2 className="animate-spin mr-2" /> Securely Processing...</> : "Complete Verification"}
+                        </Button>
+                      </div>
                     </div>
+                  )}
+                </div>
+              )}
 
-                    <RadioGroup value={paymentMode} onValueChange={(v: any) => setPaymentMode(v)} className="grid grid-cols-1 gap-4">
-                      <div className={`flex items-center justify-between p-6 rounded-3xl border-2 transition-all cursor-pointer ${paymentMode === 'momo' ? 'border-black bg-gray-50' : 'border-gray-100'}`} onClick={() => setPaymentMode('momo')}>
-                        <div className="flex items-center gap-4">
-                          <Smartphone className="h-6 w-6" />
-                          <div>
-                            <p className="font-black uppercase text-xs">Mobile Money</p>
-                            <p className="text-[10px] text-gray-400">MTN, Telecel, AT - Secure Hosted</p>
+              {/* Step 4: Payment */}
+              <div>
+                <StepHeader 
+                  n={isBokoo ? 4 : 3} 
+                  title="Final Payment" 
+                  isActive={step === 4}
+                  isCompleted={step > 4}
+                />
+                {step === 4 && (
+                  <div className="px-8 pb-10 animate-in fade-in slide-in-from-top-2 duration-500">
+                    <div className="space-y-8">
+                      <RadioGroup value={paymentMode} onValueChange={(v: any) => setPaymentMode(v)} className="grid grid-cols-1 gap-3">
+                        <div 
+                          className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${paymentMode === 'momo' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-200'}`} 
+                          onClick={() => setPaymentMode('momo')}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-xl ${paymentMode === 'momo' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <Smartphone className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm tracking-tight">Mobile Money</p>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">MTN, Telecel, AT • Secure</p>
+                            </div>
                           </div>
+                          <RadioGroupItem value="momo" id="momo" />
                         </div>
-                        <RadioGroupItem value="momo" id="momo" />
-                      </div>
 
-                      <div className={`flex items-center justify-between p-6 rounded-3xl border-2 transition-all cursor-pointer ${paymentMode === 'card' ? 'border-black bg-gray-50' : 'border-gray-100'}`} onClick={() => setPaymentMode('card')}>
-                        <div className="flex items-center gap-4">
-                          <CreditCard className="h-6 w-6" />
-                          <div><p className="font-black uppercase text-xs">Credit / Debit Card</p><p className="text-[10px] text-gray-400">Visa, Mastercard - Secure PayStack</p></div>
+                        <div 
+                          className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${paymentMode === 'card' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-200'}`} 
+                          onClick={() => setPaymentMode('card')}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-xl ${paymentMode === 'card' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <CreditCard className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm tracking-tight">Credit / Debit Card</p>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Visa, Mastercard • Secure</p>
+                            </div>
+                          </div>
+                          <RadioGroupItem value="card" id="card" />
                         </div>
-                        <RadioGroupItem value="card" id="card" />
-                      </div>
-                      
-                      <div className={`flex items-center justify-between p-6 rounded-3xl border-2 transition-all cursor-pointer ${paymentMode === 'cod' ? 'border-black bg-gray-50' : 'border-gray-100'}`} onClick={() => setPaymentMode('cod')}>
-                        <div className="flex items-center gap-4">
-                          <Truck className="h-6 w-6" />
-                          <div><p className="font-black uppercase text-xs">Cash on Delivery</p><p className="text-[10px] text-gray-400">10% service fee applies</p></div>
-                        </div>
-                        <RadioGroupItem value="cod" id="cod" />
-                      </div>
-                    </RadioGroup>
+                        
+                        {!isBokoo && (
+                          <div 
+                            className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${paymentMode === 'cod' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-200'}`} 
+                            onClick={() => setPaymentMode('cod')}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`p-2 rounded-xl ${paymentMode === 'cod' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                <Truck className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm tracking-tight">Cash on Delivery</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">10% service fee applies</p>
+                              </div>
+                            </div>
+                            <RadioGroupItem value="cod" id="cod" />
+                          </div>
+                        )}
+                      </RadioGroup>
 
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
-                        <p className="text-[11px] text-blue-800 leading-relaxed font-bold italic">
+                      <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                        <p className="text-[11px] text-gray-400 leading-relaxed font-semibold italic text-center">
                           {paymentMode === 'cod' 
-                            ? "IMPORTANT: For Cash on Delivery, you can only pay to a Kaydem Logistics account or give cash directly to the assigned Kaydem delivery agent."
-                            : "Your payment is secured and processed by PayStack. You will be redirected to complete the transaction."}
+                            ? "For COD, payment should ONLY be made to Kaydem Logistics accounts or assigned agents."
+                            : "Payments are secured and processed by PayStack. You'll be redirected shortly."}
                         </p>
                       </div>
                       
                       <Button 
                         onClick={handlePayment} 
-                        className="w-full h-16 rounded-2xl bg-black text-white font-black text-lg shadow-xl shadow-black/10"
+                        className="w-full h-16 rounded-2xl bg-black text-white font-bold text-lg shadow-xl shadow-black/5 hover:bg-black/90 transition-all"
                         disabled={isLoading || paystackInitializeMutation.isPending || paystackVerifyMutation.isPending}
                       >
                         {paystackInitializeMutation.isPending || paystackVerifyMutation.isPending ? (
-                          <><Loader2 className="w-5 h-5 animate-spin mr-2" /> {paystackVerifyMutation.isPending ? "Verifying..." : "Redirecting..."}</>
+                          <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Securing Transaction...</>
                         ) : (
-                          `Confirm & Pay GH₵${upfrontAmount.toFixed(2)}`
+                          <div className="flex items-center gap-3 justify-center">
+                            <span>Confirm & Pay</span>
+                            <div className="h-4 w-px bg-white/20" />
+                            <div className="flex items-center tracking-tight">
+                              <span className="text-xs opacity-50 mr-1 italic">GH₵</span>
+                              <span>{upfrontAmount.toFixed(2)}</span>
+                            </div>
+                          </div>
                         )}
                       </Button>
                     </div>
                   </div>
-                </Card>
-              )}
+                )}
+              </div>
+            </div>
+
+            {/* Buyer Trust & Terms Notice */}
+            <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm mt-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] rotate-12">
+                 <ShieldCheck className="w-32 h-32 text-black" />
+              </div>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="bg-green-50 p-3 rounded-2xl">
+                  <ShieldCheck className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                   <h3 className="font-bold uppercase text-[10px] tracking-[0.2em] text-black">Buyer Protection</h3>
+                   <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider">100% Safe & Secure</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-yellow-50 flex items-center justify-center">
+                       <Sparkles className="w-3 h-3 text-yellow-600" />
+                    </div>
+                    <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Refund Guarantee</p>
+                  </div>
+                  <p className="text-xs font-medium text-gray-500 leading-relaxed italic pr-4">If your item isn't delivered within the specified dates, you get a 100% full refund immediately.</p>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center">
+                       <Info className="w-3 h-3 text-blue-600" />
+                    </div>
+                    <p className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Quality Assurance</p>
+                  </div>
+                  <p className="text-xs font-medium text-gray-500 leading-relaxed italic pr-4">Electronics carry a 7-day warranty. Arrived damaged? We'll replace or refund you with no stress.</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="lg:col-span-1">
-             <Card className="rounded-[2.5rem] p-8 border-none shadow-xl sticky top-24">
-                <h3 className="font-black uppercase text-xs tracking-widest text-gray-400 mb-6">Summary.</h3>
-                <div className="space-y-4 mb-6 max-h-[300px] overflow-auto">
-                  {cartItems.map((item: any) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <div>
-                        <p className="font-bold line-clamp-1">{item.product.title}</p>
-                        {item.product.isInstallmentEligible && <Badge variant="outline" className="text-[8px] font-black uppercase text-primary border-primary/20 px-1 h-4">Eligible</Badge>}
-                      </div>
-                      <p className="font-black ml-4">GH₵{(parseFloat(item.product.price) * item.quantity).toFixed(2)}</p>
-                    </div>
-                  ))}
-                </div>
-                <Separator className="mb-6" />
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between text-xs font-bold text-gray-400 uppercase"><span>Subtotal</span><span>GH₵{cartTotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-xs font-bold text-gray-400 uppercase">
-                    <span>Shipping ({shippingMode === 'ghana_post_ems' ? 'EMS' : 'Express'})</span>
-                    <span>{shippingFee === 0 ? 'FREE' : `GH₵${shippingFee.toFixed(2)}`}</span>
+          <div className="lg:col-span-5">
+             <div className="sticky top-24">
+               <Card className="rounded-[2.5rem] p-10 border-none shadow-2xl bg-white overflow-hidden">
+                  <div className="flex justify-between items-center mb-10">
+                    <h3 className="font-bold uppercase text-[10px] tracking-[0.2em] text-gray-400">Order Summary</h3>
+                    <Badge variant="outline" className="text-[8px] font-bold uppercase text-gray-300 border-gray-100 rounded-full px-3">{cartItems.length} Items</Badge>
                   </div>
-                  {codFee > 0 && <div className="flex justify-between text-xs font-bold text-gray-400 uppercase"><span>COD Fee (10%)</span><span>GH₵{codFee.toFixed(2)}</span></div>}
-                </div>
-                <div className="flex justify-between items-center mb-6"><span className="text-lg font-black italic">Total.</span><span className="text-3xl font-black">GH₵{grandTotal.toFixed(2)}</span></div>
-                
-                {isBokoo && (
-                   <div className="space-y-3">
-                      <div className="p-4 bg-primary/5 rounded-2xl border-2 border-primary/10">
-                         <div className="flex justify-between items-center mb-1">
-                            <span className="text-[10px] font-black uppercase text-primary">Pay Today</span>
-                            <span className="font-black text-lg">GH₵{upfrontAmount.toFixed(2)}</span>
-                         </div>
-                         <p className="text-[9px] font-bold text-gray-500">Includes all non-eligible items + 1st installment + fees.</p>
+                  
+                  <div className="space-y-8 mb-10 max-h-[400px] overflow-auto pr-4 scrollbar-hide">
+                    {cartItems.map((item: any) => (
+                      <div key={item.id} className="flex gap-5 items-center group">
+                        <div className="w-20 h-20 rounded-3xl bg-gray-50 overflow-hidden flex-shrink-0 border border-gray-50 group-hover:shadow-lg transition-all duration-500">
+                          <img src={item.product.images[0]} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm tracking-tight truncate mb-1">{item.product.title}</p>
+                          <div className="flex items-center gap-3">
+                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Qty: {item.quantity}</p>
+                             {item.product.isInstallmentEligible && (
+                               <Badge variant="secondary" className="text-[7px] font-bold uppercase bg-primary/5 text-primary border-none h-4 px-1.5 rounded-full">Bɔkɔɔ</Badge>
+                             )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold tracking-tight">
+                            <span className="text-[10px] text-gray-300 mr-1 italic font-medium">GH₵</span>
+                            {(parseFloat(item.product.price) * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
                       </div>
-                      <div className="p-4 bg-gray-50 rounded-2xl border-2 border-gray-100">
-                         <div className="flex justify-between items-center mb-1">
-                            <span className="text-[10px] font-black uppercase text-gray-400">Monthly Next</span>
-                            <span className="font-black text-lg">GH₵{recurringAmount.toFixed(2)}</span>
-                         </div>
-                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">3 Parts • Monthly Auto-deduct</p>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4 mb-8">
+                    <div className="flex justify-between text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em]">
+                      <span>Subtotal</span>
+                      <span className="text-gray-900 tracking-tight">GH₵ {cartTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em]">
+                      <span>Shipping ({shippingMode === 'ghana_post_ems' ? 'EMS' : 'Express'})</span>
+                      <span className={shippingFee === 0 ? 'text-green-600 font-bold tracking-tight' : 'text-gray-900 tracking-tight'}>
+                        {shippingFee === 0 ? 'FREE' : `GH₵ ${shippingFee.toFixed(2)}`}
+                      </span>
+                    </div>
+                    {codFee > 0 && (
+                      <div className="flex justify-between text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em] animate-in fade-in slide-in-from-right-2 duration-300">
+                        <span>COD Service (10%)</span>
+                        <span className="text-gray-900 tracking-tight">GH₵ {codFee.toFixed(2)}</span>
                       </div>
-                   </div>
-                )}
-             </Card>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center mb-10 bg-gray-50/50 p-8 rounded-[2rem] border border-gray-100/50">
+                    <span className="text-sm font-bold tracking-[0.2em] uppercase text-gray-400 italic">Total.</span>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold tracking-tight text-black">
+                        <span className="text-xs text-gray-300 mr-1.5 italic font-medium">GH₵</span>
+                        {grandTotal.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {isBokoo && (
+                     <div className="space-y-4 animate-in fade-in zoom-in-95 duration-500">
+                        <div className="p-6 bg-primary/[0.03] rounded-[2.5rem] border-2 border-primary/10 relative overflow-hidden group hover:border-primary/20 transition-all">
+                           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                              <Wallet className="w-12 h-12 text-primary" />
+                           </div>
+                           <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] font-bold uppercase text-primary tracking-[0.15em]">Initial Deposit</span>
+                              <p className="text-2xl font-bold tracking-tight text-primary">
+                                <span className="text-xs mr-1.5 italic font-medium">GH₵</span>
+                                {upfrontAmount.toFixed(2)}
+                              </p>
+                           </div>
+                           <p className="text-[10px] font-bold text-primary/40 uppercase tracking-wider leading-tight">Secures order today.</p>
+                        </div>
+                        <div className="p-6 bg-gray-50/30 rounded-[2.5rem] border-2 border-gray-100 hover:border-gray-200 transition-all">
+                           <div className="flex justify-between items-center mb-3">
+                              <span className="text-[10px] font-bold uppercase text-gray-400 tracking-[0.15em]">Monthly Split</span>
+                              <p className="text-2xl font-bold tracking-tight text-gray-700">
+                                <span className="text-xs text-gray-300 mr-1.5 italic font-medium">GH₵</span>
+                                {recurringAmount.toFixed(2)}
+                              </p>
+                           </div>
+                           <p className="text-[10px] font-bold text-gray-300 uppercase tracking-wider">3x Installments</p>
+                        </div>
+                     </div>
+                  )}
+               </Card>
+               
+               <p className="text-center text-[10px] font-bold text-gray-200 uppercase tracking-[0.3em] mt-10 flex items-center justify-center gap-3">
+                 <div className="h-px w-8 bg-gray-100" />
+                 <Lock className="w-3 h-3" /> Encrypted
+                 <div className="h-px w-8 bg-gray-100" />
+               </p>
+             </div>
           </div>
         </div>
       </div>
