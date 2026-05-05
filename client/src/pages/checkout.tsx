@@ -57,7 +57,21 @@ export default function Checkout() {
 
   const [paymentMode, setPaymentMode] = useState<'card' | 'momo' | 'bank' | 'cod'>('momo');
   const [isBokoo, setIsBokoo] = useState(false);
-  const [verificationUrls, setVerificationUrls] = useState<{ idUrl?: string, faceUrl?: string } | null>(null);
+  const [verificationType, setVerificationType] = useState<'student' | 'worker'>('student');
+  const [applicantOccupation, setApplicantOccupation] = useState('');
+  const [applicantSalary, setApplicantSalary] = useState('');
+  const [guardianName, setGuardianName] = useState('');
+  const [guardianOccupation, setGuardianOccupation] = useState('');
+  const [guardianSalary, setGuardianSalary] = useState('');
+  const [guardianPhone, setGuardianPhone] = useState('');
+  const [buyerIdType, setBuyerIdType] = useState<'national_id' | 'passport'>('national_id');
+  const [verificationUrls, setVerificationUrls] = useState<{ 
+    idUrl?: string, 
+    idBackUrl?: string,
+    faceUrl?: string,
+    guardianIdUrl?: string,
+    guardianFaceWithIdUrl?: string
+  } | null>(null);
   const [shippingMode, setShippingMode] = useState<string>('express_kaydem');
   const [isLoading, setIsLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -80,6 +94,19 @@ export default function Checkout() {
           codFee: codFee > 0 ? codFee : undefined,
           shippingMode,
           shippingFee,
+          // Detailed verification for installments
+          verificationType,
+          verificationOccupation: verificationType === 'worker' ? applicantOccupation : undefined,
+          verificationSalary: verificationType === 'worker' ? applicantSalary : undefined,
+          verificationIdType: buyerIdType,
+          verificationIdFrontUrl: verificationUrls?.idUrl,
+          verificationIdBackUrl: verificationUrls?.idBackUrl,
+          guardianName: verificationType === 'student' ? guardianName : undefined,
+          guardianOccupation: verificationType === 'student' ? guardianOccupation : undefined,
+          guardianSalary: verificationType === 'student' ? guardianSalary : undefined,
+          guardianPhone: verificationType === 'student' ? guardianPhone : undefined,
+          guardianIdUrl: verificationUrls?.guardianIdUrl,
+          guardianFaceWithIdUrl: verificationUrls?.guardianFaceWithIdUrl,
           verificationUrls
         }
       });
@@ -117,7 +144,10 @@ export default function Checkout() {
 
   const [isVerifying, setIsVerifying] = useState(false);
   const [buyerIdFile, setBuyerIdFile] = useState<File | null>(null);
+  const [buyerIdFileBack, setBuyerIdFileBack] = useState<File | null>(null);
   const [buyerFaceFile, setBuyerFaceFile] = useState<File | null>(null);
+  const [guardianIdFile, setGuardianIdFile] = useState<File | null>(null);
+  const [guardianFaceWithIdFile, setGuardianFaceWithIdFile] = useState<File | null>(null);
 
   const eligibleItems = cartItems.filter((item: any) => item.product.isInstallmentEligible);
   const nonEligibleItems = cartItems.filter((item: any) => !item.product.isInstallmentEligible);
@@ -154,18 +184,13 @@ export default function Checkout() {
       if (!details.address) return toast({ title: "Missing Address", description: "Please provide a delivery address." });
       if (!agreedToTerms) return toast({ title: "Agreement Required", description: "Please agree to our Buyer Protection terms to proceed.", variant: "destructive" });
       
-      if (isBokoo && !user) {
-        toast({ 
-          title: "Account Required", 
-          description: "Please login or create an account to use Bɔkɔɔ Pay installments.", 
-          variant: "destructive" 
-        });
-        setLocation('/auth?redirect=/checkout');
-        return;
+      if (isBokoo) {
+        setStep(3);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setStep(4);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      
-      isBokoo ? setStep(3) : setStep(4);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (step === 3) {
       if (!buyerIdFile || !buyerFaceFile) return toast({ title: "Verification Required" });
       handleVerificationAndContinue();
@@ -180,14 +205,28 @@ export default function Checkout() {
   };
 
   const handleVerificationAndContinue = async () => {
-    if (!buyerIdFile || !buyerFaceFile) return;
+    if (!buyerIdFile) return toast({ title: "Buyer ID Required" });
+    if (buyerIdType === 'national_id' && !buyerIdFileBack) return toast({ title: "Back of National ID Required" });
+    
+    if (verificationType === 'student') {
+      if (!guardianName || !guardianPhone) return toast({ title: "Guardian Info Required" });
+      if (!guardianIdFile || !guardianFaceWithIdFile) return toast({ title: "Guardian Documents Required" });
+    } else {
+      if (!applicantOccupation || !applicantSalary) return toast({ title: "Employment Info Required" });
+    }
     
     setIsVerifying(true);
     try {
       const formData = new FormData();
       formData.append('buyerIdScan', buyerIdFile);
-      formData.append('buyerFaceScan', buyerFaceFile);
+      if (buyerIdFileBack) formData.append('buyerIdScanBack', buyerIdFileBack);
+      if (buyerFaceFile) formData.append('buyerFaceScan', buyerFaceFile);
       
+      if (verificationType === 'student') {
+        formData.append('guardianIdScan', guardianIdFile!);
+        formData.append('guardianFaceWithId', guardianFaceWithIdFile!);
+      }
+
       if (location) {
         formData.append('latitude', location.latitude.toString());
         formData.append('longitude', location.longitude.toString());
@@ -203,7 +242,10 @@ export default function Checkout() {
       const data = await response.json();
       setVerificationUrls({
         idUrl: data.buyerIdScanUrl,
-        faceUrl: data.buyerFaceScanUrl
+        idBackUrl: data.buyerIdScanBackUrl,
+        faceUrl: data.buyerFaceScanUrl,
+        guardianIdUrl: data.guardianIdUrl,
+        guardianFaceWithIdUrl: data.guardianFaceWithIdUrl
       });
 
       setStep(4);
@@ -232,7 +274,20 @@ export default function Checkout() {
         codFee: codFee > 0 ? codFee : undefined,
         shippingMode,
         shippingFee,
-        verificationUrls
+        // Pass all verification details
+        verificationType,
+        verificationOccupation: verificationType === 'worker' ? applicantOccupation : undefined,
+        verificationSalary: verificationType === 'worker' ? applicantSalary : undefined,
+        verificationIdType: buyerIdType,
+        verificationIdFrontUrl: verificationUrls?.idUrl,
+        verificationIdBackUrl: verificationUrls?.idBackUrl,
+        guardianName: verificationType === 'student' ? guardianName : undefined,
+        guardianOccupation: verificationType === 'student' ? guardianOccupation : undefined,
+        guardianSalary: verificationType === 'student' ? guardianSalary : undefined,
+        guardianPhone: verificationType === 'student' ? guardianPhone : undefined,
+        guardianIdUrl: verificationUrls?.guardianIdUrl,
+        guardianFaceWithIdUrl: verificationUrls?.guardianFaceWithIdUrl,
+        verificationUrls // Keeping for backward compatibility if any
       });
       setLocation('/payment-success');
     } catch (e) {
@@ -444,31 +499,105 @@ export default function Checkout() {
                   <StepHeader 
                     n={3} 
                     title="Identity Verification" 
-                    summary="Documents uploaded successfully"
+                    summary="Verification documents submitted"
                     isActive={step === 3}
                     isCompleted={step > 3}
                     onEdit={() => setStep(3)}
                   />
                   {step === 3 && (
                     <div className="px-8 pb-10 animate-in fade-in slide-in-from-top-2 duration-500">
-                      <p className="text-sm font-medium text-gray-400 mb-8 max-w-md">
-                        To enable Bɔkɔɔ Pay installments, we need to verify your student or national ID.
-                      </p>
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <IdScanCapture onCapture={(file) => setBuyerIdFile(file)} />
-                          <FacialCapture onCapture={(file) => setBuyerFaceFile(file)} />
+                      <div className="space-y-8">
+                        {/* 1. Applicant Type */}
+                        <div>
+                          <h3 className="font-bold uppercase text-[10px] tracking-[0.2em] text-gray-400 mb-4">I am a:</h3>
+                          <RadioGroup value={verificationType} onValueChange={(v: any) => setVerificationType(v)} className="grid grid-cols-2 gap-4">
+                            <div className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${verificationType === 'student' ? 'border-black bg-gray-50' : 'border-gray-100'}`} onClick={() => setVerificationType('student')}>
+                              <div className="flex items-center gap-3">
+                                <Building2 className="h-5 w-5" />
+                                <span className="font-bold text-sm">Student</span>
+                              </div>
+                            </div>
+                            <div className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${verificationType === 'worker' ? 'border-black bg-gray-50' : 'border-gray-100'}`} onClick={() => setVerificationType('worker')}>
+                              <div className="flex items-center gap-3">
+                                <Truck className="h-5 w-5" />
+                                <span className="font-bold text-sm">Worker</span>
+                              </div>
+                            </div>
+                          </RadioGroup>
                         </div>
-                        
+
+                        {/* 2. ID Type & Uploads */}
+                        <div>
+                          <h3 className="font-bold uppercase text-[10px] tracking-[0.2em] text-gray-400 mb-4">Applicant's ID:</h3>
+                          <RadioGroup value={buyerIdType} onValueChange={(v: any) => setBuyerIdType(v)} className="grid grid-cols-2 gap-4 mb-6">
+                            <div className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${buyerIdType === 'national_id' ? 'border-black bg-gray-50' : 'border-gray-100'}`} onClick={() => setBuyerIdType('national_id')}>
+                              <span className="font-bold text-sm">National ID</span>
+                            </div>
+                            <div className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${buyerIdType === 'passport' ? 'border-black bg-gray-50' : 'border-gray-100'}`} onClick={() => setBuyerIdType('passport')}>
+                              <span className="font-bold text-sm">Passport</span>
+                            </div>
+                          </RadioGroup>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                               <p className="text-[10px] font-bold uppercase text-gray-400">{buyerIdType === 'national_id' ? 'Front Side' : 'Data Page'}</p>
+                               <IdScanCapture onCapture={(file) => setBuyerIdFile(file)} />
+                            </div>
+                            {buyerIdType === 'national_id' && (
+                              <div className="space-y-2">
+                                 <p className="text-[10px] font-bold uppercase text-gray-400">Back Side</p>
+                                 <IdScanCapture onCapture={(file) => setBuyerIdFileBack(file)} />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="mt-6 space-y-2">
+                             <p className="text-[10px] font-bold uppercase text-gray-400">Applicant Face Capture</p>
+                             <FacialCapture onCapture={(file) => setBuyerFaceFile(file)} />
+                          </div>
+                        </div>
+
+                        {/* 3. Conditional Details (Guardian vs Work) */}
+                        {verificationType === 'student' ? (
+                          <div className="space-y-6 pt-6 border-t border-gray-50">
+                            <h3 className="font-bold uppercase text-[10px] tracking-[0.2em] text-gray-400">Guardian Verification:</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <Input placeholder="Guardian Full Name" value={guardianName} onChange={e => setGuardianName(e.target.value)} className="h-14 rounded-2xl bg-gray-50 border-none font-semibold" />
+                              <Input placeholder="Guardian Phone Number" value={guardianPhone} onChange={e => setGuardianPhone(e.target.value)} className="h-14 rounded-2xl bg-gray-50 border-none font-semibold" />
+                              <Input placeholder="Guardian Occupation" value={guardianOccupation} onChange={e => setGuardianOccupation(e.target.value)} className="h-14 rounded-2xl bg-gray-50 border-none font-semibold" />
+                              <Input placeholder="Guardian Monthly Salary (GH₵)" value={guardianSalary} onChange={e => setGuardianSalary(e.target.value)} className="h-14 rounded-2xl bg-gray-50 border-none font-semibold" />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                 <p className="text-[10px] font-bold uppercase text-gray-400">Guardian ID</p>
+                                 <IdScanCapture onCapture={(file) => setGuardianIdFile(file)} />
+                              </div>
+                              <div className="space-y-2">
+                                 <p className="text-[10px] font-bold uppercase text-gray-400">Guardian Holding ID (at cheek)</p>
+                                 <FacialCapture onCapture={(file) => setGuardianFaceWithIdFile(file)} />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-6 pt-6 border-t border-gray-50">
+                            <h3 className="font-bold uppercase text-[10px] tracking-[0.2em] text-gray-400">Employment Details:</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <Input placeholder="Your Occupation" value={applicantOccupation} onChange={e => setApplicantOccupation(e.target.value)} className="h-14 rounded-2xl bg-gray-50 border-none font-semibold" />
+                              <Input placeholder="Monthly Salary (GH₵)" value={applicantSalary} onChange={e => setApplicantSalary(e.target.value)} className="h-14 rounded-2xl bg-gray-50 border-none font-semibold" />
+                            </div>
+                          </div>
+                        )}
+
                         <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-start gap-3">
                            <ShieldCheck className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                            <p className="text-[11px] text-blue-700 font-semibold italic leading-relaxed">
-                             Your biometric data is encrypted and handled according to Data Protection laws. We only use this for installment approval.
+                             Your data is encrypted. We only use this for installment approval. Verification is sent to admin for manual review.
                            </p>
                         </div>
 
-                        <Button onClick={handleNextStep} disabled={isVerifying || !buyerIdFile || !buyerFaceFile} className="w-full h-16 rounded-2xl bg-black text-white font-bold text-lg shadow-xl shadow-black/5 hover:bg-black/90 transition-all">
-                          {isVerifying ? <><Loader2 className="animate-spin mr-2" /> Securely Processing...</> : "Complete Verification"}
+                        <Button onClick={handleNextStep} disabled={isVerifying} className="w-full h-16 rounded-2xl bg-black text-white font-bold text-lg shadow-xl shadow-black/5 hover:bg-black/90 transition-all">
+                          {isVerifying ? <><Loader2 className="animate-spin mr-2" /> Securely Processing...</> : "Submit for Approval"}
                         </Button>
                       </div>
                     </div>

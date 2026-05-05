@@ -161,6 +161,22 @@ export const orders = pgTable("orders", {
   payoutStatus: text("payout_status").default("pending"), // pending, processed, cancelled
   payoutProcessedAt: timestamp("payout_processed_at"),
   
+  // Verification details (especially for installments)
+  verificationType: text("verification_type"), // student, worker
+  verificationOccupation: text("verification_occupation"), 
+  verificationSalary: text("verification_salary"),
+  verificationIdType: text("verification_id_type"), // national_id, passport
+  verificationIdFrontUrl: text("verification_id_front_url"),
+  verificationIdBackUrl: text("verification_id_back_url"),
+  
+  // Guardian details (for students)
+  guardianName: text("guardian_name"),
+  guardianOccupation: text("guardian_occupation"),
+  guardianSalary: text("guardian_salary"),
+  guardianPhone: text("guardian_phone"),
+  guardianIdUrl: text("guardian_id_url"),
+  guardianFaceWithIdUrl: text("guardian_face_with_id_url"),
+  
   // Installment fields
   isInstallment: boolean("is_installment").notNull().default(false),
   installmentsPaid: integer("installments_paid").notNull().default(0),
@@ -457,6 +473,18 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   buyerCity: z.string().nullable().optional(),
   buyerPhone: z.string().nullable().optional(),
   buyerEmail: z.string().nullable().optional(),
+  verificationType: z.string().nullable().optional(),
+  verificationOccupation: z.string().nullable().optional(),
+  verificationSalary: z.string().nullable().optional(),
+  verificationIdType: z.string().nullable().optional(),
+  verificationIdFrontUrl: z.string().nullable().optional(),
+  verificationIdBackUrl: z.string().nullable().optional(),
+  guardianName: z.string().nullable().optional(),
+  guardianOccupation: z.string().nullable().optional(),
+  guardianSalary: z.string().nullable().optional(),
+  guardianPhone: z.string().nullable().optional(),
+  guardianIdUrl: z.string().nullable().optional(),
+  guardianFaceWithIdUrl: z.string().nullable().optional(),
 });
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
@@ -654,7 +682,7 @@ export type StoreWithUser = Store & {
 export type OrderWithDetails = Order & {
   product: Product & { category: Category };
   buyer: Pick<User, 'firstName' | 'lastName' | 'email'>;
-  seller: Pick<User, 'firstName' | 'lastName' | 'email'>;
+  seller: Pick<User, 'firstName' | 'lastName' | 'email' | 'bankName' | 'bankAccountNumber' | 'mobileMoneyPhone'>;
 };
 
 export type CartItemWithProduct = CartItem & {

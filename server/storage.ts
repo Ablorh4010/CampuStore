@@ -1001,6 +1001,9 @@ export class DatabaseStorage implements IStorage {
         firstName: seller.firstName,
         lastName: seller.lastName,
         email: seller.email,
+        bankName: seller.bankName,
+        bankAccountNumber: seller.bankAccountNumber,
+        mobileMoneyPhone: seller.mobileMoneyPhone,
       }
     };
   }
@@ -1031,6 +1034,9 @@ export class DatabaseStorage implements IStorage {
         firstName: result.seller!.firstName,
         lastName: result.seller!.lastName,
         email: result.seller!.email,
+        bankName: result.seller!.bankName,
+        bankAccountNumber: result.seller!.bankAccountNumber,
+        mobileMoneyPhone: result.seller!.mobileMoneyPhone,
       }
     }));
   }
@@ -1049,13 +1055,22 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .where(eq(orders.sellerId, sellerId));
 
+    const seller = await this.getUserById(sellerId);
+
     return results.map(result => ({
       ...result.order,
       product: {
         ...result.product!,
         category: result.category!
       },
-      seller: { firstName: '', lastName: '', email: '' },
+      seller: { 
+        firstName: seller?.firstName || '', 
+        lastName: seller?.lastName || '', 
+        email: seller?.email || '',
+        bankName: seller?.bankName || null,
+        bankAccountNumber: seller?.bankAccountNumber || null,
+        mobileMoneyPhone: seller?.mobileMoneyPhone || null,
+      },
       buyer: {
         firstName: result.buyer!.firstName,
         lastName: result.buyer!.lastName,

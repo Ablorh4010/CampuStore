@@ -178,6 +178,20 @@ async function finalizePaystackOrder(data: any) {
       buyerEmail: buyerEmail,
       payoutStatus: 'pending',
       
+      // Verification details from metadata
+      verificationType: metadata.verificationType,
+      verificationOccupation: metadata.verificationOccupation,
+      verificationSalary: metadata.verificationSalary,
+      verificationIdType: metadata.verificationIdType,
+      verificationIdFrontUrl: metadata.verificationIdFrontUrl,
+      verificationIdBackUrl: metadata.verificationIdBackUrl,
+      guardianName: metadata.guardianName,
+      guardianOccupation: metadata.guardianOccupation,
+      guardianSalary: metadata.guardianSalary,
+      guardianPhone: metadata.guardianPhone,
+      guardianIdUrl: metadata.guardianIdUrl,
+      guardianFaceWithIdUrl: metadata.guardianFaceWithIdUrl,
+
       // Installment info - only applied if the product itself is eligible
       isInstallment: isThisItemEligible,
       installmentsPaid: isThisItemEligible ? 1 : 0,
@@ -1270,18 +1284,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload buyer verification for checkout
   app.post("/api/upload/buyer-verification", apiLimiter, tryAuthenticate, imageUpload.fields([
     { name: 'buyerIdScan', maxCount: 1 },
-    { name: 'buyerFaceScan', maxCount: 1 }
+    { name: 'buyerIdScanBack', maxCount: 1 },
+    { name: 'buyerFaceScan', maxCount: 1 },
+    { name: 'guardianIdScan', maxCount: 1 },
+    { name: 'guardianFaceWithId', maxCount: 1 }
   ]), async (req: AuthRequest, res) => {
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const { latitude, longitude } = req.body;
 
-      if (!files || (!files.buyerIdScan && !files.buyerFaceScan)) {
-        return res.status(400).json({ message: "No verification documents uploaded" });
+      if (!files || !files.buyerIdScan) {
+        return res.status(400).json({ message: "Buyer ID scan is required" });
       }
 
-      const buyerIdScanUrl = files.buyerIdScan ? await saveFile(files.buyerIdScan[0]) : undefined;
+      const buyerIdScanUrl = await saveFile(files.buyerIdScan[0]);
+      const buyerIdScanBackUrl = files.buyerIdScanBack ? await saveFile(files.buyerIdScanBack[0]) : undefined;
       const buyerFaceScanUrl = files.buyerFaceScan ? await saveFile(files.buyerFaceScan[0]) : undefined;
+      const guardianIdUrl = files.guardianIdScan ? await saveFile(files.guardianIdScan[0]) : undefined;
+      const guardianFaceWithIdUrl = files.guardianFaceWithId ? await saveFile(files.guardianFaceWithId[0]) : undefined;
 
       // Update buyer verification documents if user is logged in
       if (req.userId) {
@@ -1296,7 +1316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         buyerIdScanUrl,
+        buyerIdScanBackUrl,
         buyerFaceScanUrl,
+        guardianIdUrl,
+        guardianFaceWithIdUrl,
         latitude,
         longitude,
         message: "Buyer verification documents uploaded successfully."
@@ -1953,7 +1976,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Order routes
   app.post("/api/orders", tryAuthenticate, async (req: AuthRequest, res) => {
     try {
-      const { cartItems, paymentMode, isBokoo, details, totalAmount, codFee, shippingMode, shippingFee } = req.body;
+      const { 
+        cartItems, paymentMode, isBokoo, details, totalAmount, codFee, shippingMode, shippingFee,
+        verificationType, verificationOccupation, verificationSalary, verificationIdType,
+        verificationIdFrontUrl, verificationIdBackUrl, guardianName, guardianOccupation,
+        guardianSalary, guardianPhone, guardianIdUrl, guardianFaceWithIdUrl
+      } = req.body;
       const userId = req.userId;
 
       if (!cartItems || cartItems.length === 0) {
@@ -1975,11 +2003,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalAmount: totalAmount ? totalAmount.toString() : productWithStore.price,
           codFee: codFee ? codFee.toString() : null,
           status: 'pending',
+          paymentGateway: 'manual',
           shippingMode: (shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
+          fulfillmentStatus: 'order_received',
           buyerAddress: details?.address || '',
           buyerUniversity: details?.university || '',
           buyerPhone: details?.phoneNumber || '',
           buyerEmail: details?.email || '',
+          isInstallment: isBokoo,
+          
+          // Verification details
+          verificationType,
+          verificationOccupation,
+          verificationSalary,
+          verificationIdType,
+          verificationIdFrontUrl,
+          verificationIdBackUrl,
+          guardianName,
+          guardianOccupation,
+          guardianSalary,
+          guardianPhone,
+          guardianIdUrl,
+          guardianFaceWithIdUrl
         });
         createdOrders.push(order);
       }

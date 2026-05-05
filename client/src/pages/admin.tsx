@@ -857,8 +857,79 @@ export default function AdminDashboard() {
                         <div>
 
                            <h4 className="font-black text-lg uppercase">{order.product.title}</h4>
-                           <p className="text-sm font-bold text-primary">Seller: {order.seller.firstName} • Buyer: {order.buyer.firstName}</p>
+                           <p className="text-sm font-bold text-primary">Seller: {order.seller.firstName} • Buyer: {order.buyer.firstName || order.buyerEmail || 'Guest'}</p>
                            <p className="text-xs text-gray-400 mt-1">Amount: GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
+                           
+                           {order.isInstallment && (
+                             <div className="mt-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
+                               <p className="text-[10px] font-black uppercase text-primary tracking-widest">Installment Verification ({order.verificationType})</p>
+                               
+                               <div className="grid grid-cols-2 gap-4 text-[10px]">
+                                 <div className="space-y-1">
+                                   <p className="font-black text-gray-400 uppercase">ID Type</p>
+                                   <p className="font-bold uppercase">{order.verificationIdType?.replace('_', ' ')}</p>
+                                 </div>
+                                 {order.verificationType === 'worker' ? (
+                                   <>
+                                     <div className="space-y-1">
+                                       <p className="font-black text-gray-400 uppercase">Occupation</p>
+                                       <p className="font-bold">{order.verificationOccupation}</p>
+                                     </div>
+                                     <div className="space-y-1">
+                                       <p className="font-black text-gray-400 uppercase">Salary</p>
+                                       <p className="font-bold">GH₵ {order.verificationSalary}</p>
+                                     </div>
+                                   </>
+                                 ) : (
+                                   <>
+                                     <div className="space-y-1">
+                                       <p className="font-black text-gray-400 uppercase">Guardian</p>
+                                       <p className="font-bold">{order.guardianName}</p>
+                                     </div>
+                                     <div className="space-y-1">
+                                       <p className="font-black text-gray-400 uppercase">Guardian Phone</p>
+                                       <p className="font-bold">{order.guardianPhone}</p>
+                                     </div>
+                                     <div className="space-y-1">
+                                       <p className="font-black text-gray-400 uppercase">Guardian Work</p>
+                                       <p className="font-bold">{order.guardianOccupation}</p>
+                                     </div>
+                                     <div className="space-y-1">
+                                       <p className="font-black text-gray-400 uppercase">Guardian Salary</p>
+                                       <p className="font-bold">GH₵ {order.guardianSalary}</p>
+                                     </div>
+                                   </>
+                                 )}
+                               </div>
+
+                               <div className="grid grid-cols-2 gap-2 mt-2">
+                                  {order.verificationIdFrontUrl && (
+                                    <div className="space-y-1">
+                                      <p className="text-[8px] font-bold text-gray-400 uppercase">ID Front</p>
+                                      <img src={order.verificationIdFrontUrl} className="h-20 w-full object-cover rounded-lg border cursor-pointer" onClick={() => window.open(order.verificationIdFrontUrl!, '_blank')} alt="" />
+                                    </div>
+                                  )}
+                                  {order.verificationIdBackUrl && (
+                                    <div className="space-y-1">
+                                      <p className="text-[8px] font-bold text-gray-400 uppercase">ID Back</p>
+                                      <img src={order.verificationIdBackUrl} className="h-20 w-full object-cover rounded-lg border cursor-pointer" onClick={() => window.open(order.verificationIdBackUrl!, '_blank')} alt="" />
+                                    </div>
+                                  )}
+                                  {order.guardianIdUrl && (
+                                    <div className="space-y-1">
+                                      <p className="text-[8px] font-bold text-gray-400 uppercase">Guardian ID</p>
+                                      <img src={order.guardianIdUrl} className="h-20 w-full object-cover rounded-lg border cursor-pointer" onClick={() => window.open(order.guardianIdUrl!, '_blank')} alt="" />
+                                    </div>
+                                  )}
+                                  {order.guardianFaceWithIdUrl && (
+                                    <div className="space-y-1">
+                                      <p className="text-[8px] font-bold text-gray-400 uppercase">Guardian Live Capture</p>
+                                      <img src={order.guardianFaceWithIdUrl} className="h-20 w-full object-cover rounded-lg border cursor-pointer" onClick={() => window.open(order.guardianFaceWithIdUrl!, '_blank')} alt="" />
+                                    </div>
+                                  )}
+                               </div>
+                             </div>
+                           )}
                         </div>
                      </div>
                      <div className="space-y-4 min-w-[300px]">
