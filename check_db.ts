@@ -2,7 +2,7 @@
 import { Pool } from 'pg';
 
 async function checkTables() {
-  const connectionString = "postgresql://campustore_user:%40Concierge2020@localhost:5433/campustore";
+  const connectionString = process.env.DATABASE_URL;
   const pool = new Pool({ connectionString });
   try {
     const res = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");

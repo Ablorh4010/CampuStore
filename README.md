@@ -321,23 +321,18 @@ Update `DATABASE_URL` in `.env` with your database connection string.
 
 ## 🌐 Google Cloud Hosting
 
-This project is connected to Google Cloud Project: **chromatic-force-480509-j5**
+This project is hosted on **Google Cloud Run** using Project ID: **chromatic-force-480509-j5**.
 
-For deploying to Google Cloud:
+### Deployment to Cloud Run
+1. Ensure your `gcloud` CLI is configured.
+2. Run `npm run deploy` to build and deploy the latest version.
+3. The application will be automatically containerized and deployed to `europe-west1`.
 
-### App Engine
-1. Use the provided `app.yaml` configuration
-2. Set environment variables in Cloud Console or Secret Manager
-3. Run `gcloud config set project chromatic-force-480509-j5`
-4. Run `gcloud app deploy`
-
-### Cloud Run
-1. Build Docker container
-2. Push to Container Registry
-3. Deploy to Cloud Run with environment variables
+### Database (Neon)
+The application uses **Neon PostgreSQL**. Connection details are managed via the `DATABASE_URL` environment variable.
 
 ### Required Environment Variables
-All variables from `.env.example` must be configured in your hosting environment.
+All variables from `.env.example` must be configured in your hosting environment (Cloud Run environment variables).
 
 ## 🧪 Testing
 

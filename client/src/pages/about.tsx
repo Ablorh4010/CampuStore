@@ -1,4 +1,4 @@
-import { GraduationCap, Target, Users, Heart, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, Target, Users, Heart, CheckCircle2, Smartphone, MapPin, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'wouter';
 import { useAuth } from '@/lib/auth-context';
@@ -18,6 +18,42 @@ export default function About() {
           <h1 className="text-4xl font-bold text-gray-900 mb-4">About The Hub</h1>
           <p className="text-xl text-gray-600 font-medium">The Student Marketplace</p>
         </div>
+
+        {/* How it Works Section - Moved from Front Page */}
+        <section className="mb-20">
+           <div className="text-center max-w-3xl mx-auto mb-12">
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-gray-900 mb-4">Simple. Secure. Student.</h2>
+              <p className="text-gray-500 font-medium text-sm">Trading on campus shouldn't be stressful. Here's how our intuitive system works.</p>
+           </div>
+
+           <div className="grid md:grid-cols-3 gap-6">
+              {[
+                {
+                  title: "Snap & List",
+                  desc: "Take high-quality photos of your items and list them in seconds.",
+                  icon: <Smartphone className="w-5 h-5" />
+                },
+                {
+                  title: "Safe Meetups",
+                  desc: "Chat securely via WhatsApp or in-app. Meet at designated campus hubs.",
+                  icon: <MapPin className="w-5 h-5" />
+                },
+                {
+                  title: "Instant Payout",
+                  desc: "Once receipt is confirmed, your funds are released immediately.",
+                  icon: <Zap className="w-5 h-5" />
+                }
+              ].map((step, i) => (
+                <div key={i} className="relative group p-6 rounded-[2rem] bg-white shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-50">
+                   <div className="w-12 h-12 rounded-xl bg-gray-50 shadow-sm flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary transition-all">
+                      <div className="group-hover:text-black text-primary transition-colors">{step.icon}</div>
+                   </div>
+                   <h3 className="text-lg font-black uppercase tracking-tight text-gray-900 mb-3">{step.title}</h3>
+                   <p className="text-xs text-gray-500 font-medium leading-relaxed">{step.desc}</p>
+                </div>
+              ))}
+           </div>
+        </section>
 
         <div className="grid gap-8 mb-12">
           <Card className="border-none shadow-xl bg-white/70 backdrop-blur-sm">

@@ -1,7 +1,7 @@
 import pg from 'pg';
 const { Client } = pg;
 
-const connectionString = "postgresql://neondb_owner:npg_x1LrwhoMig5E@ep-plain-pine-anl727mk.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require";
+const connectionString = process.env.DATABASE_URL;
 
 async function fixSequences() {
   const client = new Client({ connectionString });

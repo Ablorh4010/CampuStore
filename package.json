@@ -13,8 +13,8 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "sync-yaml": "tsx scripts/sync-yaml.ts",
-    "deploy": "npm run build && gcloud app deploy app.yaml --quiet",
-    "deploy-run": "./scripts/migrate-to-cloud-run.sh"
+    "deploy": "npm run build && gcloud run deploy campustore --source . --region europe-west1 --project chromatic-force-480509-j5 --allow-unauthenticated --memory 1Gi --cpu 1",
+    "deploy-run": "npm run deploy"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",

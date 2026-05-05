@@ -12,7 +12,33 @@ This guide provides step-by-step instructions for deploying The University Hub t
 - [ ] Build succeeds (`npm run build`)
 - [ ] Application runs locally in production mode (`npm start`)
 
-## Option 1: Deploy to Replit
+## Option 1: Deploy to Google Cloud Run (Recommended)
+
+This is the current production setup using Google Cloud Run and Neon PostgreSQL.
+
+### Step 1: Configure GCP Project
+Ensure your `gcloud` CLI is authenticated and pointing to the correct project:
+```bash
+gcloud auth login
+gcloud config set project chromatic-force-480509-j5
+```
+
+### Step 2: Deploy to Cloud Run
+Run the pre-configured deployment script:
+```bash
+npm run deploy
+```
+
+This will:
+1. Build the frontend and backend.
+2. Containerize the application.
+3. Deploy it to Google Cloud Run in `europe-west1`.
+4. Configure environment variables (synced from `.env` or `app.yaml`).
+
+### Step 3: Database (Neon)
+The application uses **Neon PostgreSQL**. Connection details are managed via the `DATABASE_URL` environment variable.
+
+## Option 2: Deploy to Replit
 
 ### Step 1: Import Project
 1. Go to https://replit.com

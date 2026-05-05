@@ -32,6 +32,7 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<ProductWithStore | null>(null);
   const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
   const [initialMagicUrl, setInitialMagicUrl] = useState('');
 
@@ -494,19 +495,31 @@ export default function AdminDashboard() {
                     <CardContent className="p-6">
                        <h4 className="font-black text-sm uppercase mb-2">{product.title}</h4>
                        <p className="text-xs text-gray-500 mb-4 line-clamp-2">{product.description}</p>
-                       <div className="flex gap-2">
+                       <div className="flex flex-col gap-2">
+                          <div className="flex gap-2">
+                             <Button 
+                               className="flex-grow rounded-xl bg-green-500 hover:bg-green-600 font-bold" 
+                               onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}
+                             >
+                               Approve
+                             </Button>
+                             <Button 
+                               variant="destructive" 
+                               className="flex-grow rounded-xl font-bold"
+                               onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'rejected' })}
+                             >
+                               Reject
+                             </Button>
+                          </div>
                           <Button 
-                            className="flex-grow rounded-xl bg-green-500 hover:bg-green-600 font-bold" 
-                            onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}
+                            variant="outline" 
+                            className="w-full rounded-xl font-bold border-2"
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setIsProductModalOpen(true);
+                            }}
                           >
-                            Approve
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            className="flex-grow rounded-xl font-bold"
-                            onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'rejected' })}
-                          >
-                            Reject
+                             <Settings className="w-4 h-4 mr-2" /> Edit Product
                           </Button>
                        </div>
                     </CardContent>
@@ -534,7 +547,10 @@ export default function AdminDashboard() {
                   </Button>
                   <Button 
                     className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest shadow-xl shadow-primary/20 animate-pulse-slow"
-                    onClick={() => setIsProductModalOpen(true)}
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setIsProductModalOpen(true);
+                    }}
                   >
                     <Plus className="w-6 h-6 mr-2" /> Launch Official Product
                   </Button>
@@ -572,6 +588,17 @@ export default function AdminDashboard() {
                        <p className="text-xs text-gray-400 mb-6 uppercase font-bold tracking-widest">Store: {product.store.name}</p>
                        
                        <div className="grid grid-cols-2 gap-3 mb-6">
+                          <Button 
+                            variant="outline"
+                            className="rounded-xl font-black text-[10px] uppercase h-10"
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setIsProductModalOpen(true);
+                            }}
+                          >
+                            <Settings className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
                           <Button 
                             variant="outline"
                             className="rounded-xl font-black text-[10px] uppercase h-10"
@@ -1335,8 +1362,12 @@ export default function AdminDashboard() {
 
         <ProductForm 
            isOpen={isProductModalOpen} 
-           onClose={() => setIsProductModalOpen(false)} 
+           onClose={() => {
+             setIsProductModalOpen(false);
+             setEditingProduct(null);
+           }} 
            userStores={[]} 
+           initialData={editingProduct}
         />
 
         <MagicImportModal

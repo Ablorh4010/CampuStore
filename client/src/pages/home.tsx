@@ -33,10 +33,10 @@ const CATEGORY_IMAGES: Record<string, string> = {
   'Electronics': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&q=80&w=300', // MacBook/Laptop
   'Academic': 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&q=80&w=300', // Books
   'Fashion': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=300', // Sneaker
-  'Home & Dorm': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300', // Modern Desk Lamp/Chair
-  'Home & Dormitory': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300',
-  'Home and Decor': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300',
-  'Home': 'https://images.unsplash.com/photo-1583847268964-b28dc2f51f92?auto=format&fit=crop&q=80&w=300',
+  'Home & Dorm': 'https://media.gettyimages.com/id/1335426353/video/day-of-a-college-student.jpg?s=640x640&k=20&c=eaHlwkXJGGDCKQn9jOu1u-DcZiRLhfDPcJgfwJMfj8E=', // Modern Desk Lamp/Chair
+  'Home & Dormitory': 'https://media.gettyimages.com/id/1335426353/video/day-of-a-college-student.jpg?s=640x640&k=20&c=eaHlwkXJGGDCKQn9jOu1u-DcZiRLhfDPcJgfwJMfj8E=',
+  'Home and Decor': 'https://media.gettyimages.com/id/1335426353/video/day-of-a-college-student.jpg?s=640x640&k=20&c=eaHlwkXJGGDCKQn9jOu1u-DcZiRLhfDPcJgfwJMfj8E=',
+  'Home': 'https://media.gettyimages.com/id/1335426353/video/day-of-a-college-student.jpg?s=640x640&k=20&c=eaHlwkXJGGDCKQn9jOu1u-DcZiRLhfDPcJgfwJMfj8E=',
   'Sports & Leisure': 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=300', // Fitness
   'Services': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80&w=300', // Work/Desk
   'Phones': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=300', // Smartphone
@@ -136,10 +136,10 @@ export default function Home() {
               </div>
               <h1 className="text-6xl sm:text-7xl font-black tracking-tighter text-gray-900 leading-[0.9] mb-8 uppercase">
                 BUY. SELL. <br />
-                <span className="text-primary italic">CAMPUS.</span>
+                <span className="text-primary italic">STUDENT LIFE.</span>
               </h1>
               <p className="text-lg text-gray-500 font-medium leading-relaxed mb-10 max-w-lg">
-                The most secure marketplace for university students. Verified student IDs, safe on-campus pickups, and instant WhatsApp support.
+                The ultimate marketplace built for every student. From universities to training colleges, trade securely with verified IDs, on-campus pickups, and 24/7 WhatsApp support. Every student buyer is accepted.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
@@ -183,7 +183,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="hidden lg:flex justify-center lg:justify-end relative">
+            <div className="flex justify-center lg:justify-end relative mt-16 lg:mt-0">
                {/* iPhone Frame for Weekly Deals - Positioned Beside Hero Text */}
                {weeklyDeals.length > 0 && (
                   <motion.div 
@@ -329,7 +329,7 @@ export default function Home() {
               <div className="w-8 h-8 rounded-full overflow-hidden mr-4 border-2 border-white shadow-md flex-shrink-0 bg-primary/10 flex items-center justify-center">
                  <Truck className="w-4 h-4 text-primary" />
               </div>
-              <span>Free delivery for items across all Ghana campuses and schools</span>
+              <span>Free delivery for items across all campuses and schools</span>
               <span className="mx-8 text-primary font-black opacity-40">•</span>
             </div>
           ))}
@@ -396,36 +396,98 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Bɔkɔɔ Pay Section - New & Innovative - Reduced Height */}
+      <section className="py-12 bg-black text-white overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="lg:grid lg:grid-cols-2 lg:gap-12 items-center">
+            <div>
+              <Badge className="bg-primary text-black font-black text-[10px] uppercase px-3 py-1 mb-4 rounded-full">Financial Freedom</Badge>
+              <h2 className="text-4xl lg:text-6xl font-black uppercase tracking-tighter leading-[0.85] mb-6">
+                BƆKƆƆ <br />
+                <span className="text-primary italic">PAY.</span>
+              </h2>
+              <p className="text-lg text-gray-400 font-medium leading-relaxed mb-8 max-w-lg">
+                Buy today, pay over time. Split your purchase into 4 easy payments with 0% interest.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-6 mb-8">
+                <div className="space-y-1">
+                  <h4 className="text-2xl font-black text-white">0%</h4>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Interest</p>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-2xl font-black text-white">4</h4>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Payments</p>
+                </div>
+              </div>
+
+              <Button 
+                size="lg" 
+                className="h-14 px-8 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-all"
+                onClick={() => setLocation(`${basePrefix}/browse?installment=true`)}
+              >
+                Browse Items
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="mt-12 lg:mt-0 relative">
+              <div className="relative bg-gray-900 rounded-[2.5rem] p-6 border border-white/10 shadow-2xl overflow-hidden">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">1</div>
+                    <div>
+                      <h4 className="font-black uppercase tracking-widest text-[9px] text-white">Choose Bɔkɔɔ Pay</h4>
+                      <p className="text-[8px] text-gray-500 font-bold">Select at checkout</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">2</div>
+                    <div>
+                      <h4 className="font-black uppercase tracking-widest text-[9px] text-white">Quick Verify</h4>
+                      <p className="text-[8px] text-gray-500 font-bold">Done in &lt; 2 mins</p>
+
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">3</div>
+                    <div>
+                      <h4 className="font-black uppercase tracking-widest text-[9px] text-white">Pay Slowly</h4>
+                      <p className="text-[8px] text-gray-500 font-bold">Spread over 4 months</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Campus Activity Feed - Compact */}
-      <section className="py-20 bg-white border-y border-gray-50">
+      <section className="py-12 bg-white border-y border-gray-50">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
+            <div className="text-center mb-10">
                <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">Campus Pulse.</h2>
                <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px]">What's happening at {user?.university || 'your university'}</p>
             </div>
 
             <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-6 pb-4 scrollbar-hide snap-x">
                {activityLoading ? (
-                  Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[280px] md:w-auto h-48 rounded-3xl" />)
+                  Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[280px] md:w-auto h-40 rounded-3xl" />)
                ) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
-                  <div className="col-span-full text-center py-12">
-                     <p className="text-gray-400 font-medium italic">No recent activity detected.</p>
+                  <div className="col-span-full text-center py-10">
+                     <p className="text-gray-400 font-medium italic text-xs">No recent activity.</p>
                   </div>
                ) : (
                   campusActivity.slice(0, 3).map((activity) => (
-                     <div key={activity.id} className="flex-shrink-0 w-[280px] md:w-auto bg-gray-50/50 rounded-3xl p-6 border border-transparent hover:border-gray-100 transition-all group snap-start">
-                        <div className="flex items-center gap-2 mb-4 text-[9px] font-black uppercase tracking-widest text-primary">
-                           <Zap className="w-3 h-3" />
+                     <div key={activity.id} className="flex-shrink-0 w-[280px] md:w-auto bg-gray-50/50 rounded-3xl p-5 border border-transparent hover:border-gray-100 transition-all group snap-start">
+                        <div className="flex items-center gap-2 mb-3 text-[8px] font-black uppercase tracking-widest text-primary">
+                           <Zap className="w-2.5 h-2.5" />
                            {activity.activityType || 'Update'}
                         </div>
-                        <h3 className="text-md font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
-                        <p className="text-xs text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
-                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                           <span className="text-[9px] font-black uppercase tracking-widest text-gray-300">{activity.source}</span>
-                           <Button variant="ghost" size="sm" className="h-7 w-7 rounded-full hover:bg-white p-0">
-                              <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-black transition-colors" />
-                           </Button>
-                        </div>
+                        <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
+                        <p className="text-[11px] text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
                      </div>
                   ))
                )}
@@ -433,13 +495,13 @@ export default function Home() {
          </div>
       </section>
 
-      {/* Featured Stores - Compact Grid/Scroll */}
-      <section className="py-20 bg-gray-50/50">
+      {/* Featured Stores - Compact Grid/Scroll - Reduced Height */}
+      <section className="py-12 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-12">
+          <div className="flex justify-between items-end mb-10">
             <div>
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-gray-900 leading-none">HUB <br />VENDORS.</h2>
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-4">Top performers this week</p>
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 leading-none">HUB <br />VENDORS.</h2>
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-2">Top performers</p>
             </div>
             <Link href={`${basePrefix}/browse?view=stores`}>
                <Button variant="link" className="font-black uppercase tracking-widest text-[10px] p-0 h-auto group">
