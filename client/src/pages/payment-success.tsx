@@ -20,11 +20,21 @@ function PaymentSuccessContent() {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+
+    // Handle Cash on Delivery success immediately
+    if (mode === 'cod') {
+      setStatus('succeeded');
+      clearCart();
+      return;
+    }
+
     if (!stripe) {
       return;
     }
 
-    const clientSecret = new URLSearchParams(window.location.search).get(
+    const clientSecret = urlParams.get(
       'payment_intent_client_secret'
     );
 
@@ -95,6 +105,8 @@ function PaymentSuccessContent() {
   }
 
   if (status === 'succeeded') {
+    const isCOD = new URLSearchParams(window.location.search).get('mode') === 'cod';
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -102,18 +114,32 @@ function PaymentSuccessContent() {
             <div className="mx-auto mb-4 w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
-            <CardTitle className="text-green-900">Payment Successful!</CardTitle>
+            <CardTitle className="text-green-900">
+              {isCOD ? 'Cash on Delivery Successful!' : 'Payment Successful!'}
+            </CardTitle>
             <CardDescription>
-              Thank you for your purchase. Your order has been confirmed.
+              {isCOD 
+                ? 'Your order has been placed successfully. A customer service agent will reach you soon.'
+                : 'Thank you for your purchase. Your order has been confirmed.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
               <p className="font-medium mb-1">What's next?</p>
               <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>You'll receive an order confirmation email shortly</li>
-                <li>The seller will be notified of your purchase</li>
-                <li>Track your order status in your dashboard</li>
+                {isCOD ? (
+                  <>
+                    <li>Our agent will call you to confirm your delivery</li>
+                    <li>Please prepare the exact amount for the delivery agent</li>
+                    <li>Track your order status in your dashboard</li>
+                  </>
+                ) : (
+                  <>
+                    <li>You'll receive an order confirmation email shortly</li>
+                    <li>The seller will be notified of your purchase</li>
+                    <li>Track your order status in your dashboard</li>
+                  </>
+                )}
               </ul>
             </div>
             <div className="flex gap-3">

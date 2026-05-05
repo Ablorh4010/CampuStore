@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
-import { whatsappOtpService } from './whatsapp';
+import { whatsappOtpService, sendWhatsAppMessage } from './whatsapp';
+import { storage } from './storage';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = 'The University Hub <support@uniexchangehub.com>';
@@ -31,6 +32,23 @@ export async function sendEmailNotification(to: string, subject: string, html: s
   }
 }
 
+/**
+ * Send alert to admin via WhatsApp Support Hub number
+ */
+export async function notifyAdminViaWhatsApp(message: string) {
+  try {
+    const adminWhatsApp = await storage.getAppConfig('whatsapp_support_1');
+    if (adminWhatsApp) {
+      console.log(`📱 Sending WhatsApp Admin Alert to ${adminWhatsApp}`);
+      await sendWhatsAppMessage(adminWhatsApp, `🚨 ADMIN ALERT: ${message}`);
+    } else {
+      console.warn('⚠️ Admin WhatsApp Support Number not configured in settings.');
+    }
+  } catch (error) {
+    console.error('Failed to notify admin via WhatsApp:', error);
+  }
+}
+
 export async function sendOrderConfirmation(order: any, buyer: any, product: any) {
   const subject = `Order Confirmed: ${product.title}`;
   const html = `
@@ -49,6 +67,9 @@ export async function sendOrderConfirmation(order: any, buyer: any, product: any
   `;
   
   await sendEmailNotification(buyer.email, subject, html);
+  
+  // Also notify admin for transparency
+  await notifyAdminViaWhatsApp(`New Payment/Order #${order.id} for ${product.title} - GH₵${parseFloat(order.totalAmount).toFixed(2)}`);
 }
 
 export async function notifySellerOfNewOrder(order: any, seller: any, product: any) {
@@ -91,6 +112,7 @@ export async function notifyAdminOfNewOrder(order: any, adminEmail: string, prod
   `;
   
   await sendEmailNotification(adminEmail, subject, html);
+  // Admin is already notified via sendOrderConfirmation/notifyAdminViaWhatsApp if payment is online
 }
 
 export async function notifyBuyerOfOrderApproval(order: any, buyer: any, product: any) {
@@ -110,6 +132,7 @@ export async function notifyBuyerOfOrderApproval(order: any, buyer: any, product
   `;
   
   await sendEmailNotification(buyer.email, subject, html);
+  await notifyAdminViaWhatsApp(`Seller approved Order #${order.id} for ${product.title}`);
 }
 
 export async function sendTrackingUpdate(order: any, buyer: any, product: any) {
@@ -146,4 +169,8 @@ export async function sendTrackingUpdate(order: any, buyer: any, product: any) {
   `;
   
   await sendEmailNotification(buyer.email, subject, html);
+}
+
+export async function notifyAdminOfVerificationRequest(type: string, userId: number) {
+  await notifyAdminViaWhatsApp(`New ${type} verification request from User ID: ${userId}. Please review in Admin Panel.`);
 }

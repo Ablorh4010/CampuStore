@@ -19,7 +19,7 @@ import { uploadToGCS } from "./gcs-storage";
 import { sendVerificationEmail, sendEmail as sendLocalEmail, sendPurchaseConfirmationEmail } from "./email";
 import crypto from 'crypto';
 import { generateToken, authenticateToken, tryAuthenticate, requireAdmin, type AuthRequest } from "./auth";
-import { sendOrderConfirmation } from "./notifications";
+import { sendOrderConfirmation, notifyAdminOfVerificationRequest } from "./notifications";
 import path from "path";
 import Stripe from "stripe";
 import rateLimit from "express-rate-limit";
@@ -1252,6 +1252,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `);
         }
       }
+      
+      await notifyAdminOfVerificationRequest('Seller', req.userId!);
 
       res.json({ 
         idScanUrl, 
@@ -1330,6 +1332,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           buyerLongitude: longitude,
           buyerVerifiedAt: new Date()
         });
+        await notifyAdminOfVerificationRequest('Buyer Installment', req.userId);
+      } else {
+        // For guests, we notify with a generic message (order creation will provide more details later)
+        await notifyAdminOfVerificationRequest('Guest Buyer Installment', 0);
       }
 
       res.json({
@@ -2050,7 +2056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send confirmation emails
       try {
         const { sendPurchaseConfirmationEmail } = await import('./email');
-        const { sendOrderConfirmation, notifySellerOfNewOrder, notifyAdminOfNewOrder } = await import('./notifications');
+        const { sendOrderConfirmation, notifySellerOfNewOrder, notifyAdminOfNewOrder, notifyAdminViaWhatsApp } = await import('./notifications');
         const trackingUrl = `${process.env.APP_URL || 'https://uniexchangehub.com'}/gh/orders`;
         const buyerName = details ? `${details.firstName} ${details.lastName}` : "Customer";
         
@@ -2083,6 +2089,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await notifyAdminOfNewOrder(order, admin.email, product, seller || { username: 'Unknown', email: 'N/A' });
             }
           }
+          
+          await notifyAdminViaWhatsApp(`New Manual Order #${order.id} for ${product.title} - GH₵${parseFloat(order.totalAmount).toFixed(2)}`);
         }
       } catch (err) {
         console.error('Failed to send order notifications:', err);

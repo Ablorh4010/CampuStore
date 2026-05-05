@@ -66,37 +66,41 @@ export default function AdminDashboard() {
   const [whatsappSupport2, setWhatsappSupport2] = useState('');
   const [whatsappSupport3, setWhatsappSupport3] = useState('');
 
-  const { data: configData } = useQuery<{ value: string }>({
+  const { data: configData, refetch: refetchMomo } = useQuery<{ value: string }>({
     queryKey: ['/api/admin/config/admin_momo_number'],
     enabled: !!user?.isAdmin,
   });
 
-  const { data: ws1Data } = useQuery<{ value: string }>({
+  const { data: ws1Data, refetch: refetchWs1 } = useQuery<{ value: string }>({
     queryKey: ['/api/admin/config/whatsapp_support_1'],
     enabled: !!user?.isAdmin,
   });
   
-  const { data: ws2Data } = useQuery<{ value: string }>({
+  const { data: ws2Data, refetch: refetchWs2 } = useQuery<{ value: string }>({
     queryKey: ['/api/admin/config/whatsapp_support_2'],
     enabled: !!user?.isAdmin,
   });
 
-  const { data: ws3Data } = useQuery<{ value: string }>({
+  const { data: ws3Data, refetch: refetchWs3 } = useQuery<{ value: string }>({
     queryKey: ['/api/admin/config/whatsapp_support_3'],
     enabled: !!user?.isAdmin,
   });
 
   useEffect(() => {
-    if (configData?.value) setAdminMomoNumber(configData.value);
-    if (ws1Data?.value) setWhatsappSupport1(ws1Data.value);
-    if (ws2Data?.value) setWhatsappSupport2(ws2Data.value);
-    if (ws3Data?.value) setWhatsappSupport3(ws3Data.value);
+    if (configData?.value && !adminMomoNumber) setAdminMomoNumber(configData.value);
+    if (ws1Data?.value && !whatsappSupport1) setWhatsappSupport1(ws1Data.value);
+    if (ws2Data?.value && !whatsappSupport2) setWhatsappSupport2(ws2Data.value);
+    if (ws3Data?.value && !whatsappSupport3) setWhatsappSupport3(ws3Data.value);
   }, [configData, ws1Data, ws2Data, ws3Data]);
 
   const saveConfigMutation = useMutation({
     mutationFn: (data: { key: string, value: string }) =>
       apiRequest('POST', '/api/admin/config', data),
     onSuccess: () => {
+      refetchMomo();
+      refetchWs1();
+      refetchWs2();
+      refetchWs3();
       toast({ title: 'Success', description: 'Configuration saved' });
     },
   });

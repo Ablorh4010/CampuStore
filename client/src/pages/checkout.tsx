@@ -159,7 +159,9 @@ export default function Checkout() {
 
   const isFreeDeliveryQualified = cartTotal < 100 || digitalItems.length === cartItems.length;
   const shippingFee = (shippingMode === 'ghana_post_ems' && !isFreeDeliveryQualified && !hasDigitalOnly) ? 70 : 0;
-  const codFee = (paymentMode === 'cod' && !hasDigitalOnly) ? (cartTotal * 0.10) : 0;
+  const codFee = (paymentMode === 'cod' && !hasDigitalOnly) 
+    ? (cartTotal > 1000 ? 50 : cartTotal * 0.01) 
+    : 0;
   
   const grandTotal = cartTotal + shippingFee + codFee;
   
@@ -289,7 +291,7 @@ export default function Checkout() {
         guardianFaceWithIdUrl: verificationUrls?.guardianFaceWithIdUrl,
         verificationUrls // Keeping for backward compatibility if any
       });
-      setLocation('/payment-success');
+      setLocation('/payment-success?mode=cod');
     } catch (e) {
       toast({ title: "Error creating order" });
     } finally {
