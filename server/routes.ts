@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -586,28 +587,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create seller user with userType set to seller
+      // Strip fields that are not in the users table to avoid Zod validation errors
+      const { university, businessName, city, idType, ...baseUserData } = userData;
+
       const sellerData = {
-        ...userData,
+        ...baseUserData,
+        university,
+        city,
+        idType,
         userType: 'seller',
         isMerchant: true,
       };
       
-      const parsedUserData = insertUserSchema.parse(sellerData);
-      const user = await storage.createUser(parsedUserData);
-      
-      // Mark email as verified since we just verified the OTP
-      await storage.markEmailAsVerified(userData.email);
-      
-      // Generate JWT token
-      const token = generateToken(user.id);
-      
-      res.json({ 
-        user: { ...user, password: undefined },
-        token 
-      });
+      try {
+        const parsedUserData = insertUserSchema.parse(sellerData);
+        const user = await storage.createUser(parsedUserData);
+        
+        // Mark email as verified since we just verified the OTP
+        await storage.markEmailAsVerified(userData.email);
+        
+        // Generate JWT token
+        const token = generateToken(user.id);
+        
+        res.json({ 
+          user: { ...user, password: undefined },
+          token 
+        });
+      } catch (zodError: any) {
+        if (zodError instanceof z.ZodError) {
+          console.error('Seller registration validation error:', zodError.errors);
+          return res.status(400).json({ 
+            message: "Invalid seller data", 
+            details: zodError.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ') 
+          });
+        }
+        throw zodError;
+      }
     } catch (error) {
       console.error('Seller registration error:', error);
-      res.status(400).json({ message: "Invalid seller data" });
+      res.status(400).json({ message: error instanceof Error ? error.message : "Invalid seller data" });
     }
   });
 

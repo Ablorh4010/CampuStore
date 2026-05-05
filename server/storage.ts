@@ -147,6 +147,12 @@ export class DatabaseStorage implements IStorage {
     if (userData.password) {
       userData.password = await bcrypt.hash(userData.password, 10);
     }
+    
+    // Convert dateOfBirth string to Date object if needed
+    if (userData.dateOfBirth && typeof userData.dateOfBirth === 'string') {
+      userData.dateOfBirth = new Date(userData.dateOfBirth);
+    }
+
     const [user] = await db.insert(users).values(userData as any).returning();
     return user;
   }

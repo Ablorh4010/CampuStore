@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from 'wouter';
-import { Store, Mail, ShieldCheck, User as UserIcon, MapPin, Calendar, Phone, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Store, Mail, ShieldCheck, User as UserIcon, MapPin, Calendar, Phone, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, Loader2, Video, ExternalLink, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -305,6 +305,32 @@ export default function SellerAuth() {
     }
   };
 
+  const nextStep = async () => {
+    let fieldsToValidate: any[] = [];
+    if (step === 1) {
+      fieldsToValidate = ['email', 'otpCode', 'firstName', 'lastName', 'username'];
+    } else if (step === 2) {
+      fieldsToValidate = ['phoneNumber', 'dateOfBirth', 'sellerAddress', 'city', 'sellerVerificationType'];
+      if (registerForm.watch('sellerVerificationType') === 'student') {
+        fieldsToValidate.push('university');
+      } else {
+        fieldsToValidate.push('businessName');
+      }
+    }
+
+    const isValid = await registerForm.trigger(fieldsToValidate);
+    if (isValid) {
+      setStep(step + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields correctly before proceeding.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const progress = (step / 3) * 100;
 
   return (
@@ -418,7 +444,7 @@ export default function SellerAuth() {
                 </div>
 
                 <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(() => setStep(step + 1))} className="space-y-6">
+                  <div className="space-y-6">
                     {step === 1 && (
                       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
                         <FormField
@@ -502,7 +528,7 @@ export default function SellerAuth() {
                           )}
                         />
 
-                        <Button type="submit" className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs" disabled={!showOtpField}>
+                        <Button type="button" variant="secondary" className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs" onClick={nextStep} disabled={!showOtpField}>
                           Next Step <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </div>
@@ -562,26 +588,41 @@ export default function SellerAuth() {
                           )}
                         />
 
-                        <FormField
-                          control={registerForm.control}
-                          name="sellerVerificationType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="font-bold text-xs uppercase tracking-widest">Account Type</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <div className="grid grid-cols-2 gap-4">
+                           <FormField
+                            control={registerForm.control}
+                            name="city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-bold text-xs uppercase tracking-widest">City</FormLabel>
                                 <FormControl>
-                                  <SelectTrigger className="h-11 rounded-xl">
-                                    <SelectValue />
-                                  </SelectTrigger>
+                                  <Input placeholder="E.g. Accra" className="h-11 rounded-xl" {...field} />
                                 </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="student">University Student</SelectItem>
-                                  <SelectItem value="business">External Vendor</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </FormItem>
-                          )}
-                        />
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="sellerVerificationType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="font-bold text-xs uppercase tracking-widest">Account Type</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="h-11 rounded-xl">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="student">Student</SelectItem>
+                                    <SelectItem value="business">Vendor</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
                         {registerForm.watch('sellerVerificationType') === 'student' ? (
                           <FormField
@@ -617,7 +658,7 @@ export default function SellerAuth() {
                           <Button type="button" variant="outline" className="h-12 rounded-xl px-6" onClick={() => setStep(1)}>
                             <ArrowLeft className="h-4 w-4" />
                           </Button>
-                          <Button type="submit" className="flex-1 h-12 rounded-xl font-black uppercase tracking-widest text-xs">
+                          <Button type="button" variant="secondary" className="flex-1 h-12 rounded-xl font-black uppercase tracking-widest text-xs" onClick={nextStep}>
                             Continue <ArrowRight className="ml-2 h-4 w-4" />
                           </Button>
                         </div>
@@ -727,7 +768,7 @@ export default function SellerAuth() {
                         </div>
                       </div>
                     )}
-                  </form>
+                  </div>
                 </Form>
               </TabsContent>
             </CardContent>
