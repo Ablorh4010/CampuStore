@@ -58,8 +58,18 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', loop: false, dragFree: true });
+  const [pulseRef, pulseApi] = useEmblaCarousel({ align: 'start', loop: true, dragFree: true });
   const scrollPrev = useCallback(() => { if (emblaApi) emblaApi.scrollPrev(); }, [emblaApi]);
   const scrollNext = useCallback(() => { if (emblaApi) emblaApi.scrollNext(); }, [emblaApi]);
+
+  // Auto-play for Pulse
+  useEffect(() => {
+    if (!pulseApi) return;
+    const interval = setInterval(() => {
+      pulseApi.scrollNext();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [pulseApi]);
 
   const { data: featuredProducts = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/featured', user?.university, user?.city, user?.campus],
@@ -283,35 +293,41 @@ export default function Home() {
             <div className="grid lg:grid-cols-3 gap-12">
                <div className="lg:col-span-2">
                   <div className="flex justify-between items-end mb-8"><div><h2 className="text-2xl font-black uppercase tracking-tighter mb-1">Campus Pulse.</h2><p className="text-gray-400 font-bold uppercase tracking-widest text-[8px]">Happening at {user?.university || 'your university'}</p></div></div>
-                  <div className="flex overflow-x-auto gap-6 pb-4 scrollbar-hide snap-x">
-                     {activityLoading ? (Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[280px] h-32 rounded-3xl" />)) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
-                        <div className="text-center py-10 bg-gray-50/50 rounded-3xl w-full border-2 border-dashed border-gray-100"><p className="text-gray-400 font-medium italic text-xs uppercase tracking-widest">No recent campus pulse.</p></div>
-                     ) : (campusActivity.slice(0, 5).map((activity) => (
-                           <div key={activity.id} className="flex-shrink-0 w-[280px] bg-gray-50/50 rounded-3xl p-5 border border-transparent hover:border-gray-100 transition-all group snap-start">
-                              <div className="flex items-center gap-2 mb-3 text-[8px] font-black uppercase tracking-widest text-primary"><Zap className="w-2.5 h-2.5" />{activity.activityType || 'Update'}</div>
-                              <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
-                              <p className="text-[11px] text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
+                  <div className="overflow-hidden" ref={pulseRef}>
+                    <div className="flex -ml-4">
+                       {activityLoading ? (Array(3).fill(0).map((_, i) => <div key={i} className="flex-[0_0_85%] sm:flex-[0_0_45%] pl-4"><Skeleton className="w-full h-32 rounded-3xl" /></div>)) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
+                          <div className="pl-4 w-full"><div className="text-center py-10 bg-gray-50/50 rounded-3xl w-full border-2 border-dashed border-gray-100"><p className="text-gray-400 font-medium italic text-xs uppercase tracking-widest">No recent campus pulse.</p></div></div>
+                       ) : (campusActivity.slice(0, 5).map((activity) => (
+                           <div key={activity.id} className="flex-[0_0_85%] sm:flex-[0_0_45%] pl-4">
+                              <motion.div whileHover={{ y: -5 }} className="bg-gray-50/50 rounded-3xl p-5 border border-transparent hover:border-gray-100 transition-all group h-full shadow-sm">
+                                <div className="flex items-center gap-2 mb-3 text-[8px] font-black uppercase tracking-widest text-primary"><Zap className="w-2.5 h-2.5" />{activity.activityType || 'Update'}</div>
+                                <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
+                                <p className="text-[11px] text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
+                              </motion.div>
                            </div>
                         )))}
+                    </div>
                   </div>
                </div>
-               <div className="bg-gray-50/50 rounded-[2.5rem] p-8 border border-gray-100 relative overflow-hidden">
+               <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="bg-gray-50/50 rounded-[2.5rem] p-8 border border-gray-100 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-6 opacity-[0.03] rotate-12"><Store className="w-24 h-24 text-black" /></div>
                   <div className="flex justify-between items-center mb-6 relative"><h3 className="font-black uppercase text-xs tracking-widest">Top Vendors</h3><Link href={"/browse?view=stores"}><Button variant="link" className="text-[8px] font-black uppercase tracking-widest p-0 h-auto">View All</Button></Link></div>
                   <div className="space-y-4 relative">
                      {storesLoading ? (Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)) : (
-                        featuredStores.slice(0, 3).map((store) => (
-                           <Link key={store.id} href={`/store/${store.id}`}>
-                              <div className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-transparent hover:border-primary/20 transition-all cursor-pointer shadow-sm group">
-                                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0"><img src={store.logoUrl || '/placeholder-logo.png'} alt="" className="w-full h-full object-cover" /></div>
-                                 <div className="min-w-0 flex-1"><h4 className="text-[10px] font-black uppercase truncate group-hover:text-primary transition-colors">{store.name}</h4><div className="flex items-center gap-1"><Star className="w-2 h-2 fill-yellow-400 text-yellow-400" /><span className="text-[8px] font-bold text-gray-400">{parseFloat(store.rating).toFixed(1)} ({store.reviewCount})</span></div></div>
-                                 <ChevronRight className="w-3 h-3 text-gray-200 group-hover:text-black" />
-                              </div>
-                           </Link>
+                        featuredStores.slice(0, 3).map((store, i) => (
+                           <motion.div key={store.id} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}>
+                              <Link href={`/store/${store.id}`}>
+                                <div className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-transparent hover:border-primary/20 transition-all cursor-pointer shadow-sm group">
+                                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0"><img src={store.logoUrl || '/placeholder-logo.png'} alt="" className="w-full h-full object-cover" /></div>
+                                   <div className="min-w-0 flex-1"><h4 className="text-[10px] font-black uppercase truncate group-hover:text-primary transition-colors">{store.name}</h4><div className="flex items-center gap-1"><Star className="w-2 h-2 fill-yellow-400 text-yellow-400" /><span className="text-[8px] font-bold text-gray-400">{parseFloat(store.rating).toFixed(1)} ({store.reviewCount})</span></div></div>
+                                   <ChevronRight className="w-3 h-3 text-gray-200 group-hover:text-black" />
+                                </div>
+                              </Link>
+                           </motion.div>
                         ))
                      )}
                   </div>
-               </div>
+               </motion.div>
             </div>
          </div>
       </section>
