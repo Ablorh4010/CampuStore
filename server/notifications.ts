@@ -5,6 +5,23 @@ import { storage } from './storage';
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = 'The University Hub <support@uniexchangehub.com>';
 
+/**
+ * Get configured admin emails from app settings
+ */
+async function getAdminNotificationEmails(): Promise<string[]> {
+  try {
+    const configuredEmail = await storage.getAppConfig('admin_alert_email');
+    const defaultEmails = ['admin@uniexchangehub.com', 'official@uniexchangehub.com', 'support@uniexchangehub.com'];
+    
+    if (configuredEmail && configuredEmail.includes('@')) {
+      return [configuredEmail, ...defaultEmails];
+    }
+    return defaultEmails;
+  } catch (error) {
+    return ['admin@uniexchangehub.com'];
+  }
+}
+
 export async function sendEmailNotification(to: string, subject: string, html: string) {
   if (!resend) {
     console.warn('Warning: RESEND_API_KEY is missing. Email notification skipped for:', to);
@@ -29,6 +46,29 @@ export async function sendEmailNotification(to: string, subject: string, html: s
   } catch (error) {
     console.error('❌ Failed to send email notification:', error);
     return false;
+  }
+}
+
+/**
+ * Send alert to admin via configured email and WhatsApp
+ */
+export async function sendAdminAlert(subject: string, message: string, html?: string) {
+  try {
+    // 1. WhatsApp Alert
+    await notifyAdminViaWhatsApp(`${subject}: ${message}`);
+
+    // 2. Email Alert
+    const adminEmails = await getAdminNotificationEmails();
+    for (const email of adminEmails) {
+      await sendEmailNotification(email, `Admin Alert: ${subject}`, html || `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>${subject}</h2>
+          <p>${message}</p>
+        </div>
+      `);
+    }
+  } catch (error) {
+    console.error('Failed to send admin alert:', error);
   }
 }
 
@@ -68,8 +108,12 @@ export async function sendOrderConfirmation(order: any, buyer: any, product: any
   
   await sendEmailNotification(buyer.email, subject, html);
   
-  // Also notify admin for transparency
-  await notifyAdminViaWhatsApp(`New Payment/Order #${order.id} for ${product.title} - GH₵${parseFloat(order.totalAmount).toFixed(2)}`);
+  // Also notify admin via the new unified alert system (Email + WhatsApp)
+  await sendAdminAlert(
+    'New Online Payment', 
+    `Order #${order.id} for ${product.title} - GH₵${parseFloat(order.totalAmount).toFixed(2)}`,
+    html
+  );
 }
 
 export async function notifySellerOfNewOrder(order: any, seller: any, product: any) {
@@ -96,7 +140,7 @@ export async function notifySellerOfNewOrder(order: any, seller: any, product: a
 }
 
 export async function notifyAdminOfNewOrder(order: any, adminEmail: string, product: any, seller: any) {
-  const subject = `Admin Alert: New Order #${order.id}`;
+  const subject = `New Order Alert: #${order.id}`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h1 style="color: #f59e0b;">New Order Alert</h1>
@@ -106,13 +150,18 @@ export async function notifyAdminOfNewOrder(order: any, adminEmail: string, prod
         <p><strong>Product:</strong> ${product.title}</p>
         <p><strong>Seller:</strong> ${seller.username} (${seller.email})</p>
         <p><strong>Amount:</strong> GH₵${parseFloat(order.totalAmount).toFixed(2)}</p>
+        <p><strong>Payment Gateway:</strong> ${order.paymentGateway}</p>
       </div>
       <p>View details in the <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/admin">admin panel</a>.</p>
     </div>
   `;
   
-  await sendEmailNotification(adminEmail, subject, html);
-  // Admin is already notified via sendOrderConfirmation/notifyAdminViaWhatsApp if payment is online
+  // Use unified alert system to ensure it hits the configured Gmail and WhatsApp
+  await sendAdminAlert(
+    'New Order Received',
+    `#${order.id} - ${product.title} (GH₵${parseFloat(order.totalAmount).toFixed(2)})`,
+    html
+  );
 }
 
 export async function notifyBuyerOfOrderApproval(order: any, buyer: any, product: any) {
@@ -132,7 +181,7 @@ export async function notifyBuyerOfOrderApproval(order: any, buyer: any, product
   `;
   
   await sendEmailNotification(buyer.email, subject, html);
-  await notifyAdminViaWhatsApp(`Seller approved Order #${order.id} for ${product.title}`);
+  await sendAdminAlert('Order Approved', `Seller approved Order #${order.id} for ${product.title}`);
 }
 
 export async function sendTrackingUpdate(order: any, buyer: any, product: any) {
@@ -172,5 +221,5 @@ export async function sendTrackingUpdate(order: any, buyer: any, product: any) {
 }
 
 export async function notifyAdminOfVerificationRequest(type: string, userId: number) {
-  await notifyAdminViaWhatsApp(`New ${type} verification request from User ID: ${userId}. Please review in Admin Panel.`);
+  await sendAdminAlert('New Verification', `New ${type} verification request from User ID: ${userId}. Please review in Admin Panel.`);
 }

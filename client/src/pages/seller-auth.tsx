@@ -279,6 +279,27 @@ export default function SellerAuth() {
       localStorage.setItem('token', result.token);
       localStorage.setItem('user', JSON.stringify(result.user));
 
+      // NEW: Create a store for the seller immediately so they don't get redirected back to auth
+      try {
+        await fetch('/api/stores', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${result.token}`
+          },
+          body: JSON.stringify({
+            name: data.businessName || `${data.firstName}'s Store`,
+            description: `Official store for ${data.firstName} ${data.lastName}`,
+            city: data.city,
+            university: data.university || 'External',
+            address: data.sellerAddress
+          }),
+        });
+      } catch (storeError) {
+        console.error("Initial store creation failed:", storeError);
+        // We continue anyway, the dashboard might try to handle it or user can try again
+      }
+
       const formData = new FormData();
       formData.append('idScan', idFileFront);
       if (idFileBack) formData.append('idScanBack', idFileBack);

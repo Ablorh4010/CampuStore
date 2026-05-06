@@ -62,12 +62,41 @@ export default function Dashboard() {
     }
   };
 
-  const { data: userStores = [], isLoading: storesLoading } = useQuery<Store[]>({
+  const { data: userStores = [], isLoading: storesLoading, refetch: refetchStores } = useQuery<Store[]>({
     queryKey: ['/api/stores/user'],
     enabled: !!user,
   });
 
   const primaryStore = userStores[0];
+
+  // Redirect to seller auth if no store, unless user is admin (we'll auto-create for admins)
+  useEffect(() => {
+    if (!storesLoading && userStores.length === 0 && user && !user.isAdmin) {
+      setLocation('/seller-auth');
+    }
+  }, [userStores.length, storesLoading, setLocation, user]);
+
+  // Auto-create store for admins if they don't have one
+  useEffect(() => {
+    const autoCreateStore = async () => {
+      if (!storesLoading && userStores.length === 0 && user?.isAdmin) {
+        try {
+          await apiRequest('POST', '/api/stores', {
+            name: "University Hub Official",
+            description: "Official store for The University Hub",
+            city: "Campus Hub",
+            university: "The University Hub",
+            address: "Main Office"
+          });
+          refetchStores();
+          toast({ title: "Admin Store Active", description: "An official store has been created for your admin account." });
+        } catch (error) {
+          console.error("Failed to auto-create admin store:", error);
+        }
+      }
+    };
+    autoCreateStore();
+  }, [userStores.length, storesLoading, user, refetchStores]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', primaryStore?.id],
@@ -83,13 +112,6 @@ export default function Dashboard() {
     queryKey: ['/api/orders/buyer', user?.id],
     enabled: !!user,
   });
-
-  // Redirect to seller auth if no store
-  useEffect(() => {
-    if (!storesLoading && userStores.length === 0) {
-      setLocation('/seller-auth');
-    }
-  }, [userStores.length, storesLoading, setLocation]);
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: number) => {

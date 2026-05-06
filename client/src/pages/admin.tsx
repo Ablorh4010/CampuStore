@@ -13,7 +13,7 @@ import {
   Video, Users as UsersIcon, DollarSign, Activity, Zap, Globe, Newspaper, Smartphone, Sparkles, MessageCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -62,12 +62,18 @@ export default function AdminDashboard() {
   const [modModalOpen, setModModalOpen] = useState(false);
   const [modItem, setModItem] = useState<{ id: number; type: 'product' | 'store' | 'user' | 'deal' | 'activity'; action: 'delete' | 'reject' | 'suspend' | 'needs_correction'; title: string } | null>(null);
   const [adminMomoNumber, setAdminMomoNumber] = useState('');
+  const [adminAlertEmail, setAdminAlertEmail] = useState('');
   const [whatsappSupport1, setWhatsappSupport1] = useState('');
   const [whatsappSupport2, setWhatsappSupport2] = useState('');
   const [whatsappSupport3, setWhatsappSupport3] = useState('');
 
   const { data: configData, refetch: refetchMomo } = useQuery<{ value: string }>({
     queryKey: ['/api/admin/config/admin_momo_number'],
+    enabled: !!user?.isAdmin,
+  });
+
+  const { data: alertEmailData, refetch: refetchAlertEmail } = useQuery<{ value: string }>({
+    queryKey: ['/api/admin/config/admin_alert_email'],
     enabled: !!user?.isAdmin,
   });
 
@@ -88,16 +94,18 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (configData?.value && !adminMomoNumber) setAdminMomoNumber(configData.value);
+    if (alertEmailData?.value && !adminAlertEmail) setAdminAlertEmail(alertEmailData.value);
     if (ws1Data?.value && !whatsappSupport1) setWhatsappSupport1(ws1Data.value);
     if (ws2Data?.value && !whatsappSupport2) setWhatsappSupport2(ws2Data.value);
     if (ws3Data?.value && !whatsappSupport3) setWhatsappSupport3(ws3Data.value);
-  }, [configData, ws1Data, ws2Data, ws3Data]);
+  }, [configData, alertEmailData, ws1Data, ws2Data, ws3Data]);
 
   const saveConfigMutation = useMutation({
     mutationFn: (data: { key: string, value: string }) =>
       apiRequest('POST', '/api/admin/config', data),
     onSuccess: () => {
       refetchMomo();
+      refetchAlertEmail();
       refetchWs1();
       refetchWs2();
       refetchWs3();
@@ -383,6 +391,11 @@ export default function AdminDashboard() {
             <p className="text-xl text-gray-500 font-medium">Platform Management Hub</p>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/dashboard">
+              <Button variant="outline" className="rounded-xl border-2 font-black border-primary/20 text-primary hover:bg-primary/5">
+                Go to Store Dashboard
+              </Button>
+            </Link>
             <Button variant="outline" className="rounded-xl border-2 font-black text-red-500 border-red-100 hover:bg-red-50" onClick={handleLogout}>
               Logout
             </Button>
@@ -1108,6 +1121,22 @@ export default function AdminDashboard() {
                          </p>
                       </div>
 
+                      <div className="space-y-4">
+                         <div className="flex items-center justify-between">
+                            <Label className="font-black uppercase tracking-widest text-[10px] text-gray-400">Admin Alert Email</Label>
+                            <Badge variant="outline" className="rounded-lg font-black text-[9px] uppercase border-2 text-blue-600 border-blue-100">Notifications</Badge>
+                         </div>
+                         <Input 
+                            value={adminAlertEmail} 
+                            onChange={e => setAdminAlertEmail(e.target.value)} 
+                            placeholder="your-gmail@gmail.com"
+                            className="h-14 rounded-2xl border-2 font-bold"
+                         />
+                         <p className="text-[10px] font-bold text-gray-400 leading-relaxed uppercase tracking-wider">
+                            All system alerts (new orders, verifications) will be sent here.
+                         </p>
+                      </div>
+
                       <Separator />
 
                       <div className="space-y-6">
@@ -1153,6 +1182,7 @@ export default function AdminDashboard() {
                         className="w-full h-16 rounded-[1.5rem] font-black uppercase tracking-widest text-sm shadow-xl shadow-primary/20"
                         onClick={() => {
                            saveConfigMutation.mutate({ key: 'admin_momo_number', value: adminMomoNumber });
+                           saveConfigMutation.mutate({ key: 'admin_alert_email', value: adminAlertEmail });
                            saveConfigMutation.mutate({ key: 'whatsapp_support_1', value: whatsappSupport1 });
                            saveConfigMutation.mutate({ key: 'whatsapp_support_2', value: whatsappSupport2 });
                            saveConfigMutation.mutate({ key: 'whatsapp_support_3', value: whatsappSupport3 });
