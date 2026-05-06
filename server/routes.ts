@@ -235,6 +235,10 @@ async function finalizePaystackOrder(data: any) {
     const trackingUrl = `${process.env.APP_URL || 'https://uniexchangehub.com'}/gh/orders`;
     const buyerNameForEmail = buyerInfo ? `${buyerInfo.firstName} ${buyerInfo.lastName}` : (guestDetails ? `${guestDetails.firstName} ${guestDetails.lastName}` : "Customer");
     
+    // Get admin emails for BCC
+    const admins = await storage.getAdminUsers();
+    const adminEmails = admins.map(a => a.email).filter((e): e is string => !!e);
+
     await sendPurchaseConfirmationEmail(
       buyerEmail,
       buyerNameForEmail,
@@ -242,7 +246,8 @@ async function finalizePaystackOrder(data: any) {
       (metadata.shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
       trackingUrl,
       false, // isCOD is false for Paystack
-      createdOrders[0]?.totalAmount || "0"
+      createdOrders[0]?.totalAmount || "0",
+      adminEmails
     );
   } catch (emailErr) {
     console.error('Failed to send secondary purchase confirmation email:', emailErr);
@@ -2087,6 +2092,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const buyerName = details ? `${details.firstName} ${details.lastName}` : "Customer";
         
         // 1. Send "Thank You" with tracking to Buyer
+        const admins = await storage.getAdminUsers();
+        const adminEmails = admins.map(a => a.email).filter((e): e is string => !!e);
+
         await sendPurchaseConfirmationEmail(
           details?.email || '',
           buyerName,
@@ -2094,7 +2102,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
           trackingUrl,
           paymentMode === 'cod',
-          totalAmount ? totalAmount.toString() : "0"
+          totalAmount ? totalAmount.toString() : "0",
+          adminEmails
         );
 
         // 2. Notify Seller & Admin for each order

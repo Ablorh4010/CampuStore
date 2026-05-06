@@ -233,7 +233,8 @@ export async function sendPurchaseConfirmationEmail(
   deliveryMethod: string,
   trackingUrl: string,
   isCOD: boolean = false,
-  totalAmount: string = "0"
+  totalAmount: string = "0",
+  bcc?: string[]
 ) {
   if (!resend) {
     console.error('❌ ERROR: RESEND_API_KEY is missing. Purchase confirmation email cannot be sent to:', email);
@@ -255,7 +256,8 @@ export async function sendPurchaseConfirmationEmail(
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: 'Thank You for Your Purchase! - The University Hub',
+      bcc: bcc,
+      subject: `Order Confirmation #${orderId} - The University Hub`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -273,6 +275,28 @@ export async function sendPurchaseConfirmationEmail(
               <p style="color: #4b5563; font-size: 16px;">Hi ${buyerName},</p>
               <p style="color: #4b5563; font-size: 16px;">We're excited to let you know that your order <strong>#${orderId}</strong> was successful. Thank you for choosing The University Hub!</p>
               
+              <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="color: #1f2937; margin-top: 0; font-size: 18px; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">📄 Order Invoice Summary</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Order ID:</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: bold;">#${orderId}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Payment Method:</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: bold;">${isCOD ? 'Cash on Delivery' : 'Paid Online'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Delivery Method:</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: bold;">${deliveryPartner}</td>
+                  </tr>
+                  <tr style="border-top: 2px solid #f3f4f6;">
+                    <td style="padding: 15px 0 8px 0; color: #1f2937; font-weight: bold; font-size: 18px;">Total Amount:</td>
+                    <td style="padding: 15px 0 8px 0; text-align: right; font-weight: bold; font-size: 20px; color: #000000;">GH₵${parseFloat(totalAmount).toFixed(2)}</td>
+                  </tr>
+                </table>
+              </div>
+
               ${codSection}
 
               <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
@@ -309,7 +333,7 @@ export async function sendPurchaseConfirmationEmail(
       return false;
     }
 
-    console.log(`✅ Purchase confirmation email sent to ${email}. ID: ${data?.id}`);
+    console.log(`✅ Purchase confirmation email sent to ${email} (BCC: ${bcc?.join(', ') || 'none'}). ID: ${data?.id}`);
     return true;
   } catch (error) {
     console.error('❌ Failed to send purchase confirmation email:', error);

@@ -117,7 +117,21 @@ export default function Home() {
         description="The ultimate student marketplace in Ghana. Buy and sell electronics, fashion, academic materials and more with verified IDs and campus pickup."
         keywords="student marketplace ghana, campus buy and sell, knust market, ug marketplace, university hub ghana, student entrepreneurship"
       />
-      
+
+      {/* Scrolling Banner */}
+      <div className="bg-black py-2.5 overflow-hidden whitespace-nowrap border-b border-white/5 relative z-50">
+        <div className="inline-block animate-marquee uppercase tracking-[0.3em] text-[10px] font-black text-white/90">
+          <span className="mx-8">🚚 FREE DELIVERY ON ALL CAMPUS ORDERS</span>
+          <span className="mx-8">✨ VESTED FOR STUDENTS BY STUDENTS</span>
+          <span className="mx-8">🔒 SECURE CAMPUS PICKUP LOCATIONS</span>
+          <span className="mx-8">📱 24/7 WHATSAPP SUPPORT</span>
+          <span className="mx-8">🚚 FREE DELIVERY ON ALL CAMPUS ORDERS</span>
+          <span className="mx-8">✨ VESTED FOR STUDENTS BY STUDENTS</span>
+          <span className="mx-8">🔒 SECURE CAMPUS PICKUP LOCATIONS</span>
+          <span className="mx-8">📱 24/7 WHATSAPP SUPPORT</span>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-white pt-16 pb-24 lg:pt-24 lg:pb-32">
         <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl"></div>
