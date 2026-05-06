@@ -392,66 +392,100 @@ export default function AdminDashboard() {
   
   if (!user || !user.isAdmin) return null;
 
+  const NavItem = ({ value, label, icon: Icon, badge }: { value: string, label: string, icon: any, badge?: number }) => (
+    <button 
+      onClick={() => setActiveTab(value)}
+      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${activeTab === value ? 'bg-black text-white shadow-lg shadow-black/10' : 'text-gray-500 hover:bg-gray-100 hover:text-black'}`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon className={`w-5 h-5 ${activeTab === value ? 'text-white' : 'text-gray-400'}`} />
+        <span className="font-bold text-xs uppercase tracking-widest">{label}</span>
+      </div>
+      {badge ? (
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeTab === value ? 'bg-white text-black' : 'bg-primary text-white'}`}>
+          {badge}
+        </span>
+      ) : null}
+    </button>
+  );
+
+  const NavSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
+    <div className="space-y-2 mb-8">
+      <h3 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-300">{title}</h3>
+      <div className="space-y-1">
+        {children}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 font-body">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
-          <div>
-            <h1 className="text-5xl font-black text-gray-900 tracking-tighter">Admin Portal</h1>
-            <p className="text-xl text-gray-500 font-medium">Platform Management Hub</p>
+    <div className="min-h-screen bg-gray-50 flex font-body">
+      {/* Sidebar */}
+      <aside className="w-72 bg-white border-r border-gray-100 flex flex-col sticky top-0 h-screen overflow-y-auto scrollbar-hide">
+        <div className="p-8">
+          <div className="mb-10">
+            <h1 className="text-2xl font-black text-gray-900 tracking-tighter italic">Admin Portal.</h1>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Platform Control</p>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" className="rounded-xl border-2 font-black border-primary/20 text-primary hover:bg-primary/5">
-                Go to Store Dashboard
-              </Button>
-            </Link>
-            <Button variant="outline" className="rounded-xl border-2 font-black text-red-500 border-red-100 hover:bg-red-50" onClick={handleLogout}>
-              Logout
+
+          <nav>
+            <NavSection title="Main">
+              <NavItem value="overview" label="Overview" icon={Activity} />
+              <NavItem value="inbox" label="Inbox" icon={Mail} />
+            </NavSection>
+
+            <NavSection title="Approvals">
+              <NavItem value="pending-products" label="Products" icon={Zap} badge={allProducts.filter(p => p.approvalStatus === 'pending').length} />
+              <NavItem value="pending-stores" label="Stores" icon={StoreIcon} badge={pendingStores.length} />
+              <NavItem value="pending-verifications" label="Sellers" icon={ShieldAlert} badge={pendingBuyerVerifications.length} />
+              <NavItem value="installment-approvals" label="Installments" icon={DollarSign} badge={pendingOrders.filter(o => o.isInstallment && o.status === 'pending').length} />
+              <NavItem value="pending-logos" label="Logo Changes" icon={Eye} badge={pendingLogos.length} />
+            </NavSection>
+
+            <NavSection title="Operations">
+              <NavItem value="product-mgmt" label="Product Mgmt" icon={Package} />
+              <NavItem value="pending-orders" label="Orders" icon={Newspaper} badge={pendingOrders.length} />
+              <NavItem value="payouts" label="Payouts" icon={DollarSign} badge={pendingPayouts.length} />
+            </NavSection>
+
+            <NavSection title="Platform">
+              <NavItem value="settings" label="App Settings" icon={Settings} />
+              <NavItem value="app-mgmt" label="Management" icon={Zap} />
+            </NavSection>
+          </nav>
+        </div>
+
+        <div className="mt-auto p-8 border-t border-gray-50 space-y-4">
+          <Link href="/dashboard">
+            <Button variant="outline" className="w-full rounded-xl border-2 font-black border-primary/20 text-primary hover:bg-primary/5 text-[10px] uppercase tracking-widest h-12">
+              Store Hub
             </Button>
-          </div>
+          </Link>
+          <Button 
+            variant="outline" 
+            className="w-full rounded-xl border-2 font-black text-red-500 border-red-100 hover:bg-red-50 text-[10px] uppercase tracking-widest h-12"
+            onClick={handleLogout}
+          >
+            Logout
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-12 max-w-5xl">
+        <div className="mb-10 flex justify-between items-center">
+           <div>
+              <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">{activeTab.replace('-', ' ')}</h2>
+              <p className="text-gray-400 font-medium mt-1">Manage and monitor platform {activeTab}.</p>
+           </div>
+           <div className="flex gap-4">
+              <Badge variant="secondary" className="h-8 rounded-full px-4 font-black uppercase text-[9px] tracking-widest bg-white border">
+                {user.username} (Admin)
+              </Badge>
+           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="inline-flex h-14 items-center justify-center rounded-2xl bg-white p-2 shadow-sm border overflow-x-auto w-full md:w-auto">
-            <TabsTrigger value="overview" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="pending-products" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Pending Items
-            </TabsTrigger>
-            <TabsTrigger value="product-mgmt" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Product Mgmt
-            </TabsTrigger>
-            <TabsTrigger value="pending-stores" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Pending Stores
-            </TabsTrigger>
-            <TabsTrigger value="pending-verifications" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Sellers Verification
-            </TabsTrigger>
-            <TabsTrigger value="pending-logos" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Logo Changes
-            </TabsTrigger>
-            <TabsTrigger value="pending-orders" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Pending Orders
-            </TabsTrigger>
-            <TabsTrigger value="payouts" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Payouts
-            </TabsTrigger>
-            <TabsTrigger value="installment-approvals" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Installment Approvals
-            </TabsTrigger>
-            <TabsTrigger value="inbox" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Inbox
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
-              App Settings
-            </TabsTrigger>
-            <TabsTrigger value="app-mgmt" className="rounded-xl px-6 h-10 font-bold data-[state=active]:bg-primary data-[state=active]:text-white flex items-center gap-2">
-              <Settings className="w-4 h-4" /> App Management
-            </TabsTrigger>
-          </TabsList>
-
           <TabsContent value="overview" className="space-y-8 mt-0">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
@@ -1505,7 +1539,7 @@ export default function AdminDashboard() {
           userStores={[]} 
           initialUrl={initialMagicUrl}
         />
-      </div>
+      </main>
     </div>
   );
 }
