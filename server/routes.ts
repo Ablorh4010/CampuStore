@@ -1072,7 +1072,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const order = await storage.getOrderById(id);
       
       if (!order) return res.status(404).json({ message: "Order not found" });
-      if (order.sellerId !== req.userId) return res.status(403).json({ message: "Unauthorized" });
+      
+      // Allow if user is the seller OR an admin
+      const user = await storage.getUserById(req.userId!);
+      if (order.sellerId !== req.userId && !user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
 
       const updatedOrder = await storage.updateOrder(id, { 
         sellerApproval: approval,

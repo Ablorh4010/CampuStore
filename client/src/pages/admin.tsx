@@ -328,6 +328,16 @@ export default function AdminDashboard() {
     },
   });
 
+  const updateSellerApprovalMutation = useMutation({
+    mutationFn: async ({ orderId, approval }: { orderId: number, approval: string }) => {
+      await apiRequest('PUT', `/api/orders/${orderId}/seller-approval`, { approval });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/orders/pending'] });
+      toast({ title: 'Seller Approved', description: 'Order has been approved on behalf of the seller.' });
+    },
+  });
+
   const processPayoutMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
       apiRequest('PUT', `/api/admin/orders/${orderId}/payout`, { status }),
@@ -958,21 +968,35 @@ export default function AdminDashboard() {
                              onChange={(e) => (order as any).tempDeliveryDate = e.target.value}
                            />
                         </div>
-                        <div className="flex gap-2">
-                           <Button 
-                             className="flex-grow rounded-xl bg-green-500 font-bold"
-                             onClick={() => {
-                               const date = (order as any).tempDeliveryDate;
-                               if (!date) {
-                                 toast({ title: "Date Required", description: "Please set an expected delivery date.", variant: "destructive" });
-                                 return;
-                               }
-                               updateAdminOrderApprovalMutation.mutate({ orderId: order.id, status: 'approved', estimatedDeliveryDate: date });
-                             }}
-                           >
-                             Final Approve
-                           </Button>
-                           <Button variant="destructive" className="flex-grow rounded-xl font-bold">Reject</Button>
+                        <div className="flex flex-col gap-2">
+                           {order.sellerApproval === 'pending' && (
+                             <Button 
+                               variant="outline"
+                               className="w-full rounded-xl border-2 border-primary/20 text-primary font-bold text-xs"
+                               onClick={() => updateSellerApprovalMutation.mutate({ orderId: order.id, approval: 'approved' })}
+                               disabled={updateSellerApprovalMutation.isPending}
+                             >
+                               {updateSellerApprovalMutation.isPending ? <Loader2 className="animate-spin h-4 w-4" /> : "Approve as Seller First"}
+                             </Button>
+                           )}
+                           
+                           <div className="flex gap-2">
+                             <Button 
+                               className="flex-grow rounded-xl bg-green-500 font-bold"
+                               disabled={order.sellerApproval !== 'approved' || updateAdminOrderApprovalMutation.isPending}
+                               onClick={() => {
+                                 const date = (order as any).tempDeliveryDate;
+                                 if (!date) {
+                                   toast({ title: "Date Required", description: "Please set an expected delivery date.", variant: "destructive" });
+                                   return;
+                                 }
+                                 updateAdminOrderApprovalMutation.mutate({ orderId: order.id, status: 'approved', estimatedDeliveryDate: date });
+                               }}
+                             >
+                               {updateAdminOrderApprovalMutation.isPending ? <Loader2 className="animate-spin h-4 w-4" /> : "Final Approve"}
+                             </Button>
+                             <Button variant="destructive" className="flex-grow rounded-xl font-bold">Reject</Button>
+                           </div>
                         </div>
                      </div>
                   </div>
