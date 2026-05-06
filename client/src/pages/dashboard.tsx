@@ -85,16 +85,29 @@ export default function Dashboard() {
 
   const primaryStore = userStores[0];
 
-  // Auto-create store for admins
+  const [isAutoCreating, setIsAutoCreating] = useState(false);
+
+  // Auto-create store for admins and sellers if missing
   useEffect(() => {
-    if (!storesLoading && userStores.length === 0 && user?.isAdmin) {
+    if (!storesLoading && userStores.length === 0 && (user?.isAdmin || user?.userType === 'seller' || user?.isMerchant) && !isAutoCreating) {
+      console.log("Auto-creating store for user:", user?.id);
+      setIsAutoCreating(true);
       apiRequest('POST', '/api/stores', {
-        name: "University Hub Official",
-        description: "Official store for The University Hub",
-        city: "Accra", university: "All Universities", address: "HQ"
-      }).then(() => refetchStores());
+        name: user?.isAdmin ? "University Hub Official" : `${user?.firstName}'s Store`,
+        description: user?.isAdmin ? "Official store for The University Hub" : `Official store for ${user?.firstName} ${user?.lastName}`,
+        city: user?.city || "Accra", 
+        university: user?.university || "All Universities", 
+        address: user?.sellerAddress || "HQ"
+      }).then(() => {
+        toast({ title: "Store Initialized", description: "Your merchant dashboard is ready." });
+        refetchStores();
+      }).catch(err => {
+        console.error("Failed to auto-create store:", err);
+      }).finally(() => {
+        setIsAutoCreating(false);
+      });
     }
-  }, [userStores.length, storesLoading, user, refetchStores]);
+  }, [userStores.length, storesLoading, user, refetchStores, isAutoCreating]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', primaryStore?.id],
@@ -166,7 +179,7 @@ export default function Dashboard() {
     },
   });
 
-  if (storesLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
+  if (storesLoading || isAutoCreating) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   const isVerified = user?.verificationStatus === 'verified' || user?.isAdmin;
   const isPending = user?.verificationStatus === 'pending';

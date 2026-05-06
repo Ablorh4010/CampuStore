@@ -134,6 +134,19 @@ export default function SellerAuth() {
     }
   };
 
+  const { user: authUser } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (authUser) {
+      if (authUser.isAdmin) {
+        setLocation('/admin');
+      } else {
+        setLocation('/dashboard');
+      }
+    }
+  }, [authUser, setLocation]);
+
   const onLogin = async (data: EmailLoginFormData) => {
     if (!data.otpCode || data.otpCode.length !== 6) {
       toast({
@@ -172,12 +185,8 @@ export default function SellerAuth() {
 
       // Redirection logic based on status
       const user = result.user;
-      if (user.userType === 'admin') {
+      if (user.isAdmin || user.userType === 'admin') {
         setLocation('/admin');
-      } else if (user.isMerchant && user.verificationStatus === 'verified') {
-        setLocation('/dashboard');
-      } else if (user.verificationStatus === 'needs_correction' || user.verificationStatus === 'pending') {
-        setLocation('/dashboard'); // Dashboard will handle the "limited access" state
       } else {
         setLocation('/dashboard');
       }
