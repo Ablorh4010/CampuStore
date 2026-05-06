@@ -89,13 +89,13 @@ export default function Product() {
   }, [api]);
 
   const rawMedia = product ? [
-    ...(product.images || []),
-    ...(product.mediaGifUrl ? [product.mediaGifUrl] : [])
+    ...(product.mediaGifUrl ? [product.mediaGifUrl] : []),
+    ...(product.images || [])
   ].filter(url => !!url && url.trim() !== '' && url !== 'uploaded') : [];
   
   const isVideo = (url: string) => {
     if (!url) return false;
-    return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*video.*/i);
+    return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*(video|mp4|webm|mov).*/i);
   };
 
   const mediaItems = rawMedia.length > 0 ? rawMedia : ['/placeholder-product.png'];

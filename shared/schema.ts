@@ -337,6 +337,7 @@ export const sellerReviews = pgTable("seller_reviews", {
   id: serial("id").primaryKey(),
   reviewerId: integer("reviewer_id").notNull().references(() => users.id),
   sellerId: integer("seller_id").notNull().references(() => users.id),
+  productId: integer("product_id").references(() => products.id),
   orderId: integer("order_id").references(() => orders.id),
   rating: integer("rating").notNull(), // 1-5
   comment: text("comment"),

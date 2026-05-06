@@ -11,10 +11,11 @@ import {
   Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
   Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
   Sparkles, Wallet, Smartphone, ChevronRight, Info, Download,
-  Store as StoreIcon
+  Store as StoreIcon, Star
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
@@ -36,6 +37,9 @@ export default function Dashboard() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
   const [initialMagicUrl, setInitialMagicUrl] = useState('');
+  const [reviewOrder, setReviewOrder] = useState<OrderWithDetails | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
 
   // Handle magic_url query parameter
   useEffect(() => {
@@ -44,10 +48,32 @@ export default function Dashboard() {
     if (magicUrl) {
       setInitialMagicUrl(magicUrl);
       setIsMagicImportOpen(true);
-      // Clean up the URL
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
+
+  const submitReviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!reviewOrder) return;
+      const response = await apiRequest('POST', '/api/reviews', {
+        reviewerId: user!.id,
+        sellerId: reviewOrder.sellerId,
+        productId: reviewOrder.productId,
+        orderId: reviewOrder.id,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Review Submitted", description: "Thank you for your feedback!" });
+      setReviewOrder(null);
+      setReviewComment('');
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to submit review.", variant: "destructive" });
+    }
+  });
 
   const fetchAiInsight = async (orderId: number) => {
     setIsGeneratingInsight(true);
@@ -113,6 +139,21 @@ export default function Dashboard() {
     queryKey: ['/api/orders/buyer', user?.id],
     enabled: !!user,
   });
+
+  // Handle reviewOrderId if present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reviewOrderId = params.get('reviewOrderId');
+    if (reviewOrderId && purchases.length > 0) {
+      const order = purchases.find(p => p.id === parseInt(reviewOrderId));
+      if (order) {
+        setReviewOrder(order);
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('reviewOrderId');
+        window.history.replaceState({}, '', newUrl.pathname + newUrl.search);
+      }
+    }
+  }, [purchases]);
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: number) => {
@@ -591,6 +632,17 @@ export default function Dashboard() {
                           <div className="flex flex-col gap-2">
                              <Button className="rounded-xl h-10 px-6 font-black uppercase tracking-widest text-[10px]" onClick={() => { setViewingTracking(order); fetchAiInsight(order.id); }}>Track</Button>
 
+                             {order.status === 'completed' && (
+                               <Button 
+                                 variant="outline"
+                                 className="rounded-xl h-10 px-6 font-black uppercase tracking-widest text-[10px] border-primary/20 text-primary hover:bg-primary/5" 
+                                 onClick={() => setReviewOrder(order)}
+                               >
+                                 <Star className="w-3 h-3 mr-2" />
+                                 Rate & Review
+                               </Button>
+                             )}
+
                              {order.product.isDigital && order.status === 'completed' && order.product.downloadUrl && (
                                <Button 
                                  variant="outline"
@@ -695,7 +747,46 @@ export default function Dashboard() {
           onClose={() => {setIsMagicImportOpen(false); setInitialMagicUrl('');}} 
           userStores={userStores}
           initialUrl={initialMagicUrl}
-        />      </div>
+        />
+
+        {/* Review Dialog */}
+        <Dialog open={!!reviewOrder} onOpenChange={(open) => !open && setReviewOrder(null)}>
+          <DialogContent className="max-w-md rounded-[2.5rem] border-none p-10">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black uppercase tracking-tighter">Review Hub.</DialogTitle>
+              <DialogDescription className="font-bold text-gray-400">Rate your experience with {reviewOrder?.product.title}.</DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-8 mt-4">
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} onClick={() => setReviewRating(star)}>
+                    <Star className={`w-10 h-10 ${star <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-black uppercase tracking-widest text-[10px] text-gray-400">Your Feedback</Label>
+                <textarea 
+                  className="w-full h-32 rounded-2xl border-2 border-gray-100 p-4 font-bold text-sm focus:border-primary outline-none transition-all"
+                  placeholder="Tell other students about the quality, delivery, and seller communication..."
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                />
+              </div>
+
+              <Button 
+                className="w-full h-14 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-xs"
+                onClick={() => submitReviewMutation.mutate()}
+                disabled={submitReviewMutation.isPending}
+              >
+                {submitReviewMutation.isPending ? <Loader2 className="animate-spin" /> : "Submit Review"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }

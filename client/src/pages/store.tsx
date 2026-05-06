@@ -86,6 +86,11 @@ export default function Store() {
     enabled: !!storeId,
   });
 
+  const { data: reviews = [] } = useQuery<any[]>({
+    queryKey: ['/api/reviews/seller', store?.userId],
+    enabled: !!store?.userId,
+  });
+
   if (storeLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -174,6 +179,34 @@ export default function Store() {
           </div>
         )}
       </div>
+
+      <div className="mb-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Customer Reviews ({reviews.length})</h2>
+        {reviews.length === 0 ? (
+          <div className="py-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100 text-center">
+            <p className="text-gray-400 font-medium">No reviews yet for this store.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {reviews.map((review) => (
+              <Card key={review.id} className="rounded-2xl border-none shadow-sm bg-gray-50/50 p-6">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-1 text-yellow-400">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-current' : 'text-gray-200'}`} />
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-gray-700 leading-relaxed italic">"{review.comment}"</p>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
       <ChatBox storeId={store.id} sellerId={store.userId} sellerName={`${store.user?.firstName || 'Store'} ${store.user?.lastName || 'Owner'}`} sellerAvatar={store.user?.avatar || undefined} storeName={store.name} />
     </div>
   );

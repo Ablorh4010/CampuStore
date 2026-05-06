@@ -10,7 +10,8 @@ import {
   type ProductWithStore, type StoreWithUser, type OrderWithDetails, type CartItemWithProduct,
   type OtpCode, type InsertOtp,
   type WeeklyDeal, type WeeklyDealWithProduct, type InsertWeeklyDeal,
-  type CampusActivity, type CampusActivityWithUser, type InsertCampusActivity
+  type CampusActivity, type CampusActivityWithUser, type InsertCampusActivity,
+  type SellerReview, type InsertSellerReview
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, like, desc, sql, gte, inArray, lt } from "drizzle-orm";
@@ -138,6 +139,9 @@ export interface IStorage {
   deleteCampusActivity(id: number): Promise<boolean>;
   // Installments
   getActiveInstallmentOrders(): Promise<Order[]>;
+  // Reviews
+  createSellerReview(review: InsertSellerReview): Promise<SellerReview>;
+  getReviewsBySellerId(sellerId: number): Promise<SellerReview[]>;
   // App Config
   getAppConfig(key: string): Promise<string | undefined>;
   setAppConfig(key: string, value: string): Promise<void>;
@@ -1327,6 +1331,28 @@ export class DatabaseStorage implements IStorage {
         lt(orders.installmentsPaid, 4)
       )
     );
+  }
+
+  async createSellerReview(review: InsertSellerReview): Promise<SellerReview> {
+    const [newReview] = await db.insert(sellerReviews).values(review).returning();
+    
+    // Update seller rating
+    const allReviews = await this.getReviewsBySellerId(review.sellerId);
+    const totalRating = allReviews.reduce((sum, r) => sum + r.rating, 0);
+    const avgRating = (totalRating / allReviews.length).toString();
+    
+    await db.update(stores)
+      .set({ 
+        rating: avgRating,
+        reviewCount: allReviews.length
+      })
+      .where(eq(stores.userId, review.sellerId));
+
+    return newReview;
+  }
+
+  async getReviewsBySellerId(sellerId: number): Promise<SellerReview[]> {
+    return await db.select().from(sellerReviews).where(eq(sellerReviews.sellerId, sellerId)).orderBy(desc(sellerReviews.createdAt));
   }
 }
 
