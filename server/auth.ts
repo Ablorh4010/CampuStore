@@ -11,6 +11,8 @@ export interface AuthRequest extends Request {
     username: string;
     email: string | null;
     isAdmin: boolean;
+    isMerchant: boolean;
+    userType: string;
   };
 }
 
@@ -55,7 +57,9 @@ export async function authenticateToken(
       id: user.id,
       username: user.username,
       email: user.email,
-      isAdmin: user.isAdmin
+      isAdmin: user.isAdmin,
+      isMerchant: user.isMerchant || false,
+      userType: user.userType || 'user'
     };
   }
 
@@ -81,9 +85,10 @@ export async function tryAuthenticate(
           id: user.id,
           username: user.username,
           email: user.email,
-          isAdmin: user.isAdmin
-        };
-      }
+          isAdmin: user.isAdmin,
+          isMerchant: user.isMerchant || false,
+          userType: user.userType || 'user'
+        };      }
     }
   }
   next();
@@ -111,9 +116,10 @@ export async function requireAdmin(
     id: user.id,
     username: user.username,
     email: user.email,
-    isAdmin: user.isAdmin
+    isAdmin: user.isAdmin,
+    isMerchant: user.isMerchant || false,
+    userType: user.userType || 'user'
   };
-
   next();
 }
 

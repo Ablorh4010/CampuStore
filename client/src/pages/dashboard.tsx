@@ -107,6 +107,18 @@ export default function Dashboard() {
   useEffect(() => {
     let mounted = true;
     
+    // Diagnostic log to see why it might not trigger
+    if (user && !authLoading) {
+      console.log("Dashboard Auto-Creation Check:", {
+        storesCount: userStores.length,
+        storesLoading,
+        storesFetching,
+        isMerchantUser,
+        isAutoCreating,
+        creationAttempted: creationAttempted.current
+      });
+    }
+
     if (!authLoading && user && !storesLoading && !storesFetching && userStores.length === 0 && isMerchantUser && !isAutoCreating && !creationAttempted.current) {
       console.log("Triggering auto-creation for user:", user.id);
       creationAttempted.current = true;
@@ -138,7 +150,7 @@ export default function Dashboard() {
       });
     }
     return () => { mounted = false; };
-  }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, authLoading]);
+  }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, authLoading, queryClient]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', primaryStore?.id],
@@ -232,7 +244,7 @@ export default function Dashboard() {
 
   // If a store is expected but missing, and we are not already auto-creating, 
   // we show a loader while the useEffect kicks in.
-  if (authLoading || (storesLoading && userStores.length === 0)) {
+  if (authLoading || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-primary w-10 h-10" />

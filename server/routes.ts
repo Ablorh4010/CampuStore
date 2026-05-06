@@ -21,21 +21,11 @@ import crypto from 'crypto';
 import { generateToken, authenticateToken, tryAuthenticate, requireAdmin, type AuthRequest } from "./auth";
 import { sendOrderConfirmation, notifyAdminOfVerificationRequest } from "./notifications";
 import path from "path";
-import Stripe from "stripe";
 import rateLimit from "express-rate-limit";
 import { Resend } from 'resend';
 import sharp from 'sharp';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-let stripe: Stripe | null = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-10-29.clover",
-  });
-} else {
-  console.warn('Warning: STRIPE_SECRET_KEY is missing. Payment features will be disabled.');
-}
 
 // Rate limiters
 const authLimiter = rateLimit({
@@ -630,6 +620,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Seller registration error:', error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Invalid seller data" });
+    }
+  });
+
+  app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = await storage.getUserById(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
@@ -1633,16 +1635,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/users/:id", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteUser(id);
-      res.json({ success });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete user" });
-    }
-  });
-
   // Weekly Deals Admin
   app.get("/api/admin/weekly-deals", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
@@ -2250,99 +2242,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(reviews);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch reviews" });
-    }
-  });
-
-  // Confirm payment and create orders
-  app.post("/api/orders/confirm-payment", tryAuthenticate, async (req: AuthRequest, res) => {
-    try {
-      const { paymentIntentId } = req.body;
-      if (!stripe) return res.status(500).json({ message: "Payment service not configured" });
-
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      if (paymentIntent.status !== 'succeeded') {
-        return res.status(400).json({ message: "Payment has not succeeded" });
-      }
-
-      const { 
-        userId, 
-        cartItems: cartItemsRaw, 
-        shippingMode, 
-        isBokoo, 
-        guestDetails: guestDetailsRaw,
-        buyerLatitude,
-        buyerLongitude,
-        verificationUrls: verificationUrlsRaw
-      } = paymentIntent.metadata;
-
-      const cartItems = JSON.parse(cartItemsRaw);
-      const guestDetails = guestDetailsRaw ? JSON.parse(guestDetailsRaw) : null;
-      const verificationUrls = verificationUrlsRaw ? JSON.parse(verificationUrlsRaw) : null;
-
-      let buyerId = userId !== "guest" ? parseInt(userId) : null;
-      
-      const createdOrders = [];
-      for (const item of cartItems) {
-        const product = await storage.getProductById(item.productId);
-        if (!product) continue;
-
-        const store = await storage.getStoreById(product.storeId);
-        if (!store) continue;
-
-        const order = await storage.createOrder({
-          buyerId: buyerId || 0,
-          sellerId: store.userId,
-          productId: product.id,
-          quantity: item.quantity,
-          totalAmount: (parseFloat(product.price.toString()) * item.quantity).toString(),
-          status: 'confirmed',
-          shippingMode: shippingMode || 'ghana_post_standard',
-          deliveryStatus: 'pending',
-          buyerLatitude: buyerLatitude,
-          buyerLongitude: buyerLongitude,
-          buyerAddress: guestDetails?.address,
-          buyerUniversity: guestDetails?.university,
-          buyerCity: guestDetails?.city,
-          buyerPhone: guestDetails?.phoneNumber,
-          buyerEmail: guestDetails?.email,
-          payoutStatus: isBokoo === 'true' ? 'installment_active' : 'pending'
-        });
-        
-        createdOrders.push(order);
-      }
-
-      // Clear cart
-      if (buyerId) {
-        await storage.clearCart(buyerId);
-      }
-
-      // Send notifications
-      const { sendOrderConfirmation } = await import('./notifications');
-      let buyerInfo: any;
-      if (buyerId) {
-        buyerInfo = await storage.getUserById(buyerId);
-      } else if (guestDetails) {
-        buyerInfo = {
-          firstName: guestDetails.firstName,
-          lastName: guestDetails.lastName,
-          email: guestDetails.email,
-          phoneNumber: guestDetails.phoneNumber
-        };
-      }
-
-      if (buyerInfo) {
-        for (const order of createdOrders) {
-          const product = await storage.getProductById(order.productId);
-          if (product) {
-            await sendOrderConfirmation(order, buyerInfo, product);
-          }
-        }
-      }
-
-      res.json({ message: "Orders created successfully", orders: createdOrders });
-    } catch (error) {
-      console.error("Order creation error:", error);
-      res.status(500).json({ message: "Failed to create orders after payment" });
     }
   });
 
@@ -3400,45 +3299,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stripe payment intent route
-  app.post("/api/create-payment-intent", tryAuthenticate, async (req: AuthRequest, res) => {
-    try {
-      const { amount, cartItems, isBokoo, guestDetails, buyerLocation, verificationUrls } = req.body;
-
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ message: "Invalid amount" });
-      }
-
-      const stripeKey = process.env.STRIPE_SECRET_KEY;
-      if (!stripe || !stripeKey || stripeKey.includes('placeholder')) {
-        return res.status(400).json({ message: "Payment service not fully configured yet. Please try Mobile Money or Bank Transfer." });
-      }
-
-      const userId = req.userId;
-
-      const paymentIntent = await stripe!.paymentIntents.create({
-        amount: Math.round(amount * 100),
-        currency: "ghs",
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata: {
-          userId: userId?.toString() || "guest",
-          cartItems: JSON.stringify(cartItems || []),
-          isBokoo: isBokoo ? "true" : "false",
-          guestDetails: guestDetails ? JSON.stringify(guestDetails) : "{}",
-          buyerLatitude: buyerLocation?.latitude || "",
-          buyerLongitude: buyerLocation?.longitude || "",
-          verificationUrls: verificationUrls ? JSON.stringify(verificationUrls) : "{}",
-        },
-      });
-
-      res.json({ clientSecret: paymentIntent.client_secret });
-    } catch (error: any) {
-      console.error('Stripe payment intent error:', error);
-      res.status(400).json({ message: "Payment Gateway Error: " + error.message + ". Try an alternative payment mode." });
-    }
-  });
   // Push notification routes
   
   // Get VAPID public key for client

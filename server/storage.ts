@@ -301,19 +301,55 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: number): Promise<boolean> {
     try {
-      // 1. Delete user's stores (and their dependencies)
+      // 1. Delete user's stores (and their dependencies: products, store orders, store messages, store cart items)
       const userStores = await this.getStoresByUserId(id);
       for (const store of userStores) {
         await this.deleteStore(store.id);
       }
 
-      // 2. Delete user's bookmarks
+      // 2. Social/Groups data - First delete dependencies of things the user owns
+      const userEvents = await db.select().from(events).where(eq(events.organizerId, id));
+      for (const event of userEvents) {
+        await db.delete(eventRsvps).where(eq(eventRsvps.eventId, event.id));
+      }
+      await db.delete(events).where(eq(events.organizerId, id));
+      await db.delete(eventRsvps).where(eq(eventRsvps.userId, id));
+
+      const userClubs = await db.select().from(clubs).where(eq(clubs.ownerId, id));
+      for (const club of userClubs) {
+        await db.delete(clubMemberships).where(eq(clubMemberships.clubId, club.id));
+      }
+      await db.delete(clubs).where(eq(clubs.ownerId, id));
+      await db.delete(clubMemberships).where(eq(clubMemberships.userId, id));
+
+      const userGroups = await db.select().from(studyGroups).where(eq(studyGroups.creatorId, id));
+      for (const group of userGroups) {
+        await db.delete(studyGroupMemberships).where(eq(studyGroupMemberships.groupId, group.id));
+      }
+      await db.delete(studyGroups).where(eq(studyGroups.creatorId, id));
+      await db.delete(studyGroupMemberships).where(eq(studyGroupMemberships.userId, id));
+
+      // 3. Auctions
+      const userAuctions = await db.select().from(auctions).where(eq(auctions.sellerId, id));
+      for (const auction of userAuctions) {
+         await db.delete(auctionBids).where(eq(auctionBids.auctionId, auction.id));
+      }
+      await db.delete(auctionBids).where(eq(auctionBids.bidderId, id));
+      await db.delete(auctions).where(or(eq(auctions.sellerId, id), eq(auctions.highestBidderId, id)));
+
+      // 4. Other user data
+      await db.delete(orders).where(or(eq(orders.buyerId, id), eq(orders.sellerId, id)));
+      await db.delete(cartItems).where(eq(cartItems.userId, id));
       await db.delete(bookmarks).where(eq(bookmarks.userId, id));
-
-      // 3. Delete user's messages
       await db.delete(messages).where(or(eq(messages.fromId, id), eq(messages.toId, id)));
+      await db.delete(userFollows).where(or(eq(userFollows.followerId, id), eq(userFollows.followingId, id)));
+      await db.delete(sellerReviews).where(or(eq(sellerReviews.reviewerId, id), eq(sellerReviews.sellerId, id)));
+      await db.delete(userBadges).where(eq(userBadges.userId, id));
+      await db.delete(userPoints).where(eq(userPoints.userId, id));
+      await db.delete(pointsHistory).where(eq(pointsHistory.userId, id));
+      await db.delete(campusActivity).where(eq(campusActivity.userId, id));
 
-      // 4. Finally delete the user
+      // 5. Finally delete the user
       const result = await db.delete(users).where(eq(users.id, id));
       return (result.rowCount || 0) > 0;
     } catch (error) {
@@ -706,11 +742,20 @@ export class DatabaseStorage implements IStorage {
     // Delete all products and their related data first to satisfy foreign key constraints
     const storeProducts = await db.select().from(products).where(eq(products.storeId, id));
     for (const product of storeProducts) {
+      // Delete auctions related to this product
+      const productAuctions = await db.select().from(auctions).where(eq(auctions.productId, product.id));
+      for (const auction of productAuctions) {
+        await db.delete(auctionBids).where(eq(auctionBids.auctionId, auction.id));
+      }
+      await db.delete(auctions).where(eq(auctions.productId, product.id));
+
+      // Delete other product dependencies
       await db.delete(orders).where(eq(orders.productId, product.id));
       await db.delete(messages).where(eq(messages.productId, product.id));
       await db.delete(cartItems).where(eq(cartItems.productId, product.id));
+      await db.delete(weeklyDeals).where(eq(weeklyDeals.productId, product.id));
     }
-    
+
     await db.delete(products).where(eq(products.storeId, id));
     const result = await db.delete(stores).where(eq(stores.id, id));
     return (result.rowCount || 0) > 0;
@@ -1026,6 +1071,7 @@ export class DatabaseStorage implements IStorage {
         firstName: result.users?.firstName || '',
         lastName: result.users?.lastName || '',
         email: result.users?.email || '',
+        phoneNumber: result.users?.phoneNumber || '',
       },
       seller: {
         firstName: seller.firstName,
@@ -1039,7 +1085,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrdersByBuyerId(buyerId: number): Promise<OrderWithDetails[]> {
-
+    const buyer = await this.getUserById(buyerId);
     const results = await db
       .select({
         order: orders,
@@ -1059,7 +1105,12 @@ export class DatabaseStorage implements IStorage {
         ...result.product!,
         category: result.category!
       },
-      buyer: { firstName: '', lastName: '', email: '' }, 
+      buyer: { 
+        firstName: buyer?.firstName || '', 
+        lastName: buyer?.lastName || '', 
+        email: buyer?.email || '',
+        phoneNumber: buyer?.phoneNumber || '',
+      }, 
       seller: {
         firstName: result.seller!.firstName,
         lastName: result.seller!.lastName,
@@ -1105,6 +1156,7 @@ export class DatabaseStorage implements IStorage {
         firstName: result.buyer!.firstName,
         lastName: result.buyer!.lastName,
         email: result.buyer!.email,
+        phoneNumber: result.buyer!.phoneNumber,
       }
     }));
   }

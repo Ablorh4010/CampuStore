@@ -20,13 +20,10 @@ export default function ProductCard({ product }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [location] = useLocation();
 
-  const isGh = location.startsWith('/gh');
-  const basePrefix = isGh ? '/gh' : '';
-
-  const handleAddToCart = async (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    await addToCart(product.id);
+    addToCart(product.id, 1);
   };
 
   const onShare = (e: React.MouseEvent) => {
@@ -35,7 +32,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     handleShare({
       title: product.title,
       text: `🔥 Check out this ${product.title} for ${formatPriceWithFee(product.price)} at ${product.store.name} on The Hub Ghana!`,
-      url: `${basePrefix}/product/${product.id}${user ? `?ref=${user.id}` : ''}`
+      url: `/product/${product.id}${user ? `?ref=${user.id}` : ''}`
     });
   };
   
@@ -59,8 +56,8 @@ export default function ProductCard({ product }: ProductCardProps) {
     : staticThumbnail;
 
   const productLink = user 
-    ? `${basePrefix}/product/${product.id}?ref=${user.id}`
-    : `${basePrefix}/product/${product.id}`;
+    ? `/product/${product.id}?ref=${user.id}`
+    : `/product/${product.id}`;
 
   const isCurrentMediaVideo = isVideo(displayImage);
 

@@ -208,7 +208,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Is my payment information secure?</h3>
-                  <p className="text-sm text-gray-600">Yes! We use Stripe for secure payment processing. We never store your card details.</p>
+                  <p className="text-sm text-gray-600">Yes! We use Paystack for secure payment processing. We never store your card details.</p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">How do I report a suspicious listing?</h3>

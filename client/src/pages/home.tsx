@@ -57,9 +57,6 @@ const getCategoryImage = (name: string) => {
 export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const isGh = window.location.pathname.startsWith('/gh');
-  const basePrefix = isGh ? '/gh' : '';
-
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', loop: false, dragFree: true });
   const scrollPrev = useCallback(() => { if (emblaApi) emblaApi.scrollPrev(); }, [emblaApi]);
   const scrollNext = useCallback(() => { if (emblaApi) emblaApi.scrollNext(); }, [emblaApi]);
@@ -131,7 +128,7 @@ export default function Home() {
                 The ultimate marketplace built for every student. From universities to training colleges, trade securely with verified IDs, on-campus pickups, and 24/7 WhatsApp support.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="h-16 px-10 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-xs shadow-2xl shadow-black/20 group transition-all" onClick={() => setLocation(`${basePrefix}/browse`)}>
+                <Button size="lg" className="h-16 px-10 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-xs shadow-2xl shadow-black/20 group transition-all" onClick={() => setLocation("/browse")}>
                   Start Shopping <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
                 <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl border-2 border-gray-100 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50 transition-all" onClick={() => setLocation('/seller-auth')}>
@@ -164,7 +161,7 @@ export default function Home() {
 
             <div className="flex justify-center lg:justify-end relative mt-16 lg:mt-0">
                {weeklyDeals.length > 0 && (
-                  <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.8 }} className="relative w-[300px] h-[600px] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-[8px] border-[#333] overflow-hidden z-20">
+                  <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.8 }} className="relative w-full max-w-[300px] aspect-[1/2] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-[8px] border-[#333] overflow-hidden z-20">
                      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-[#333] rounded-b-2xl z-30 flex items-center justify-center gap-2">
                         <div className="w-8 h-1 bg-white/10 rounded-full"></div>
                         <div className="w-2 h-2 bg-white/10 rounded-full"></div>
@@ -176,8 +173,7 @@ export default function Home() {
                         </div>
                         <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
                            {weeklyDeals.map((deal) => (
-                              <Link key={deal.id} href={`${basePrefix}/product/${deal.productId}`}>
-                                 <div className="bg-gray-50 rounded-2xl p-3 border border-transparent hover:border-primary/20 transition-all cursor-pointer group/deal">
+                               <Link key={deal.id} href={`/product/${deal.productId}`}>                                 <div className="bg-gray-50 rounded-2xl p-3 border border-transparent hover:border-primary/20 transition-all cursor-pointer group/deal">
                                     <div className="flex gap-4 items-center">
                                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white">
                                           <img src={deal.product.images[0]} alt="" className="w-full h-full object-cover group-hover/deal:scale-110 transition-transform duration-500" />
@@ -196,7 +192,7 @@ export default function Home() {
                            ))}
                         </div>
                         <div className="p-4 bg-gray-50 border-t border-gray-100">
-                           <Link href={`${basePrefix}/browse`} className="w-full"><Button className="w-full h-10 rounded-xl bg-black text-white font-black uppercase tracking-widest text-[8px]">View Catalog</Button></Link>
+                           <Link href="/browse" className="w-full"><Button className="w-full h-10 rounded-xl bg-black text-white font-black uppercase tracking-widest text-[8px]">View Catalog</Button></Link>
                         </div>
                      </div>
                   </motion.div>
@@ -214,12 +210,12 @@ export default function Home() {
               <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 leading-none">The Marketplaces.</h2>
               <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-2">Swipe to explore campus hubs</p>
             </div>
-            <Link href={`${basePrefix}/browse`}><Button variant="link" className="font-black uppercase tracking-widest text-[9px] p-0 h-auto group">Browse All <ArrowRight className="ml-1 w-2.5 h-2.5 group-hover:translate-x-1 transition-transform" /></Button></Link>
+            <Link href="/browse"><Button variant="link" className="font-black uppercase tracking-widest text-[9px] p-0 h-auto group">Browse All <ArrowRight className="ml-1 w-2.5 h-2.5 group-hover:translate-x-1 transition-transform" /></Button></Link>
           </div>
           <div className="flex overflow-x-auto scrollbar-hide gap-6 sm:gap-10 pb-4 px-2 -mx-2">
             {categoriesLoading ? (Array(8).fill(0).map((_, i) => <div key={i} className="flex-shrink-0 flex flex-col items-center gap-3"><Skeleton className="w-20 h-20 sm:w-24 sm:h-24 rounded-full" /><Skeleton className="w-12 h-2 rounded-full" /></div>)) : (
               categories.filter(c => !c.parentId).map((category) => (
-                <Link key={category.id} href={`${basePrefix}/browse?categoryId=${category.id}`}>
+                <Link key={category.id} href={`/browse?categoryId=${category.id}`}>
                   <div className="group cursor-pointer flex-shrink-0 flex flex-col items-center gap-4 w-20 sm:w-24">
                     <div className="relative w-20 h-20 sm:w-24 sm:h-24">
                       <div className={`absolute inset-0 rounded-full ${category.color || 'bg-gray-100'} opacity-30 group-hover:opacity-50 transition-all duration-500 scale-90 group-hover:scale-100`} />
@@ -251,7 +247,7 @@ export default function Home() {
                 <Button variant="outline" size="icon" className="rounded-full h-12 w-12 border-2" onClick={scrollPrev}><ChevronLeft className="w-5 h-5" /></Button>
                 <Button variant="outline" size="icon" className="rounded-full h-12 w-12 border-2" onClick={scrollNext}><ChevronRight className="w-5 h-5" /></Button>
               </div>
-              <Link href={`${basePrefix}/browse`}><Button variant="link" className="font-black uppercase tracking-widest text-[10px] p-0 h-auto group">See Catalog <ArrowRight className="ml-2 w-3 h-3 group-hover:translate-x-1 transition-transform" /></Button></Link>
+              <Link href="/browse"><Button variant="link" className="font-black uppercase tracking-widest text-[10px] p-0 h-auto group">See Catalog <ArrowRight className="ml-2 w-3 h-3 group-hover:translate-x-1 transition-transform" /></Button></Link>
             </div>
           </div>
           <div className="overflow-hidden" ref={emblaRef}><div className="flex -ml-4">
@@ -270,7 +266,7 @@ export default function Home() {
             <div className="max-w-xl text-center md:text-left">
               <div className="inline-flex items-center gap-2 mb-3"><Badge className="bg-primary text-black font-black text-[9px] uppercase px-2 py-0.5 rounded-full">Bɔkɔɔ Pay</Badge><span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">0% Interest • 4 Months</span></div>
               <h2 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter mb-4">BUY NOW. PAY <span className="text-primary italic">LATER.</span></h2>
-              <Button size="sm" className="h-12 px-8 rounded-xl bg-primary text-black font-black uppercase tracking-widest text-[9px] hover:bg-primary/90 transition-all" onClick={() => setLocation(`${basePrefix}/browse?installment=true`)}>Browse Items <ArrowRight className="ml-2 w-3.5 h-3.5" /></Button>
+              <Button size="sm" className="h-12 px-8 rounded-xl bg-primary text-black font-black uppercase tracking-widest text-[9px] hover:bg-primary/90 transition-all" onClick={() => setLocation("/browse?installment=true")}>Browse Items <ArrowRight className="ml-2 w-3.5 h-3.5" /></Button>
             </div>
             <div className="grid grid-cols-3 gap-8 text-center border-l border-white/10 pl-8 hidden md:grid">
                <div><p className="text-2xl font-black text-white leading-none">01</p><p className="text-[8px] font-black uppercase text-gray-500 mt-1">Choose</p></div>
@@ -301,11 +297,11 @@ export default function Home() {
                </div>
                <div className="bg-gray-50/50 rounded-[2.5rem] p-8 border border-gray-100 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-6 opacity-[0.03] rotate-12"><Store className="w-24 h-24 text-black" /></div>
-                  <div className="flex justify-between items-center mb-6 relative"><h3 className="font-black uppercase text-xs tracking-widest">Top Vendors</h3><Link href={`${basePrefix}/browse?view=stores`}><Button variant="link" className="text-[8px] font-black uppercase tracking-widest p-0 h-auto">View All</Button></Link></div>
+                  <div className="flex justify-between items-center mb-6 relative"><h3 className="font-black uppercase text-xs tracking-widest">Top Vendors</h3><Link href={"/browse?view=stores"}><Button variant="link" className="text-[8px] font-black uppercase tracking-widest p-0 h-auto">View All</Button></Link></div>
                   <div className="space-y-4 relative">
                      {storesLoading ? (Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)) : (
                         featuredStores.slice(0, 3).map((store) => (
-                           <Link key={store.id} href={`${basePrefix}/store/${store.id}`}>
+                           <Link key={store.id} href={`/store/${store.id}`}>
                               <div className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-transparent hover:border-primary/20 transition-all cursor-pointer shadow-sm group">
                                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0"><img src={store.logoUrl || '/placeholder-logo.png'} alt="" className="w-full h-full object-cover" /></div>
                                  <div className="min-w-0 flex-1"><h4 className="text-[10px] font-black uppercase truncate group-hover:text-primary transition-colors">{store.name}</h4><div className="flex items-center gap-1"><Star className="w-2 h-2 fill-yellow-400 text-yellow-400" /><span className="text-[8px] font-bold text-gray-400">{parseFloat(store.rating).toFixed(1)} ({store.reviewCount})</span></div></div>

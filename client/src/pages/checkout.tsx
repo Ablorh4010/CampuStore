@@ -1,7 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useStripe, Elements, PaymentElement, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { useLocation } from 'wouter';
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -21,9 +19,6 @@ import {
 } from "lucide-react";
 import { IdScanCapture, FacialCapture } from "@/components/verification";
 import { useGeolocation } from "@/hooks/use-geolocation";
-
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_dummy';
-const stripePromise = loadStripe(stripePublicKey);
 
 interface CheckoutDetails {
   firstName: string;

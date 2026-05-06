@@ -145,7 +145,7 @@ export const orders = pgTable("orders", {
   shippingStatus: text("shipping_status").default("pending"),
   trackingNumber: text("tracking_number"),
   paymentReference: text("payment_reference"),
-  paymentGateway: text("payment_gateway").default("stripe"), // stripe, paystack, manual
+  paymentGateway: text("payment_gateway").default("paystack"), // paystack, stripe, manual
   carrier: text("carrier"), // Ghana Post, FedEx, etc.
   estimatedDeliveryDate: timestamp("estimated_delivery_date"),
   trackingHistory: text("tracking_history"), // Text summary of updates
@@ -686,7 +686,7 @@ export type StoreWithUser = Store & {
 
 export type OrderWithDetails = Order & {
   product: Product & { category: Category };
-  buyer: Pick<User, 'firstName' | 'lastName' | 'email'>;
+  buyer: Pick<User, 'firstName' | 'lastName' | 'email' | 'phoneNumber'>;
   seller: Pick<User, 'firstName' | 'lastName' | 'email' | 'bankName' | 'bankAccountNumber' | 'mobileMoneyPhone'>;
 };
 

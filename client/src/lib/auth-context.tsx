@@ -131,16 +131,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   };
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
-    if (storedUser) {
+  const { data: verifiedUser, isLoading: isCheckingAuth } = useQuery<User | null>({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      const storedToken = localStorage.getItem('token');
+      if (!storedToken) return null;
       try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        localStorage.removeItem('user');
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${storedToken}` }
+        });
+        if (res.ok) return await res.json();
+        if (res.status === 401) {
+           localStorage.removeItem('token');
+           localStorage.removeItem('user');
+        }
+        return null;
+      } catch (err) {
+        return null;
       }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: false
+  });
+
+  useEffect(() => {
+    if (verifiedUser) {
+      setUser(verifiedUser);
+      localStorage.setItem('user', JSON.stringify(verifiedUser));
+    } else if (!isCheckingAuth) {
+      setUser(null);
+      localStorage.removeItem('user');
     }
+  }, [verifiedUser, isCheckingAuth]);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
     if (storedToken) {
       setToken(storedToken);
     }
@@ -152,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         token,
-        isLoading: loginMutation.isPending || registerMutation.isPending || registerAdminMutation.isPending || sendOtpMutation.isPending,
+        isLoading: isCheckingAuth || loginMutation.isPending || registerMutation.isPending || registerAdminMutation.isPending || sendOtpMutation.isPending,
         login,
         register,
         registerAdmin,

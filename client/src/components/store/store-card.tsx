@@ -12,15 +12,12 @@ interface StoreCardProps {
 export default function StoreCard({ store }: StoreCardProps) {
   const { user } = useAuth();
   const [location] = useLocation();
-  const isGh = location.startsWith('/gh');
-  const basePrefix = isGh ? '/gh' : '';
-  
   const rating = parseFloat(store.rating || "0");
   const ownerName = `${store.user.firstName} ${store.user.lastName}`;
 
   const storeLink = user 
-    ? `${basePrefix}/store/${store.id}?ref=${user.id}`
-    : `${basePrefix}/store/${store.id}`;
+    ? `/store/${store.id}?ref=${user.id}`
+    : `/store/${store.id}`;
 
   return (
     <Link href={storeLink}>

@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { useStripe } from '@stripe/react-stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
-import { apiRequest } from '@/lib/queryClient';
 
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_dummy';
-const stripePromise = loadStripe(stripePublicKey);
-
-function PaymentSuccessContent() {
-  const stripe = useStripe();
+export default function PaymentSuccess() {
   const [, setLocation] = useLocation();
   const { clearCart } = useCart();
   const [status, setStatus] = useState<'loading' | 'succeeded' | 'failed'>('loading');
@@ -22,69 +14,33 @@ function PaymentSuccessContent() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const mode = urlParams.get('mode');
+    const statusParam = urlParams.get('status');
 
-    // Handle Cash on Delivery success immediately
+    // Handle Cash on Delivery success
     if (mode === 'cod') {
       setStatus('succeeded');
       clearCart();
       return;
     }
 
-    if (!stripe) {
+    // Handle Paystack/Redirect success
+    if (statusParam === 'success' || mode === 'success') {
+      setStatus('succeeded');
+      clearCart();
       return;
     }
 
-    const clientSecret = urlParams.get(
-      'payment_intent_client_secret'
-    );
-
-    if (!clientSecret) {
+    // Handle failure
+    if (statusParam === 'failed' || mode === 'failed') {
       setStatus('failed');
-      setErrorMessage('Payment information not found');
+      setErrorMessage('Your payment could not be processed. Please try again.');
       return;
     }
 
-    stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
-      if (!paymentIntent) {
-        setStatus('failed');
-        setErrorMessage('Payment not found');
-        return;
-      }
-
-      switch (paymentIntent.status) {
-        case 'succeeded':
-          apiRequest('POST', '/api/orders/confirm-payment', { paymentIntentId: paymentIntent.id })
-            .then(() => {
-              setStatus('succeeded');
-              clearCart();
-            })
-            .catch((err) => {
-              console.error('Order creation error:', err);
-              setStatus('failed');
-              setErrorMessage('Payment succeeded but we failed to create your order. Please contact support.');
-            });
-          break;
-        case 'processing':
-          setStatus('loading');
-          setTimeout(() => {
-            window.location.reload();
-          }, 3000);
-          break;
-        case 'requires_payment_method':
-          setStatus('failed');
-          setErrorMessage('Payment was not completed. Please try again.');
-          break;
-        default:
-          setStatus('failed');
-          setErrorMessage('Something went wrong with your payment');
-          break;
-      }
-    }).catch((error) => {
-      console.error('Payment verification error:', error);
-      setStatus('failed');
-      setErrorMessage('Unable to verify payment status');
-    });
-  }, [stripe, clearCart]);
+    // Default for just arriving here without params (assuming success if redirected from checkout success)
+    setStatus('succeeded');
+    clearCart();
+  }, [clearCart]);
 
   if (status === 'loading') {
     return (
@@ -94,9 +50,9 @@ function PaymentSuccessContent() {
             <div className="mx-auto mb-4 w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
               <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
             </div>
-            <CardTitle>Verifying Payment</CardTitle>
+            <CardTitle>Verifying Status</CardTitle>
             <CardDescription>
-              Please wait while we confirm your payment...
+              Please wait while we confirm your order...
             </CardDescription>
           </CardHeader>
         </Card>
@@ -115,7 +71,7 @@ function PaymentSuccessContent() {
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
             <CardTitle className="text-green-900">
-              {isCOD ? 'Cash on Delivery Successful!' : 'Payment Successful!'}
+              {isCOD ? 'Order Placed Successfully!' : 'Payment Successful!'}
             </CardTitle>
             <CardDescription>
               {isCOD 
@@ -172,18 +128,18 @@ function PaymentSuccessContent() {
           <div className="mx-auto mb-4 w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
             <XCircle className="h-8 w-8 text-red-600" />
           </div>
-          <CardTitle className="text-red-900">Payment Failed</CardTitle>
+          <CardTitle className="text-red-900">Process Failed</CardTitle>
           <CardDescription>
-            {errorMessage || 'Your payment could not be processed'}
+            {errorMessage || 'Your request could not be completed'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
             <p className="font-medium mb-1">What can you do?</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>Check your payment details and try again</li>
+              <li>Check your details and try again</li>
               <li>Use a different payment method</li>
-              <li>Contact your bank if the issue persists</li>
+              <li>Contact support if the issue persists</li>
             </ul>
           </div>
           <div className="flex gap-3">
@@ -206,13 +162,5 @@ function PaymentSuccessContent() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-export default function PaymentSuccess() {
-  return (
-    <Elements stripe={stripePromise}>
-      <PaymentSuccessContent />
-    </Elements>
   );
 }

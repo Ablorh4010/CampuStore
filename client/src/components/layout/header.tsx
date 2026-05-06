@@ -29,9 +29,6 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const isGh = location.startsWith('/gh');
-  const basePrefix = isGh ? '/gh' : '';
-
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
   });
@@ -41,24 +38,24 @@ export default function Header() {
   });
   
   // Show Sign In button only on My Store (dashboard) page
-  const shouldShowSignIn = !user && location === `${basePrefix}/dashboard`;
+  const shouldShowSignIn = !user && location === "/dashboard";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setLocation(`${basePrefix}/browse?search=${encodeURIComponent(searchQuery)}`);
+      setLocation(`/browse?search=${encodeURIComponent(searchQuery)}`);
     }
   };
 
   const { isListening, startListening } = useVoiceSearch((text) => {
     setSearchQuery(text);
-    setLocation(`${basePrefix}/browse?search=${encodeURIComponent(text)}`);
+    setLocation(`/browse?search=${encodeURIComponent(text)}`);
   });
 
   const handleProfileAction = (action: string) => {
     switch (action) {
       case 'dashboard':
-        setLocation(`${basePrefix}/dashboard`);
+        setLocation('/dashboard');
         break;
       case 'admin':
         setLocation('/admin');
@@ -76,7 +73,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-4">
-            <Link href={basePrefix || "/"}>
+            <Link href="/">
               <div className="cursor-pointer flex items-center space-x-3 group">
                 <div className="relative">
                   <div className="absolute inset-0 bg-primary/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -137,13 +134,13 @@ export default function Header() {
                   {categories.map((category) => (
                     <DropdownMenuItem 
                       key={category.id}
-                      onClick={() => setLocation(`${basePrefix}/browse?categoryId=${category.id}`)}
+                      onClick={() => setLocation(`/browse?categoryId=${category.id}`)}
                     >
                       {category.name}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setLocation(`${basePrefix}/browse`)}>
+                  <DropdownMenuItem onClick={() => setLocation("/browse")}>
                     View All Categories
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -159,19 +156,19 @@ export default function Header() {
                   {stores.slice(0, 10).map((store) => (
                     <DropdownMenuItem 
                       key={store.id}
-                      onClick={() => setLocation(`${basePrefix}/store/${store.id}`)}
+                      onClick={() => setLocation(`/store/${store.id}`)}
                     >
                       {store.name}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setLocation(`${basePrefix}/browse?view=stores`)}>
+                  <DropdownMenuItem onClick={() => setLocation("/browse?view=stores")}>
                     View All Stores
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <Link href={`${basePrefix}/browse`}>
+              <Link href="/browse">
                 <Button variant="ghost" size="sm" className="font-medium">
                   Latest Deals
                 </Button>
@@ -185,7 +182,7 @@ export default function Header() {
                 variant="outline" 
                 size="sm" 
                 className="font-medium flex items-center border-primary/20 hover:border-primary/50 text-primary"
-                onClick={() => setLocation(user?.isMerchant ? `${basePrefix}/dashboard` : '/seller-auth')}
+                onClick={() => setLocation((user?.isMerchant || user?.isAdmin) ? '/dashboard' : '/seller-auth')}
               >
                 <Store className="h-4 w-4 mr-2" />
                 Sell Items
@@ -333,7 +330,7 @@ export default function Header() {
                                  key={cat.id} 
                                  variant="ghost" 
                                  className="w-full justify-start h-11 rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-primary/5 hover:text-primary transition-all" 
-                                 onClick={() => { setLocation(`${basePrefix}/browse?categoryId=${cat.id}`); setIsMobileMenuOpen(false); }}
+                                 onClick={() => { setLocation(`/browse?categoryId=${cat.id}`); setIsMobileMenuOpen(false); }}
                                >
                                   <i className={`${cat.icon} mr-3 text-gray-400`} />
                                   {cat.name}

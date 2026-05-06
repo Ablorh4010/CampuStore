@@ -65,9 +65,6 @@ export default function Product() {
   const { addToCart } = useCart();
   const { toast } = useToast();
 
-  const isGh = location.startsWith('/gh');
-  const basePrefix = isGh ? '/gh' : '';
-
   const { data: product, isLoading } = useQuery<ProductWithStore>({
     queryKey: ['/api/products', productId],
     enabled: !!productId,
@@ -181,7 +178,7 @@ export default function Product() {
     handleShare({
       title: product.title,
       text: `🔥 Check out this ${product.title} for GH₵${product.price} at ${product.store.name} on The Hub Ghana!`,
-      url: `${basePrefix}/product/${product.id}${user ? `?ref=${user.id}` : ''}`
+      url: `/product/${product.id}${user ? `?ref=${user.id}` : ''}`
     });
   };
 

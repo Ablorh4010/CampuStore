@@ -33,9 +33,6 @@ export default function Browse() {
   const searchParams = useSearch();
   const { user } = useAuth();
   
-  const isGh = window.location.pathname.startsWith('/gh');
-  const basePrefix = isGh ? '/gh' : '';
-  
   const [viewMode, setViewMode] = useState<'products' | 'stores'>('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
@@ -90,7 +87,7 @@ export default function Browse() {
     if (category) params.set('categoryId', category.toString());
     if (installment) params.set('installment', 'true');
     if (user) params.set('ref', user.id.toString());
-    setLocation(`${basePrefix}/browse?${params.toString()}`);
+    setLocation(`/browse?${params.toString()}`);
   };
 
   const handleCategoryFilter = (categoryId: number | 'all') => {
@@ -211,7 +208,7 @@ export default function Browse() {
                      Menu
                    </Button>
                  </SheetTrigger>
-                 <SheetContent side="right" className="w-[350px] sm:w-[400px] p-0 border-none">
+                 <SheetContent side="right" className="w-full max-w-[350px] sm:max-w-[400px] p-0 border-none">
                     <div className="flex flex-col h-full bg-white">
                        <SheetHeader className="p-8 bg-gray-50/50 border-b">
                           <SheetTitle className="text-2xl font-black uppercase tracking-tighter">Market Filters.</SheetTitle>

@@ -222,19 +222,28 @@ export default function AdminDashboard() {
     },
   });
 
-  const deleteItemMutation = useMutation({
-    mutationFn: async ({ id, type, feedback }: { id: number; type: 'product' | 'store' | 'user'; feedback: string }) => {
-      return apiRequest('DELETE', `/api/admin/${type}s/${id}`, { feedback });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      toast({ title: 'Item Deleted' });
-      setModModalOpen(false);
-      setModItem(null);
-    },
-  });
+   const deleteItemMutation = useMutation({
+     mutationFn: async ({ id, type, feedback }: { id: number; type: 'product' | 'store' | 'user'; feedback: string }) => {
+       const res = await apiRequest('DELETE', `/api/admin/${type}s/${id}`, { feedback });
+       return await res.json();
+     },
+     onSuccess: (data: any) => {
+       if (data.success === false) {
+         toast({ 
+           title: "Deletion Failed", 
+           description: "This item could not be removed. It may have active dependencies or orders.",
+           variant: "destructive"
+         });
+         return;
+       }
+       queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+       queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] });
+       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+       toast({ title: 'Item Deleted' });
+       setModModalOpen(false);
+       setModItem(null);
+     },
+   });
 
   const handleModAction = (feedback: string) => {
     if (!modItem) return;

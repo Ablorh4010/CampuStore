@@ -24,15 +24,15 @@ Preferred communication style: Simple, everyday language.
 - **API Design**: RESTful API
 - **Error Handling**: Centralized middleware
 - **Authentication**: JWT-based for regular users (email verification) and admins (email/password). Includes secure token management, ownership verification, and admin-specific middleware. Resend integration for email delivery.
-- **Data Storage**: Replit PostgreSQL database with Drizzle ORM using node-postgres driver. Full persistence enabled.
-- **File Uploads**: Dedicated endpoint for image uploads with validation and storage.
+- **Data Storage**: PostgreSQL database with Drizzle ORM. Full persistence enabled.
+- **File Uploads**: Dedicated endpoint for image uploads with validation and storage (Local/GCS).
 
 ### Core Features
 - **Authentication System**: Email verification with 6-digit codes for regular users, email/password for admin. Admin registration restricted to secure invitation links only.
 - **Store Management**: Multi-store support per user, creation, and university-based categorization. Includes rating and review system.
 - **Product Catalog**: Category-based organization, image gallery, product conditions, pricing, search, filtering, and featured products. Supports direct image uploads and special offers.
 - **Shopping Cart**: Persistent state, real-time updates, sidebar interface, quantity management.
-- **Payment Processing**: Stripe integration supporting Card, PayPal, and Mobile Money payments in a unified checkout flow.
+- **Payment Processing**: Paystack integration supporting Card and Mobile Money payments in a unified checkout flow.
 - **Messaging System**: User-to-user and product-specific communication with unread tracking.
 - **Order Management**: Creation, tracking, buyer/seller views, and status management.
 - **Seller Verification**: Identity verification process including ID photo and live selfie/face scan, with admin review and payment details management (Bank, PayPal, Mobile Money).
@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 - **Date-fns**: Date manipulation.
 
 ### Payment Processing
-- **Stripe**: Complete payment integration for Card, PayPal, and Mobile Money.
+- **Paystack**: Complete payment integration for Card and Mobile Money.
 
 ### Email Service
 - **Resend**: Transactional email service for sending verification codes to users.
@@ -123,39 +123,37 @@ Preferred communication style: Simple, everyday language.
 - **Database Configuration**: Using `drizzle-orm/node-postgres` with pg Pool for connection management
 - **Status**: ✅ Fully operational, all API endpoints working correctly with PostgreSQL
 
-### Stripe Payment Integration (November 2025)
-- **Unified Payment Processing**: Integrated Stripe for Card, PayPal, and Mobile Money payments
-  - All payment methods go into a single Stripe account for easy admin management
-  - Automatic payment method detection based on user's region
-  - Support for 3D Secure, SCA compliance, and redirect-based payments
+### Paystack Payment Integration (November 2025)
+- **Unified Payment Processing**: Integrated Paystack for Card and Mobile Money payments
+  - Optimized for West African market with native MoMo support
+  - Support for local cards, 3D Secure, and redirect-based payments
 - **Checkout Flow**:
   - Dedicated checkout page at /checkout with order summary
-  - Stripe PaymentElement with automatic payment method selection
+  - Seamless Paystack checkout initialization
   - JWT authentication required for checkout
   - Cart validation before payment processing
-  - Real-time payment status verification
+  - Real-time payment status verification via webhook and manual check
 - **Payment Success Handling**:
   - Dedicated /payment-success page for redirect-based payments
-  - Automatic PaymentIntent status verification
+  - Automatic transaction verification
   - Cart clearing on successful payment
   - Error recovery flow for failed payments
 - **Backend Implementation**:
-  - POST /api/create-payment-intent - Creates Stripe PaymentIntent
+  - POST /api/paystack/initialize - Initializes transaction
+  - POST /api/paystack/webhook - Secure webhook listener for payment events
+  - GET /api/paystack/verify/:reference - Manual verification endpoint
   - JWT authentication required for all payment endpoints
-  - Cart items and amount stored in Stripe metadata
-  - Server-side amount validation
 - **Security Features**:
-  - Stripe SDK with latest API version
-  - Automatic payment methods enabled
-  - PCI DSS compliant (Stripe handles card data)
-  - Secure payment intent creation with metadata
+  - Secure webhook signature validation
+  - Server-side amount validation
+  - Metadata-driven order tracking
 - **User Experience**:
   - Loading states and error handling throughout
   - Security badges and trust indicators
   - Responsive design with mobile optimization
   - Clear payment status messaging
-- **Admin Dashboard**: All transactions viewable and manageable from Stripe Dashboard
-- **Testing Status**: LSP clean, production-ready, supports test mode with pk_test/sk_test keys
+- **Admin Dashboard**: All transactions viewable and manageable from Paystack Dashboard
+- **Status**: ✅ Fully operational, production-ready
 
 ### Logo Integration (November 2025)
 - **The University Hub Logo**: Added generated logo to header and browser tab

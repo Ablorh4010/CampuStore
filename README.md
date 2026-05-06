@@ -10,7 +10,7 @@ A Progressive Web App (PWA) designed as a mobile-installable marketplace connect
 - **Store Management** - Multi-store support per user
 - **Product Catalog** - Category-based organization with search and filtering
 - **Shopping Cart** - Persistent cart with real-time updates
-- **Payment Processing** - Stripe integration (Card, PayPal, Mobile Money)
+- **Payment Processing** - Paystack integration (Card, Mobile Money)
 - **Messaging System** - User-to-user and product-specific communication
 - **Seller Verification** - ID and face scan verification system
 - **PWA Support** - Installable on mobile devices with offline capabilities
@@ -29,7 +29,7 @@ A Progressive Web App (PWA) designed as a mobile-installable marketplace connect
 
 - Node.js 24+ and npm
 - PostgreSQL database
-- Stripe account (for payments)
+- Paystack account (for payments)
 - Resend account (for email verification)
 - Optional: VAPID keys for push notifications
 
@@ -56,10 +56,10 @@ Create a `.env` file in the root directory (see `.env.example`):
 # Database Configuration
 DATABASE_URL=postgresql://username:password@host:port/database_name
 
-# Stripe Configuration (get from https://dashboard.stripe.com/test/apikeys)
-STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here
-STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
-VITE_STRIPE_PUBLIC_KEY=pk_test_your_stripe_publishable_key_here
+# Paystack Configuration (get from https://dashboard.paystack.com/#/settings/developer)
+PAYSTACK_SECRET_KEY=sk_test_your_paystack_secret_key_here
+PAYSTACK_PUBLIC_KEY=pk_test_your_paystack_public_key_here
+VITE_PAYSTACK_PUBLIC_KEY=pk_test_your_paystack_public_key_here
 
 # Push Notifications (generate with: npx web-push generate-vapid-keys)
 VAPID_PUBLIC_KEY=your_vapid_public_key_here

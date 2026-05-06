@@ -1,3 +1,5 @@
+import path from 'path';
+import fs from 'fs';
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 import type { User } from '@shared/schema';
@@ -196,11 +198,6 @@ export async function uploadBuyerVerificationToDrive(user: User) {
       Verified At: ${user.buyerVerifiedAt ? new Date(user.buyerVerifiedAt).toLocaleString() : 'N/A'}
       
       Location: ${user.buyerLatitude}, ${user.buyerLongitude}
-      
-      EMPLOYMENT / INCOME DETAILS (From Schema)
-      ---------------------------------------
-      Occupation: ${user.verificationOccupation || 'N/A'}
-      Salary: ${user.verificationSalary || 'N/A'}
     `;
 
     await drive.files.create({

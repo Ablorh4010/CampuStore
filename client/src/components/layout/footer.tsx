@@ -20,8 +20,8 @@ export default function Footer() {
             <div className="flex flex-col items-center md:items-start gap-3">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-900">Explore</h4>
               <div className="flex gap-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                <Link href={`${basePrefix}/browse`} className="hover:text-primary transition-colors">Market</Link>
-                <Link href={`${basePrefix}/seller-auth`} className="hover:text-primary transition-colors">Sell</Link>
+                <Link href="/browse" className="hover:text-primary transition-colors">Market</Link>
+                <Link href="/seller-auth" className="hover:text-primary transition-colors">Sell</Link>
                 <Link href="/about" className="hover:text-primary transition-colors">About</Link>
               </div>
             </div>

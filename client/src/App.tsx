@@ -55,14 +55,19 @@ function Router() {
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/gh/dashboard" component={Dashboard} />
         <Route path="/seller-settings" component={SellerSettings} />
+        <Route path="/gh/seller-settings" component={SellerSettings} />
         <Route path="/checkout" component={Checkout} />
         <Route path="/gh/checkout" component={Checkout} />
         <Route path="/payment-success" component={PaymentSuccess} />
+        <Route path="/gh/payment-success" component={PaymentSuccess} />
         <Route path="/admin" component={AdminDashboard} />
+        <Route path="/gh/admin" component={AdminDashboard} />
         <Route path="/admin-portal" component={AdminPortal} />
-        <Route path="/admin-register/:token?" component={AdminRegister} />
+        <Route path="/gh/admin-portal" component={AdminPortal} />
         <Route path="/auth" component={Auth} />
+        <Route path="/gh/auth" component={Auth} />
         <Route path="/seller-auth" component={SellerAuth} />
+        <Route path="/gh/seller-auth" component={SellerAuth} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/forgot-password" component={ForgotPassword} />
@@ -81,7 +86,7 @@ function App() {
           <AuthProvider>
             <SocketProvider>
               <CartProvider>
-                <div className="min-h-screen bg-gray-50">
+                <div className="min-h-screen bg-gray-50 overflow-x-hidden">
                   <ErrorBoundary>
                     <Header />
                     <main>

@@ -7,7 +7,7 @@ This guide provides step-by-step instructions for deploying The University Hub t
 - [ ] All TypeScript errors resolved (`npm run check`)
 - [ ] Environment variables configured
 - [ ] Database is provisioned and accessible
-- [ ] Stripe account is set up
+- [ ] Paystack account is set up
 - [ ] Resend account is set up
 - [ ] Build succeeds (`npm run build`)
 - [ ] Application runs locally in production mode (`npm start`)
@@ -49,9 +49,9 @@ The application uses **Neon PostgreSQL**. Connection details are managed via the
 1. Open the "Secrets" tab (Tools > Secrets)
 2. Add all required environment variables:
    - `DATABASE_URL`
-   - `STRIPE_SECRET_KEY`
-   - `STRIPE_PUBLISHABLE_KEY`
-   - `VITE_STRIPE_PUBLIC_KEY`
+   - `PAYSTACK_SECRET_KEY`
+   - `PAYSTACK_PUBLIC_KEY`
+   - `VITE_PAYSTACK_PUBLIC_KEY`
    - `SESSION_SECRET`
    - `RESEND_API_KEY`
 
@@ -107,9 +107,9 @@ Create `vercel.json`:
 ### Step 4: Set Environment Variables
 ```bash
 vercel env add DATABASE_URL
-vercel env add STRIPE_SECRET_KEY
-vercel env add STRIPE_PUBLISHABLE_KEY
-vercel env add VITE_STRIPE_PUBLIC_KEY
+vercel env add PAYSTACK_SECRET_KEY
+vercel env add PAYSTACK_PUBLIC_KEY
+vercel env add VITE_PAYSTACK_PUBLIC_KEY
 vercel env add SESSION_SECRET
 vercel env add RESEND_API_KEY
 ```
@@ -145,9 +145,9 @@ railway add
 
 ### Step 5: Set Environment Variables
 ```bash
-railway variables set STRIPE_SECRET_KEY=sk_test_...
-railway variables set STRIPE_PUBLISHABLE_KEY=pk_test_...
-railway variables set VITE_STRIPE_PUBLIC_KEY=pk_test_...
+railway variables set PAYSTACK_SECRET_KEY=sk_test_...
+railway variables set PAYSTACK_PUBLIC_KEY=pk_test_...
+railway variables set VITE_PAYSTACK_PUBLIC_KEY=pk_test_...
 railway variables set SESSION_SECRET=your_secret_here
 railway variables set RESEND_API_KEY=re_...
 ```
@@ -180,9 +180,9 @@ railway up
 ### Step 4: Add Environment Variables
 Add the following in the Environment section:
 - `DATABASE_URL` = (from Step 2)
-- `STRIPE_SECRET_KEY`
-- `STRIPE_PUBLISHABLE_KEY`
-- `VITE_STRIPE_PUBLIC_KEY`
+- `PAYSTACK_SECRET_KEY`
+- `PAYSTACK_PUBLIC_KEY`
+- `VITE_PAYSTACK_PUBLIC_KEY`
 - `SESSION_SECRET`
 - `RESEND_API_KEY`
 - `NODE_ENV` = `production`
@@ -227,10 +227,10 @@ https://your-domain.com/admin-register?token=CSE_ADMIN_2025_SECURE_a9f4b7c2d8e1
 - [ ] Admin dashboard accessible
 
 ### 5. Switch to Production Keys
-Replace test Stripe keys with production keys:
-- `STRIPE_SECRET_KEY` → `sk_live_...`
-- `STRIPE_PUBLISHABLE_KEY` → `pk_live_...`
-- `VITE_STRIPE_PUBLIC_KEY` → `pk_live_...`
+Replace test Paystack keys with production keys:
+- `PAYSTACK_SECRET_KEY` → `sk_live_...`
+- `PAYSTACK_PUBLIC_KEY` → `pk_live_...`
+- `VITE_PAYSTACK_PUBLIC_KEY` → `pk_live_...`
 
 ### 6. Configure Custom Domain (Optional)
 Follow your hosting provider's instructions to add a custom domain.
@@ -314,8 +314,8 @@ Increase resources:
 4. Check firewall rules
 
 ### Payment Processing Issues
-1. Verify Stripe keys
-2. Check Stripe dashboard for errors
+1. Verify Paystack keys
+2. Check Paystack dashboard for errors
 3. Test with test cards
 4. Review webhook configuration
 
@@ -358,5 +358,5 @@ For deployment issues:
 - [Vite Deployment](https://vitejs.dev/guide/static-deploy.html)
 - [Express.js Production Best Practices](https://expressjs.com/en/advanced/best-practice-performance.html)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [Stripe Documentation](https://stripe.com/docs)
+- [Paystack Documentation](https://paystack.com/docs)
 - [Resend Documentation](https://resend.com/docs)
