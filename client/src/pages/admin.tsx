@@ -164,15 +164,72 @@ export default function AdminDashboard() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending-buyer-verification'] }); toast({ title: 'Success' }); },
   });
 
+  const updateUserVerificationMutation = useMutation({
+    mutationFn: ({ userId, status, feedback }: { userId: number; status: string; feedback?: string }) =>
+      apiRequest('PUT', `/api/admin/users/${userId}/verification`, { status, feedback }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending-verification'] }); toast({ title: 'Success' }); },
+  });
+
+  const updateStoreStatusMutation = useMutation({
+    mutationFn: ({ storeId, status }: { storeId: number; status: string }) =>
+      apiRequest('PUT', `/api/admin/stores/${storeId}/approval`, { status }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] }); toast({ title: 'Success' }); },
+  });
+
+  const updateLogoStatusMutation = useMutation({
+    mutationFn: ({ storeId, status }: { storeId: number; status: string }) =>
+      apiRequest('PUT', `/api/admin/stores/${storeId}/logo-approval`, { status }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/logo-changes'] }); toast({ title: 'Success' }); },
+  });
+
   const processPayoutMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
       apiRequest('PUT', `/api/admin/orders/${orderId}/payout`, { status }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/payouts/pending'] }); toast({ title: 'Success' }); },
   });
 
+  const createActivityMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('POST', '/api/admin/campus-activity', data),
+    onSuccess: () => { refetchActivities(); setNewActivity({ title: '', content: '', source: 'internal', activityType: 'news', imageUrl: '' }); toast({ title: 'Success' }); },
+  });
+
+  const deleteActivityMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/admin/campus-activity/${id}`),
+    onSuccess: () => { refetchActivities(); toast({ title: 'Removed' }); },
+  });
+
+  const createDealMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('POST', '/api/admin/weekly-deals', data),
+    onSuccess: () => { refetchDeals(); setDealModalOpen(false); toast({ title: 'Deal Activated' }); },
+  });
+
+  const deleteDealMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/admin/weekly-deals/${id}`),
+    onSuccess: () => { refetchDeals(); toast({ title: 'Deal Removed' }); },
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: async ({ id, type, feedback }: { id: number; type: 'product' | 'store' | 'user'; feedback: string }) => {
+      return apiRequest('DELETE', `/api/admin/${type}s/${id}`, { feedback });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: 'Item Deleted' });
+      setModModalOpen(false);
+      setModItem(null);
+    },
+  });
+
   const handleModAction = (feedback: string) => {
     if (!modItem) return;
-    // ... Simplified mod logic for brevity in rewrite ...
+    if (modItem.type === 'user' && (modItem.action === 'reject' || modItem.action === 'needs_correction')) {
+      const status = modItem.action === 'reject' ? 'rejected' : 'needs_correction';
+      updateUserVerificationMutation.mutate({ userId: modItem.id, status, feedback });
+    } else if (modItem.action === 'delete' || modItem.action === 'reject') {
+      deleteItemMutation.mutate({ id: modItem.id, type: modItem.type as any, feedback });
+    }
     setModModalOpen(false);
   };
 
@@ -244,8 +301,7 @@ export default function AdminDashboard() {
            <Badge variant="secondary" className="h-9 rounded-full px-5 font-black uppercase text-[10px] tracking-widest bg-white border shadow-sm">{user.username}</Badge>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          {/* OVERVIEW CONTENT */}
+        <Tabs value={activeTab} className="space-y-8">
           <TabsContent value="overview" className="mt-0 space-y-10">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {[
@@ -301,68 +357,265 @@ export default function AdminDashboard() {
                     </CardContent>
                   </Card>
                 ))}
+                {allProducts.filter(p => p.approvalStatus === 'pending').length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending items.</p>}
              </div>
           </TabsContent>
 
+          <TabsContent value="pending-verifications" className="mt-0">
+             <div className="space-y-6">
+                {pendingUsers.map(u => (
+                  <Card key={u.id} className="rounded-[2rem] border-none shadow-sm bg-white p-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                       <div className="space-y-4">
+                          <div><h4 className="font-black text-2xl tracking-tighter uppercase">{u.firstName} {u.lastName}</h4><p className="text-sm font-bold text-primary uppercase tracking-widest">{u.sellerVerificationType || 'STUDENT'} VERIFICATION</p></div>
+                          <div className="grid grid-cols-2 gap-4 text-xs">
+                             <div className="space-y-1"><p className="font-black text-gray-400 uppercase">Email</p><p className="font-bold">{u.email}</p></div>
+                             <div className="space-y-1"><p className="font-black text-gray-400 uppercase">WhatsApp</p><p className="font-bold text-green-600">{u.phoneNumber}</p></div>
+                             <div className="space-y-1"><p className="font-black text-gray-400 uppercase">ID Type</p><p className="font-bold uppercase">{u.idType?.replace(/_/g, ' ') || 'NATIONAL ID'}</p></div>
+                             <div className="space-y-1"><p className="font-black text-gray-400 uppercase">DOB</p><p className="font-bold">{u.dateOfBirth ? new Date(u.dateOfBirth).toLocaleDateString() : 'N/A'}</p></div>
+                          </div>
+                          <div className="flex gap-2 pt-4">
+                             <Button className="flex-grow rounded-xl bg-green-600 hover:bg-green-700 font-bold" onClick={() => updateUserVerificationMutation.mutate({ userId: u.id, status: 'verified' })}>Approve</Button>
+                             <Button variant="outline" className="flex-grow rounded-xl border-amber-200 text-amber-700 font-bold" onClick={() => { setModItem({ id: u.id, type: 'user', action: 'needs_correction', title: u.username }); setModModalOpen(true); }}>Correction</Button>
+                             <Button variant="destructive" className="flex-grow rounded-xl font-bold" onClick={() => { setModItem({ id: u.id, type: 'user', action: 'reject', title: u.username }); setModModalOpen(true); }}>Reject</Button>
+                          </div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2"><p className="text-[10px] font-black uppercase text-gray-400 text-center">ID Photo</p><img src={u.idScanUrl!} className="aspect-[4/3] rounded-xl object-cover cursor-pointer" onClick={() => window.open(u.idScanUrl!, '_blank')} alt="" /></div>
+                          <div className="space-y-2"><p className="text-[10px] font-black uppercase text-gray-400 text-center">Face Scan</p><img src={u.faceScanUrl!} className="aspect-[4/3] rounded-xl object-cover cursor-pointer" onClick={() => window.open(u.faceScanUrl!, '_blank')} alt="" /></div>
+                       </div>
+                    </div>
+                  </Card>
+                ))}
+                {pendingUsers.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending verifications.</p>}
+             </div>
+          </TabsContent>
+
+          <TabsContent value="pending-stores" className="mt-0">
+             <div className="space-y-6">
+                {pendingStores.map(store => (
+                  <Card key={store.id} className="rounded-[2rem] border-none shadow-sm bg-white p-8">
+                    <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+                       <div className="flex items-start gap-6">
+                          <div className="w-20 h-20 rounded-2xl bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                             {store.logoUrl ? <img src={store.logoUrl} className="w-full h-full object-cover" alt="" /> : <StoreIcon className="w-10 h-10 text-gray-200" />}
+                          </div>
+                          <div>
+                             <h4 className="font-black text-2xl uppercase tracking-tighter">{store.name}</h4>
+                             <p className="text-sm font-bold text-gray-400 mb-2 uppercase">{store.university} • {store.city}</p>
+                             <p className="text-sm font-medium text-gray-600 max-w-xl">{store.description}</p>
+                          </div>
+                       </div>
+                       <div className="flex flex-col gap-2 w-full md:w-auto">
+                          <Button className="rounded-xl bg-green-500 hover:bg-green-600 font-bold" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>Approve Store</Button>
+                          <Button variant="outline" className="rounded-xl border-amber-200 text-amber-700 font-bold">Needs Info</Button>
+                          <Button variant="destructive" className="rounded-xl font-bold">Reject</Button>
+                       </div>
+                    </div>
+                  </Card>
+                ))}
+                {pendingStores.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending store reviews.</p>}
+             </div>
+          </TabsContent>
+
+          <TabsContent value="product-mgmt" className="mt-0">
+             <div className="flex justify-between items-center mb-8">
+                <div><h3 className="text-3xl font-black uppercase tracking-tighter">Live Catalog.</h3><p className="font-bold text-gray-400">Manage all items across the platform.</p></div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest" onClick={() => setIsMagicImportOpen(true)}><Sparkles className="w-6 h-6 mr-2" /> Magic Import</Button>
+                  <Button className="rounded-2xl h-14 px-8 font-black uppercase tracking-widest" onClick={() => { setEditingProduct(null); setIsProductModalOpen(true); }}><Plus className="w-6 h-6 mr-2" /> Launch Official</Button>
+                </div>
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allProducts.filter(p => ['approved', 'archived'].includes(p.approvalStatus)).map(product => (
+                  <Card key={product.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white">
+                    <div className="aspect-[4/3] bg-gray-100 relative"><img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" /></div>
+                    <CardContent className="p-6">
+                       <h4 className="font-black text-sm uppercase mb-1">{product.title}</h4>
+                       <p className="text-[10px] text-gray-400 font-bold uppercase mb-4">Store: {product.store.name}</p>
+                       <div className="grid grid-cols-2 gap-2">
+                          <Button variant="outline" className="rounded-lg h-9 font-black text-[9px] uppercase" onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}>Edit</Button>
+                          <Button variant="destructive" className="rounded-lg h-9 font-black text-[9px] uppercase" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'delete', title: product.title }); setModModalOpen(true); }}>Delete</Button>
+                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+             </div>
+          </TabsContent>
+
+          <TabsContent value="app-mgmt" className="mt-0 space-y-12">
+             <div className="grid lg:grid-cols-2 gap-10">
+                <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden flex flex-col">
+                   <CardHeader className="bg-primary/5 p-8 border-b"><CardTitle className="text-2xl font-black uppercase">Category Hub</CardTitle></CardHeader>
+                   <CardContent className="p-8 flex-1">
+                      <div className="space-y-6">
+                         <div className="bg-gray-50 p-6 rounded-3xl space-y-4 border border-gray-100">
+                            <Input className="rounded-xl border-2 font-bold" placeholder="New Category Name" value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} />
+                            <Button className="w-full h-12 rounded-xl font-black shadow-lg" disabled={!newCategory.name} onClick={() => createCategoryMutation.mutate(newCategory)}>Create Category</Button>
+                         </div>
+                         <ScrollArea className="h-[300px] pr-4">
+                            <div className="space-y-2">
+                               {categories.filter(c => !c.parentId).map(c => (
+                                  <div key={c.id} className="flex justify-between items-center p-3 bg-white border-2 border-primary/5 rounded-xl">
+                                     <span className="font-black text-xs uppercase">{c.name}</span>
+                                     <Button variant="ghost" size="icon" onClick={() => deleteCategoryMutation.mutate(c.id)}><Trash2 className="w-4 h-4 text-red-400" /></Button>
+                                  </div>
+                               ))}
+                            </div>
+                         </ScrollArea>
+                      </div>
+                   </CardContent>
+                </Card>
+                <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden flex flex-col">
+                   <CardHeader className="bg-primary/5 p-8 border-b"><CardTitle className="text-2xl font-black uppercase">Campus Pulse</CardTitle></CardHeader>
+                   <CardContent className="p-8 flex-1">
+                      <div className="space-y-6">
+                         <div className="bg-gray-50 p-6 rounded-3xl space-y-4 border border-gray-100">
+                            <Input className="rounded-xl border-2 font-bold" placeholder="Title" value={newActivity.title} onChange={e => setNewActivity({...newActivity, title: e.target.value})} />
+                            <Textarea className="rounded-xl border-2 font-medium" placeholder="Content" value={newActivity.content} onChange={e => setNewActivity({...newActivity, content: e.target.value})} />
+                            <Button className="w-full h-12 rounded-xl font-black shadow-lg" onClick={() => createActivityMutation.mutate(newActivity)}>Publish to Pulse</Button>
+                         </div>
+                         <ScrollArea className="h-[240px] pr-4">
+                            <div className="space-y-2">
+                               {campusActivities.map(act => (
+                                  <div key={act.id} className="p-3 border-2 border-gray-50 rounded-xl flex justify-between items-center">
+                                     <span className="font-black text-[10px] uppercase truncate pr-4">{act.title}</span>
+                                     <Button variant="ghost" size="icon" onClick={() => deleteActivityMutation.mutate(act.id)}><Trash2 className="w-4 h-4" /></Button>
+                                  </div>
+                               ))}
+                            </div>
+                         </ScrollArea>
+                      </div>
+                   </CardContent>
+                </Card>
+             </div>
+             <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">
+                <CardHeader className="bg-primary/5 p-8 border-b"><CardTitle className="text-2xl font-black uppercase">Weekly Flash Deals</CardTitle></CardHeader>
+                <CardContent className="p-8">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {weeklyDeals.map(deal => (
+                         <div key={deal.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 group">
+                            <div className="flex items-center gap-4"><img src={deal.product.images[0]} className="w-12 h-12 rounded-lg object-cover" alt="" /><p className="font-black text-xs uppercase truncate">{deal.product.title}</p></div>
+                            <Button variant="ghost" size="icon" onClick={() => deleteDealMutation.mutate(deal.id)}><Trash2 className="w-4 h-4 text-red-400" /></Button>
+                         </div>
+                      ))}
+                      <Button variant="outline" className="aspect-[2/1] rounded-2xl border-2 border-dashed flex flex-col gap-2 font-black uppercase text-[10px] text-gray-400" onClick={() => setDealModalOpen(true)}><Plus className="w-6 h-6" /> Add Deal</Button>
+                   </div>
+                </CardContent>
+             </Card>
+          </TabsContent>
+          
           <TabsContent value="pending-orders" className="mt-0 space-y-6">
              {pendingOrders.map(order => (
                <Card key={order.id} className="rounded-[2.5rem] border-none shadow-sm bg-white p-8">
                   <div className="flex flex-col lg:flex-row justify-between gap-8">
-                     <div className="flex items-start gap-5">
-                        <div className="w-24 h-24 rounded-3xl overflow-hidden bg-gray-50 flex-shrink-0 border"><img src={order.product.images?.[0] || '/placeholder.png'} className="w-full h-full object-cover" alt="" /></div>
+                     <div className="flex items-center gap-4">
+                        <img src={order.product.images?.[0] || '/placeholder.png'} className="w-16 h-16 rounded-2xl object-cover" alt="" />
                         <div>
-                           <div className="flex items-center gap-2 mb-1"><Badge className="bg-primary/10 text-primary border-none text-[8px] font-black uppercase tracking-widest">{order.paymentGateway}</Badge><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">#{order.id}</span></div>
-                           <h4 className="font-black text-lg uppercase leading-tight mb-2">{order.product.title}</h4>
-                           <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Seller: {order.seller.firstName} • Buyer: {order.buyer.firstName || order.buyerEmail}</p>
-                           {order.isInstallment && <Badge className="mt-3 bg-blue-100 text-blue-600 border-none font-black text-[8px] uppercase tracking-widest">Installment Order</Badge>}
+                           <h4 className="font-black text-lg uppercase">{order.product.title}</h4>
+                           <p className="text-sm font-bold text-primary">Seller: {order.seller.firstName} • Buyer: {order.buyer.firstName || order.buyerEmail || 'Guest'}</p>
+                           <p className="text-xs text-gray-400 mt-1">Amount: GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
                         </div>
                      </div>
-                     <div className="space-y-4 min-w-[300px] lg:text-right">
-                        <p className="text-3xl font-black tracking-tight">GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
+                     <div className="space-y-4 min-w-[300px]">
                         <div className="flex flex-col gap-2">
                            {order.sellerApproval === 'pending' ? (
-                              <Button className="w-full rounded-xl bg-primary font-black uppercase text-[10px] h-12 shadow-lg shadow-primary/20" onClick={() => updateSellerApprovalMutation.mutate({ orderId: order.id, approval: 'approved' })}>Confirm as Hub Store</Button>
+                             <Button className="w-full rounded-xl bg-primary font-black uppercase text-[10px] h-12 shadow-lg" onClick={() => updateSellerApprovalMutation.mutate({ orderId: order.id, approval: 'approved' })}>Approve as Hub Store</Button>
                            ) : (
-                              <div className="flex gap-2">
-                                 <Input type="date" className="h-12 rounded-xl border-2 font-bold" onChange={(e) => (order as any).tempDate = e.target.value} />
-                                 <Button className="bg-green-500 hover:bg-green-600 font-black h-12 rounded-xl" onClick={() => updateAdminOrderApprovalMutation.mutate({ orderId: order.id, status: 'approved', estimatedDeliveryDate: (order as any).tempDate })}>Final Approve</Button>
-                              </div>
+                             <div className="flex gap-2">
+                                <Input type="date" className="h-12 rounded-xl border-2" onChange={(e) => (order as any).tempDate = e.target.value} />
+                                <Button className="bg-green-500 hover:bg-green-600 h-12 rounded-xl font-bold" onClick={() => updateAdminOrderApprovalMutation.mutate({ orderId: order.id, status: 'approved', estimatedDeliveryDate: (order as any).tempDate })}>Final Approve</Button>
+                             </div>
                            )}
                         </div>
                      </div>
                   </div>
                </Card>
              ))}
+             {pendingOrders.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending orders.</p>}
           </TabsContent>
 
-          {/* ... Other Tabs remain with standard content for rewrite efficiency ... */}
           <TabsContent value="settings" className="mt-0">
-             <div className="max-w-2xl space-y-6">
+             <div className="max-w-2xl">
                 <Card className="rounded-[3rem] p-10 border-none shadow-sm bg-white">
-                   <h3 className="text-3xl font-black uppercase tracking-tighter mb-8 italic">App Configuration.</h3>
+                   <h3 className="text-3xl font-black uppercase tracking-tighter mb-8 italic">System Config.</h3>
                    <div className="space-y-8">
                       <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Admin MoMo Number</Label><Input value={adminMomoNumber} onChange={e => setAdminMomoNumber(e.target.value)} className="h-14 rounded-2xl border-2 text-xl font-black" /></div>
-                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Admin Alert Email</Label><Input value={adminAlertEmail} onChange={e => setAdminAlertEmail(e.target.value)} className="h-14 rounded-2xl border-2 font-black" /></div>
-                      <Separator />
-                      <div className="space-y-4">
-                         <div className="flex items-center gap-2 mb-2"><MessageCircle className="w-5 h-5 text-[#25D366]" /><h4 className="text-[10px] font-black uppercase text-gray-400">Support Hub</h4></div>
-                         <div className="grid grid-cols-1 gap-4">
-                            <Input placeholder="Support WhatsApp" value={whatsappSupport1} onChange={e => setWhatsappSupport1(e.target.value)} className="h-12 rounded-xl border-2 font-bold" />
-                            <Input placeholder="Seller Desk WhatsApp" value={whatsappSupport2} onChange={e => setWhatsappSupport2(e.target.value)} className="h-12 rounded-xl border-2 font-bold" />
-                         </div>
+                      <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Admin Alert Email</Label><Input value={adminAlertEmail} onChange={e => setAdminAlertEmail(e.target.value)} className="h-14 rounded-2xl border-2 font-bold" /></div>
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Support 1</Label><Input value={whatsappSupport1} onChange={e => setWhatsappSupport1(e.target.value)} className="h-12 rounded-xl border-2" /></div>
+                         <div className="space-y-2"><Label className="text-[10px] font-black uppercase text-gray-400 ml-1">Support 2</Label><Input value={whatsappSupport2} onChange={e => setWhatsappSupport2(e.target.value)} className="h-12 rounded-xl border-2" /></div>
                       </div>
-                      <Button className="w-full h-16 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20" onClick={() => {
+                      <Button className="w-full h-16 rounded-2xl font-black uppercase shadow-xl shadow-primary/20" onClick={() => {
                         saveConfigMutation.mutate({ key: 'admin_momo_number', value: adminMomoNumber });
                         saveConfigMutation.mutate({ key: 'admin_alert_email', value: adminAlertEmail });
                         saveConfigMutation.mutate({ key: 'whatsapp_support_1', value: whatsappSupport1 });
                         saveConfigMutation.mutate({ key: 'whatsapp_support_2', value: whatsappSupport2 });
-                      }}>Save System Settings</Button>
+                      }}>Save All Settings</Button>
                    </div>
                 </Card>
              </div>
           </TabsContent>
+          
+          <TabsContent value="installment-approvals" className="mt-0 space-y-6">
+             {pendingBuyerVerifications.map(u => (
+               <Card key={u.id} className="rounded-[2rem] border-none shadow-sm bg-white p-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                     <div className="space-y-4">
+                        <div><h4 className="font-black text-2xl tracking-tighter uppercase">{u.firstName} {u.lastName}</h4><p className="text-sm font-bold text-primary uppercase tracking-widest">BUYER INSTALLMENT VERIFICATION</p></div>
+                        <div className="grid grid-cols-2 gap-4 text-xs">
+                           <div className="space-y-1"><p className="font-black text-gray-400 uppercase">Email</p><p className="font-bold">{u.email}</p></div>
+                           <div className="space-y-1"><p className="font-black text-gray-400 uppercase">Phone</p><p className="font-bold">{u.phoneNumber}</p></div>
+                        </div>
+                        <div className="flex gap-2 pt-4">
+                           <Button className="flex-grow rounded-xl bg-black text-white font-bold h-12 shadow-lg shadow-black/10" onClick={() => approveBuyerMutation.mutate(u.id)} disabled={approveBuyerMutation.isPending}>{approveBuyerMutation.isPending ? <Loader2 className="animate-spin" /> : "Approve Plan"}</Button>
+                           <Button variant="outline" className="flex-grow rounded-xl font-bold border-2 h-12">Reject</Button>
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><p className="text-[10px] font-black uppercase text-gray-400 text-center flex items-center justify-center gap-1"><ExternalLink className="w-3 h-3" /> Buyer ID Scan</p><div className="aspect-[4/3] rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50 group"><img src={u.buyerIdScanUrl!} className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition-transform" onClick={() => window.open(u.buyerIdScanUrl!, '_blank')} alt="" /></div></div>
+                        <div className="space-y-2"><p className="text-[10px] font-black uppercase text-gray-400 text-center flex items-center justify-center gap-1"><Video className="w-3 h-3" /> Live Face Scan</p><div className="aspect-[4/3] rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50 group"><img src={u.buyerFaceScanUrl!} className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition-transform" onClick={() => window.open(u.buyerFaceScanUrl!, '_blank')} alt="" /></div></div>
+                     </div>
+                  </div>
+               </Card>
+             ))}
+             {pendingBuyerVerifications.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending installment approvals.</p>}
+          </TabsContent>
+
+          <TabsContent value="payouts" className="mt-0 space-y-6">
+             {pendingPayouts.map(order => (
+               <Card key={order.id} className="rounded-[2rem] border-none shadow-sm bg-white p-8 border-l-4 border-green-500">
+                  <div className="flex flex-col lg:flex-row justify-between gap-8">
+                     <div className="space-y-4">
+                        <div><h4 className="font-black text-lg uppercase">Payout for Order #{order.id}</h4><p className="text-sm font-bold text-gray-500">{order.seller.firstName} {order.seller.lastName} • {order.seller.email}</p></div>
+                        <div className="bg-gray-50 p-4 rounded-2xl"><p className="text-[10px] font-black uppercase text-gray-400 mb-2">Seller Payment Info</p><p className="text-xs font-bold">Bank: {(order as any).seller.bankName || 'N/A'}</p><p className="text-xs font-bold">Acc: {(order as any).seller.bankAccountNumber || 'N/A'}</p><p className="text-xs font-bold">Momo: {(order as any).seller.mobileMoneyPhone || 'N/A'}</p></div>
+                     </div>
+                     <div className="text-right space-y-4">
+                        <div><p className="text-[10px] font-black uppercase text-gray-400">Payout Amount</p><p className="text-3xl font-black text-green-600">GH₵{parseFloat(order.totalAmount).toFixed(2)}</p></div>
+                        <div className="flex gap-2 justify-end"><Button className="rounded-xl bg-black text-white font-bold px-8 h-12" onClick={() => processPayoutMutation.mutate({ orderId: order.id, status: 'processed' })}>Mark as Processed</Button></div>
+                     </div>
+                  </div>
+               </Card>
+             ))}
+          </TabsContent>
+          
+          <TabsContent value="inbox" className="mt-0"><InboxComponent /></TabsContent>
         </Tabs>
       </main>
+
+      <Dialog open={modModalOpen} onOpenChange={setModModalOpen}>
+         <DialogContent className="max-w-md rounded-3xl border-none p-8">
+            <DialogHeader><DialogTitle className="text-2xl font-black uppercase">Review Hub</DialogTitle><DialogDescription className="font-bold">Provide feedback for {modItem?.title}</DialogDescription></DialogHeader>
+            <div className="py-4 space-y-4">
+               <Label className="text-[10px] font-black uppercase text-gray-400">Reason / Feedback</Label>
+               <Textarea id="mod-feedback" placeholder="Detailed notes for the user..." className="rounded-2xl border-2 min-h-[100px]" />
+            </div>
+            <DialogFooter className="gap-2"><Button variant="outline" className="rounded-xl font-bold" onClick={() => setModModalOpen(false)}>Cancel</Button><Button variant="destructive" className="rounded-xl font-bold px-8" onClick={() => handleModAction((document.getElementById('mod-feedback') as HTMLTextAreaElement)?.value)}>Confirm Action</Button></DialogFooter>
+         </DialogContent>
+      </Dialog>
+      
+      <ProductForm isOpen={isProductModalOpen} onClose={() => { setIsProductModalOpen(false); setEditingProduct(null); }} userStores={[]} initialData={editingProduct} />
+      <MagicImportModal isOpen={isMagicImportOpen} onClose={() => { setIsMagicImportOpen(false); setInitialMagicUrl(''); }} userStores={[]} initialUrl={initialMagicUrl} />
     </div>
   );
 }

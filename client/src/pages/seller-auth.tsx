@@ -316,9 +316,14 @@ export default function SellerAuth() {
 
       toast({
         title: '✅ Application Submitted',
-        description: 'Your seller application is under review. You will have limited access until approved.',
+        description: 'Your seller application is under review. Please wait a few minutes for admin to approve your verification.',
       });
-      setLocation('/dashboard');
+
+      // Show a temporary success state before redirecting to dashboard
+      setStep(4); // Use a new step for the success message
+      setTimeout(() => {
+        setLocation('/dashboard');
+      }, 5000);
     } catch (error: any) {
       toast({ title: 'Registration failed', description: error.message, variant: 'destructive' });
     } finally {
@@ -786,6 +791,21 @@ export default function SellerAuth() {
                           >
                             {isLoading ? <Loader2 className="animate-spin" /> : "Submit Application"}
                           </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 4 && (
+                      <div className="py-12 text-center space-y-6 animate-in zoom-in-95 duration-500">
+                        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CheckCircle2 className="w-10 h-10" />
+                        </div>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter">Application Submitted!</h2>
+                        <p className="text-gray-500 font-medium max-w-sm mx-auto">
+                          Thank you for joining The Hub. Please wait a few minutes for admin to approve your verification. You will be redirected to your limited dashboard shortly.
+                        </p>
+                        <div className="flex justify-center pt-4">
+                           <Loader2 className="w-6 h-6 animate-spin text-primary" />
                         </div>
                       </div>
                     )}

@@ -138,6 +138,28 @@ export default function Home() {
                   Open Your Store
                 </Button>
               </div>
+
+              <div className="mt-12 flex items-center space-x-6">
+                 <div className="flex -space-x-3">
+                    {[
+                      "photo-1531123897727-8f129e1688ce",
+                      "photo-1506277886164-e25aa3f4ef7f",
+                      "photo-1521572267360-ee0c2909d518",
+                      "photo-1523910088385-d313124c68aa"
+                    ].map((id, i) => (
+                       <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-sm">
+                          <img 
+                            src={`https://images.unsplash.com/${id}?auto=format&fit=crop&q=80&w=100&h=100`} 
+                            alt="Student face"
+                            className="w-full h-full object-cover"
+                          />
+                       </div>
+                    ))}
+                 </div>
+                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <span className="text-black font-black">10,000+</span> Students Trust Us
+                 </div>
+              </div>
             </div>
 
             <div className="flex justify-center lg:justify-end relative mt-16 lg:mt-0">
