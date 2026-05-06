@@ -1,13 +1,13 @@
 import { Link, useLocation } from 'wouter';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, MapPin, Video, Package } from 'lucide-react';
+import { ShoppingCart, Video, Package, Share2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useCart } from '@/lib/cart-context';
+import { handleShare } from '@/lib/share-utils';
 import type { ProductWithStore } from '@shared/schema';
 import { useState } from 'react';
-import { formatPriceWithFee, calculatePriceWithFee } from '@/lib/utils';
+import { formatPriceWithFee } from '@/lib/utils';
 
 interface ProductCardProps {
   product: ProductWithStore;
@@ -29,7 +29,15 @@ export default function ProductCard({ product }: ProductCardProps) {
     await addToCart(product.id);
   };
 
-  const sellerName = `${product.store.user.firstName} ${product.store.user.lastName?.[0] || ''}.`;
+  const onShare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleShare({
+      title: product.title,
+      text: `🔥 Check out this ${product.title} for ${formatPriceWithFee(product.price)} at ${product.store.name} on The Hub Ghana!`,
+      url: `${basePrefix}/product/${product.id}${user ? `?ref=${user.id}` : ''}`
+    });
+  };
   
   const isVideo = (url: string) => {
     if (!url) return false;
@@ -41,7 +49,6 @@ export default function ProductCard({ product }: ProductCardProps) {
   const hasValidGif = !!product.mediaGifUrl && product.mediaGifUrl.trim() !== '' && product.mediaGifUrl !== 'uploaded';
 
   // Prefer first valid image for non-hovered thumbnail to ensure something is visible
-  // If no images, use mediaGifUrl. If neither, use placeholder.
   const staticThumbnail = validImages.length > 0 
     ? validImages[0] 
     : (hasValidGif ? product.mediaGifUrl! : '/placeholder-product.png');
@@ -99,6 +106,17 @@ export default function ProductCard({ product }: ProductCardProps) {
             {parseFloat(product.price) < 20 && (
               <Badge className="bg-black text-white border-none font-black text-[10px] px-3 py-1">STUDENT DEAL</Badge>
             )}
+          </div>
+
+          <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+             <Button
+               variant="secondary"
+               size="icon"
+               className="h-8 w-8 rounded-full bg-white/90 backdrop-blur-md border-none shadow-sm hover:bg-white"
+               onClick={onShare}
+             >
+               <Share2 className="h-4 w-4 text-black" />
+             </Button>
           </div>
 
           <Button

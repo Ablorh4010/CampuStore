@@ -48,13 +48,13 @@ import { useCart } from '@/lib/cart-context';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { calculatePriceWithFee, formatPriceWithFee } from '@/lib/utils';
+import { handleShare } from '@/lib/share-utils';
 import type { ProductWithStore, OrderWithDetails } from '@shared/schema';
 import SEO from '@/components/seo/SEO';
 
 
 export default function Product() {
   const [location] = useLocation();
-  // Extract ID from path like /product/123 or /gh/product/123
   const match = location.match(/\/product\/(\d+)/);
   const productId = match ? parseInt(match[1]) : null;
   
@@ -64,7 +64,9 @@ export default function Product() {
   const { user } = useAuth();
   const { addToCart } = useCart();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+
+  const isGh = location.startsWith('/gh');
+  const basePrefix = isGh ? '/gh' : '';
 
   const { data: product, isLoading } = useQuery<ProductWithStore>({
     queryKey: ['/api/products', productId],
@@ -86,7 +88,6 @@ export default function Product() {
     });
   }, [api]);
 
-  // Combine images and mediaGifUrl into a single media array with fallback
   const rawMedia = product ? [
     ...(product.images || []),
     ...(product.mediaGifUrl ? [product.mediaGifUrl] : [])
@@ -169,51 +170,27 @@ export default function Product() {
     window.open(url, '_blank');
   };
 
-  const handleShare = async () => {
+  const onShareClick = async () => {
     if (!product) return;
     
-    // Add referral code if user is logged in
-    const shareUrl = new URL(window.location.href);
-    if (user) {
-      shareUrl.searchParams.set('ref', user.id.toString());
-    }
-
-    const shareData = {
+    handleShare({
       title: product.title,
-      text: `Check out this ${product.title} on The University Hub!`,
-      url: shareUrl.toString(),
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        toast({ title: 'Shared!', description: 'Product link shared successfully.' });
-      } else {
-        await navigator.clipboard.writeText(shareUrl.toString());
-        toast({ title: 'Link Copied', description: 'Product link with your referral code copied to clipboard.' });
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
+      text: `🔥 Check out this ${product.title} for GH₵${product.price} at ${product.store.name} on The Hub Ghana!`,
+      url: `${basePrefix}/product/${product.id}${user ? `?ref=${user.id}` : ''}`
+    });
   };
 
   const nextMedia = () => {
-    if (api) {
-      api.scrollNext();
-    } else if (mediaItems.length > 0) {
-      setCurrentMediaIndex((prev) => 
-        prev === mediaItems.length - 1 ? 0 : prev + 1
-      );
+    if (api) api.scrollNext();
+    else if (mediaItems.length > 0) {
+      setCurrentMediaIndex((prev) => prev === mediaItems.length - 1 ? 0 : prev + 1);
     }
   };
 
   const prevMedia = () => {
-    if (api) {
-      api.scrollPrev();
-    } else if (mediaItems.length > 0) {
-      setCurrentMediaIndex((prev) => 
-        prev === 0 ? mediaItems.length - 1 : prev - 1
-      );
+    if (api) api.scrollPrev();
+    else if (mediaItems.length > 0) {
+      setCurrentMediaIndex((prev) => prev === 0 ? mediaItems.length - 1 : prev - 1);
     }
   };
 
@@ -265,16 +242,9 @@ export default function Product() {
     ? ((originalPriceWithFee - priceWithFee) / originalPriceWithFee * 100).toFixed(0)
     : null;
 
-  const filteredRelatedProducts = relatedProducts.filter(p => p.id !== product.id);
-
   const isVideo = (url: string) => {
     if (!url) return false;
     return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*video.*/i);
-  };
-
-  const isGif = (url: string) => {
-    if (!url) return false;
-    return url.match(/\.gif$/i);
   };
 
   const productSchema = product ? {
@@ -283,10 +253,7 @@ export default function Product() {
     "name": product.title,
     "image": mediaItems[0],
     "description": product.description,
-    "brand": {
-      "@type": "Brand",
-      "name": product.store.name
-    },
+    "brand": { "@type": "Brand", "name": product.store.name },
     "offers": {
       "@type": "Offer",
       "url": window.location.href,
@@ -294,10 +261,7 @@ export default function Product() {
       "price": product.price,
       "itemCondition": product.condition === 'new' ? "https://schema.org/NewCondition" : "https://schema.org/UsedCondition",
       "availability": "https://schema.org/InStock",
-      "seller": {
-        "@type": "Organization",
-        "name": product.store.name
-      }
+      "seller": { "@type": "Organization", "name": product.store.name }
     }
   } : undefined;
 
@@ -306,15 +270,16 @@ export default function Product() {
       {product && (
         <SEO 
           title={product.title}
-          description={`${product.title} for sale by ${product.store.name} on The Hub. ${product.description.substring(0, 150)}...`}
+          description={`${product.title} for GH₵${product.price} at ${product.store.name} on The Hub. ${product.description.substring(0, 150)}...`}
           image={mediaItems[0]}
+          video={rawMedia.find(m => m.endsWith('.mp4') || m.endsWith('.mov') || m.endsWith('.webm'))}
+          price={product.price}
           type="product"
           keywords={`${product.title}, buy ${product.title} ghana, ${product.store.university} marketplace`}
           schemaData={productSchema}
         />
       )}
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Breadcrumbs / Back */}
         <div className="mb-8">
            <Link href="/browse" className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-black transition-colors flex items-center gap-2">
              <ChevronLeft className="w-3 h-3" /> Back to Market
@@ -322,9 +287,7 @@ export default function Product() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-16">
-          {/* Gallery Section */}
           <div className="flex flex-col lg:flex-row gap-6">
-            {/* Vertical Thumbnails */}
             <div className="hidden lg:flex flex-col gap-3 w-24 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
               {mediaItems.map((item, index) => (
                 <button
@@ -346,7 +309,6 @@ export default function Product() {
               ))}
             </div>
 
-            {/* Main Media Display with Carousel */}
             <div className="flex-1 relative aspect-[3/4] bg-gray-50 rounded-3xl overflow-hidden group">
                <Carousel setApi={setApi} className="w-full h-full">
                   <CarouselContent className="h-full ml-0">
@@ -354,21 +316,9 @@ export default function Product() {
                       <CarouselItem key={index} className="pl-0 h-full">
                         <div className="w-full h-full flex items-center justify-center">
                           {isVideo(item) ? (
-                            <video
-                              src={item}
-                              className="w-full h-full object-cover"
-                              controls
-                              autoPlay={index === currentMediaIndex}
-                              muted
-                              loop
-                            />
+                            <video src={item} className="w-full h-full object-cover" controls autoPlay={index === currentMediaIndex} muted loop />
                           ) : (
-                            <img
-                              src={item || '/placeholder-product.png'}
-                              alt={`${product.title} - image ${index + 1}`}
-                              className="w-full h-full object-cover transition-transform duration-1000"
-                              onError={() => setBrokenImages(prev => ({ ...prev, [index]: true }))}
-                            />
+                            <img src={item || '/placeholder-product.png'} alt={product.title} className="w-full h-full object-cover transition-transform duration-1000" />
                           )}
                         </div>
                       </CarouselItem>
@@ -376,51 +326,25 @@ export default function Product() {
                   </CarouselContent>
                   
                   {mediaItems.length > 1 && (
-                    <>
-                      <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">
-                        <Button 
-                          variant="secondary" 
-                          size="icon" 
-                          className="rounded-full bg-white/90 shadow-xl pointer-events-auto lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" 
-                          onClick={prevMedia}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="secondary" 
-                          size="icon" 
-                          className="rounded-full bg-white/90 shadow-xl pointer-events-auto lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" 
-                          onClick={nextMedia}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </>
+                    <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">
+                      <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl pointer-events-auto lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onClick={prevMedia}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button variant="secondary" size="icon" className="rounded-full bg-white/90 shadow-xl pointer-events-auto lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onClick={nextMedia}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                </Carousel>
 
                {savings && (
                   <div className="absolute top-6 left-6 z-10">
-                    <Badge className="bg-black text-white border-none font-black text-xs px-4 py-1.5 rounded-lg shadow-xl uppercase tracking-widest">
-                      {savings}% Off
-                    </Badge>
+                    <Badge className="bg-black text-white border-none font-black text-xs px-4 py-1.5 rounded-lg shadow-xl uppercase tracking-widest">{savings}% Off</Badge>
                   </div>
                )}
-
-               {/* Mobile Thumbnails / Dots */}
-               <div className="lg:hidden absolute bottom-6 inset-x-0 flex justify-center gap-2 z-10">
-                  {mediaItems.map((_, i) => (
-                    <button 
-                      key={i} 
-                      onClick={() => scrollToMedia(i)}
-                      className={`w-2 h-2 rounded-full transition-all ${i === currentMediaIndex ? 'bg-black w-4' : 'bg-black/20'}`} 
-                    />
-                  ))}
-               </div>
             </div>
           </div>
 
-          {/* Info Section */}
           <div className="flex flex-col">
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-4">
@@ -428,27 +352,14 @@ export default function Product() {
                 <div className="w-1 h-1 rounded-full bg-gray-200" />
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{product.condition}</span>
               </div>
-              <h1 className="text-4xl font-black text-gray-900 uppercase tracking-tight leading-none mb-6">
-                {product.title}
-              </h1>
-              
+              <h1 className="text-4xl font-black text-gray-900 uppercase tracking-tight leading-none mb-6">{product.title}</h1>
               <div className="flex items-baseline gap-4 mb-2">
-                <span className="text-3xl font-black text-black">
-                  {formatPriceWithFee(product.price)}
-                </span>
-                {product.originalPrice && (
-                  <span className="text-xl text-gray-300 line-through font-bold">
-                    {formatPriceWithFee(product.originalPrice)}
-                  </span>
-                )}
+                <span className="text-3xl font-black text-black">{formatPriceWithFee(product.price)}</span>
+                {product.originalPrice && <span className="text-xl text-gray-300 line-through font-bold">{formatPriceWithFee(product.originalPrice)}</span>}
               </div>
-              
-              {/* Installment Option - Bɔkɔɔ Pay */}
               <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 flex items-center justify-between group cursor-help transition-all hover:border-black/10">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white">
-                    <Wallet className="w-5 h-5" />
-                  </div>
+                  <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white"><Wallet className="w-5 h-5" /></div>
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Pay in 4 installments</p>
                     <p className="text-xs font-black">4 payments of GH₵{(priceWithFee / 4).toFixed(2)} with <span className="text-primary italic">Bɔkɔɔ Pay.</span></p>
@@ -456,168 +367,50 @@ export default function Product() {
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-300 group-hover:text-black transition-colors" />
               </div>
-
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Inclusive of 5% service fee</p>
             </div>
 
-            {/* Actions */}
             <div className="space-y-4 mb-12">
-              {product.isDigital ? (
-                <div className="space-y-3">
-                  <Button 
-                    size="lg" 
-                    className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-blue-200 transition-all active:scale-[0.98]"
-                    onClick={handleAddToCart}
-                    disabled={!product.isAvailable}
-                  >
-                    <ShoppingCart className="mr-3 h-5 w-5" />
-                    {product.isAvailable ? 'Buy eBook / PDF' : 'Sold Out'}
-                  </Button>
-                  <div className="flex items-center gap-2 bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <Download className="w-4 h-4 text-blue-600" />
-                    <p className="text-[10px] font-bold text-blue-700 uppercase tracking-tight">Instant access after purchase</p>
-                  </div>
-                </div>
-              ) : (
-                <Button 
-                  size="lg" 
-                  className="w-full h-16 bg-black hover:bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-black/10 transition-all active:scale-[0.98]"
-                  onClick={handleAddToCart}
-                  disabled={!product.isAvailable}
-                >
-                  <ShoppingCart className="mr-3 h-5 w-5" />
-                  {product.isAvailable ? 'Add to Bag' : 'Sold Out'}
-                </Button>
-              )}
-              
+              <Button size="lg" className="w-full h-16 bg-black hover:bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-black/10 transition-all active:scale-[0.98]" onClick={handleAddToCart} disabled={!product.isAvailable}>
+                <ShoppingCart className="mr-3 h-5 w-5" />
+                {product.isAvailable ? (product.isDigital ? 'Buy eBook / PDF' : 'Add to Bag') : 'Sold Out'}
+              </Button>
               <div className="grid grid-cols-2 gap-4">
-                <Button 
-                  variant="outline" 
-                  className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50"
-                  onClick={handleContactSeller}
-                  disabled={createMessageMutation.isPending}
-                >
+                <Button variant="outline" className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50" onClick={handleContactSeller} disabled={createMessageMutation.isPending}>
                   <MessageCircle className="mr-2 h-4 w-4" />
                   {createMessageMutation.isPending ? 'Sending...' : 'Contact Seller'}
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50"
-                  onClick={handleShare}
-                >
+                <Button variant="outline" className="h-14 rounded-2xl border-gray-200 font-black uppercase tracking-widest text-[10px] hover:bg-gray-50" onClick={onShareClick}>
                   <Share2 className="mr-2 h-4 w-4" />
                   Share Item
                 </Button>
               </div>
             </div>
 
-            {/* Collapsible Info */}
             <Accordion type="single" collapsible className="w-full border-t border-gray-100">
               <AccordionItem value="description" className="border-b border-gray-100">
-                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">
-                  Description & Notes
-                </AccordionTrigger>
-                <AccordionContent className="text-gray-500 font-medium leading-relaxed pb-6">
-                  {product.description}
-                </AccordionContent>
+                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">Description & Notes</AccordionTrigger>
+                <AccordionContent className="text-gray-500 font-medium leading-relaxed pb-6">{product.description}</AccordionContent>
               </AccordionItem>
               <AccordionItem value="details" className="border-b border-gray-100">
-                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">
-                  Product Details
-                </AccordionTrigger>
+                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">Product Details</AccordionTrigger>
                 <AccordionContent className="pb-6">
-                  <div className="grid grid-cols-2 gap-y-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Category</p>
-                      <p className="text-sm font-bold">{product.category.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Condition</p>
-                      <p className="text-sm font-bold">{product.condition}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Store</p>
-                      <Link href={`/store/${product.store.id}`} className="text-sm font-bold hover:underline">{product.store.name}</Link>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Location</p>
-                      <p className="text-sm font-bold">{product.store.university}</p>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="shipping" className="border-b border-gray-100">
-                <AccordionTrigger className="font-black uppercase tracking-widest text-xs py-6 hover:no-underline">
-                  Shipping & Pickup
-                </AccordionTrigger>
-                <AccordionContent className="pb-6 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Truck className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-widest mb-1">Standard Shipping</p>
-                      <p className="text-xs text-gray-500">2-4 business days across campus hubs.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-widest mb-1">Direct Pickup</p>
-                      <p className="text-xs text-gray-500">Available from {product.store.campus || 'Main Campus'}.</p>
-                    </div>
+                  <div className="grid grid-cols-2 gap-y-4 text-sm font-bold">
+                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Category</p>{product.category.name}</div>
+                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Condition</p>{product.condition}</div>
+                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Store</p><Link href={`/store/${product.store.id}`} className="hover:underline">{product.store.name}</Link></div>
+                    <div><p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Location</p>{product.store.university}</div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-
-            {/* Seller Quick Card */}
-            <div className="mt-12 p-6 bg-gray-50 rounded-3xl flex items-center gap-4">
-              <Avatar className="h-14 w-14 border-2 border-white shadow-sm">
-                <AvatarImage src={product.store.user.avatar || ''} />
-                <AvatarFallback className="font-black bg-black text-white text-xs">
-                  {product.store.user.firstName?.[0]}{product.store.user.lastName?.[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Listed By</p>
-                <h4 className="font-black text-sm uppercase tracking-tight">{sellerName}</h4>
-                <div className="flex items-center gap-1 text-[10px] font-bold text-gray-500 uppercase">
-                  <MapPin className="h-3 w-3" />
-                  <span>{product.store.university}</span>
-                </div>
-              </div>
-              <Link href={`/store/${product.store.id}`}>
-                <Button variant="ghost" className="h-10 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] bg-white hover:bg-black hover:text-white transition-all shadow-sm">Visit Store</Button>
-              </Link>
-            </div>
           </div>
         </div>
 
-        {/* AI Suggestions Section */}
         {suggestions.length > 0 && (
           <section className="mt-24 pt-12 border-t border-gray-100">
-            <div className="flex flex-col md:flex-row items-baseline gap-4 mb-10">
-              <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900">Better Deals for You.</h2>
-              <div className="flex items-center bg-gray-100 text-black px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
-                <Sparkles className="h-3 w-3 mr-1.5" />
-                AI Curated
-              </div>
-            </div>
+            <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 mb-10">Better Deals for You.</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {suggestions.map((suggestion) => (
-                <ProductCard key={suggestion.id} product={suggestion} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Related Products Section */}
-        {filteredRelatedProducts.length > 0 && (
-          <section className="mt-24">
-            <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 mb-10">Similar Finds.</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {filteredRelatedProducts.slice(0, 4).map((relatedProduct) => (
-                <ProductCard key={relatedProduct.id} product={relatedProduct} />
-              ))}
+              {suggestions.map((suggestion) => <ProductCard key={suggestion.id} product={suggestion} />)}
             </div>
           </section>
         )}
