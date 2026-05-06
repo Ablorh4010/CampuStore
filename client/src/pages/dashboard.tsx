@@ -89,10 +89,11 @@ export default function Dashboard() {
 
   // Auto-create store for admins and sellers if missing
   useEffect(() => {
-    if (!storesLoading && userStores.length === 0 && (user?.isAdmin || user?.userType === 'seller' || user?.isMerchant) && !isAutoCreating) {
+    if (!storesLoading && userStores.length === 0 && isMerchantUser && !isAutoCreating) {
       console.log("Auto-creating store for user:", user?.id);
       setIsAutoCreating(true);
       apiRequest('POST', '/api/stores', {
+        userId: user?.id,
         name: user?.isAdmin ? "University Hub Official" : `${user?.firstName}'s Store`,
         description: user?.isAdmin ? "Official store for The University Hub" : `Official store for ${user?.firstName} ${user?.lastName}`,
         city: user?.city || "Accra", 
@@ -107,7 +108,7 @@ export default function Dashboard() {
         setIsAutoCreating(false);
       });
     }
-  }, [userStores.length, storesLoading, user, refetchStores, isAutoCreating]);
+  }, [userStores.length, storesLoading, user, refetchStores, isAutoCreating, isMerchantUser]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', primaryStore?.id],
@@ -179,21 +180,31 @@ export default function Dashboard() {
     },
   });
 
-  if (storesLoading || isAutoCreating) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
-
+  const isMerchantUser = user?.isAdmin || user?.userType === 'seller' || user?.isMerchant;
   const isVerified = user?.verificationStatus === 'verified' || user?.isAdmin;
   const isPending = user?.verificationStatus === 'pending';
   const needsCorrection = user?.verificationStatus === 'needs_correction';
 
-  // If no store, redirect or show "Start Selling"
+  // If a store is expected but missing, and we are not already auto-creating, 
+  // we show a loader while the useEffect kicks in.
+  if (storesLoading || isAutoCreating || (isMerchantUser && !primaryStore)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-primary w-10 h-10" />
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Initializing Merchant Hub...</p>
+      </div>
+    );
+  }
+
+  // If no store and NOT a merchant/admin, show "Start Selling"
   if (!primaryStore) {
     return (
       <div className="min-h-screen bg-white py-24 flex items-center justify-center">
          <Card className="max-w-md w-full rounded-[3rem] border-none shadow-2xl p-12 text-center">
             <StoreIcon className="w-16 h-16 text-primary mx-auto mb-6" />
-            <h2 className="text-3xl font-black uppercase mb-4 tracking-tighter">Almost a Seller.</h2>
-            <p className="text-gray-500 mb-8 font-medium">Click below to finish your profile setup.</p>
-            <Link href="/seller-auth"><Button className="w-full h-14 rounded-2xl bg-black font-black uppercase">Finish Profile</Button></Link>
+            <h2 className="text-3xl font-black uppercase mb-4 tracking-tighter">Start Selling.</h2>
+            <p className="text-gray-500 mb-8 font-medium">Click below to set up your merchant profile.</p>
+            <Link href="/seller-auth"><Button className="w-full h-14 rounded-2xl bg-black font-black uppercase">Begin Setup</Button></Link>
          </Card>
       </div>
     );
