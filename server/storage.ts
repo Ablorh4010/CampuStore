@@ -322,20 +322,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async deleteStore(id: number): Promise<boolean> {
-    try {
-      // 1. Delete all products in this store
-      await db.delete(products).where(eq(products.storeId, id));
-
-      // 2. Delete store
-      const result = await db.delete(stores).where(eq(stores.id, id));
-      return (result.rowCount || 0) > 0;
-    } catch (error) {
-      console.error(`Error deleting store ${id}:`, error);
-      return false;
-    }
-  }
-
   async getAnalytics(): Promise<{
     totalUsers: number;
     totalStores: number;

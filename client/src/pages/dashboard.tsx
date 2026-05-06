@@ -107,18 +107,6 @@ export default function Dashboard() {
   useEffect(() => {
     let mounted = true;
     
-    // Diagnostic log
-    if (user) {
-      console.log("Dashboard State:", { 
-        userId: user.id, 
-        isMerchantUser, 
-        storesCount: userStores.length, 
-        storesLoading, 
-        isAutoCreating,
-        creationAttempted: creationAttempted.current 
-      });
-    }
-
     if (!authLoading && user && !storesLoading && !storesFetching && userStores.length === 0 && isMerchantUser && !isAutoCreating && !creationAttempted.current) {
       console.log("Triggering auto-creation for user:", user.id);
       creationAttempted.current = true;
@@ -134,25 +122,23 @@ export default function Dashboard() {
       }).then(async (res) => {
         if (!res.ok) throw new Error("Store creation request failed");
         const newStore = await res.json();
-        console.log("Store created successfully:", newStore);
-
+        
         if (mounted) {
            toast({ title: "Store Initialized", description: "Your merchant dashboard is ready." });
-           // Force update the cache with the new store to prevent another check
            queryClient.setQueryData(['/api/stores/user'], [newStore]);
            await queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
            await refetchStores();
         }
       }).catch(err => {
         console.error("Failed to auto-create store:", err);
-        // On error, we allow one more attempt after a delay or on next mount
-        setTimeout(() => { if (mounted) creationAttempted.current = false; }, 5000);
+        // On error, reset after a delay to allow retry if needed, but don't loop infinitely
+        setTimeout(() => { if (mounted) creationAttempted.current = false; }, 10000);
       }).finally(() => {
         if (mounted) setIsAutoCreating(false);
       });
     }
     return () => { mounted = false; };
-  }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, queryClient, authLoading]);
+  }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, authLoading]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', primaryStore?.id],
@@ -246,11 +232,11 @@ export default function Dashboard() {
 
   // If a store is expected but missing, and we are not already auto-creating, 
   // we show a loader while the useEffect kicks in.
-  if (authLoading || storesLoading || isAutoCreating || (isMerchantUser && !primaryStore)) {
+  if (authLoading || (storesLoading && userStores.length === 0)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-primary w-10 h-10" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{authLoading ? 'Verifying Session...' : 'Initializing Merchant Hub...'}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Loading Dashboard...</p>
       </div>
     );
   }

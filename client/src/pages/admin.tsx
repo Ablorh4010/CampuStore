@@ -212,6 +212,16 @@ export default function AdminDashboard() {
     onSuccess: () => { refetchDeals(); toast({ title: 'Deal Removed' }); },
   });
 
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ productId, data }: { productId: number, data: any }) => {
+      return apiRequest('PUT', `/api/products/${productId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
+      toast({ title: "Product Updated" });
+    },
+  });
+
   const deleteItemMutation = useMutation({
     mutationFn: async ({ id, type, feedback }: { id: number; type: 'product' | 'store' | 'user'; feedback: string }) => {
       return apiRequest('DELETE', `/api/admin/${type}s/${id}`, { feedback });
@@ -355,12 +365,51 @@ export default function AdminDashboard() {
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {allProducts.filter(p => p.approvalStatus === 'pending').map(product => (
                   <Card key={product.id} className="rounded-[2.5rem] border-none shadow-sm overflow-hidden bg-white">
-                    <div className="aspect-[4/3] bg-gray-100 relative"><img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" /></div>
+                    <div className="aspect-[4/3] bg-gray-100 relative">
+                      <img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
+                      <div className="absolute top-4 right-4 flex flex-col gap-2">
+                         <Badge className={`${product.isInstallmentEligible ? 'bg-green-500' : 'bg-gray-400'} text-white border-none font-black text-[9px] uppercase`}>
+                           {product.isInstallmentEligible ? 'Installment: YES' : 'Installment: NO'}
+                         </Badge>
+                      </div>
+                    </div>
                     <CardContent className="p-8">
                        <h4 className="font-black text-sm uppercase mb-2 truncate">{product.title}</h4>
-                       <div className="flex gap-2">
-                          <Button className="flex-grow rounded-xl bg-green-500 hover:bg-green-600 font-black uppercase text-[10px]" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}>Approve</Button>
-                          <Button variant="destructive" className="flex-grow rounded-xl font-black uppercase text-[10px]" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'rejected' })}>Reject</Button>
+                       <div className="space-y-2">
+                          <div className="flex gap-2">
+                             <Button className="flex-grow rounded-xl bg-green-500 hover:bg-green-600 font-black uppercase text-[10px]" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}>Approve</Button>
+                             <Button variant="destructive" className="flex-grow rounded-xl font-black uppercase text-[10px]" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'rejected' })}>Reject</Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                             <Button 
+                               variant="outline" 
+                               className="rounded-lg h-9 font-black text-[9px] uppercase border-2"
+                               onClick={() => updateProductMutation.mutate({ productId: product.id, data: { isInstallmentEligible: !product.isInstallmentEligible } })}
+                             >
+                               {product.isInstallmentEligible ? 'Disable Plan' : 'Enable Plan'}
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               className="rounded-lg h-9 font-black text-[9px] uppercase border-2"
+                               onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'archived' })}
+                             >
+                               Archive
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               className={`rounded-lg h-9 font-black text-[9px] uppercase border-2 ${!product.isAvailable ? 'bg-amber-100' : ''}`}
+                               onClick={() => updateProductMutation.mutate({ productId: product.id, data: { isAvailable: !product.isAvailable } })}
+                             >
+                               {product.isAvailable ? 'Sleep' : 'Wake'}
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               className="rounded-lg h-9 font-black text-[9px] uppercase border-2"
+                               onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}
+                             >
+                               Edit
+                             </Button>
+                          </div>
                        </div>
                     </CardContent>
                   </Card>
@@ -437,13 +486,51 @@ export default function AdminDashboard() {
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {allProducts.filter(p => ['approved', 'archived'].includes(p.approvalStatus)).map(product => (
                   <Card key={product.id} className="rounded-3xl border-none shadow-sm overflow-hidden bg-white">
-                    <div className="aspect-[4/3] bg-gray-100 relative"><img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" /></div>
+                    <div className="aspect-[4/3] bg-gray-100 relative">
+                      <img src={(product.images?.[0] && product.images[0] !== 'uploaded') ? product.images[0] : '/placeholder-product.png'} className="w-full h-full object-cover" alt="" />
+                      {!product.isAvailable && <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-black text-white uppercase tracking-widest">Sleeping</div>}
+                      <div className="absolute top-4 right-4 flex flex-col gap-2">
+                         <Badge className={`${product.approvalStatus === 'archived' ? 'bg-amber-500' : 'bg-green-500'} text-white border-none font-black text-[9px] uppercase`}>
+                           {product.approvalStatus === 'archived' ? 'ARCHIVED' : 'LIVE'}
+                         </Badge>
+                         <Badge className={`${product.isInstallmentEligible ? 'bg-blue-500' : 'bg-gray-400'} text-white border-none font-black text-[9px] uppercase`}>
+                           {product.isInstallmentEligible ? 'PLAN: ACTIVE' : 'PLAN: NO'}
+                         </Badge>
+                      </div>
+                    </div>
                     <CardContent className="p-6">
                        <h4 className="font-black text-sm uppercase mb-1">{product.title}</h4>
                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-4">Store: {product.store.name}</p>
                        <div className="grid grid-cols-2 gap-2">
-                          <Button variant="outline" className="rounded-lg h-9 font-black text-[9px] uppercase" onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}>Edit</Button>
-                          <Button variant="destructive" className="rounded-lg h-9 font-black text-[9px] uppercase" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'delete', title: product.title }); setModModalOpen(true); }}>Delete</Button>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-lg h-9 font-black text-[9px] uppercase border-2"
+                            onClick={() => updateProductMutation.mutate({ productId: product.id, data: { isInstallmentEligible: !product.isInstallmentEligible } })}
+                          >
+                            {product.isInstallmentEligible ? 'Disable Plan' : 'Enable Plan'}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-lg h-9 font-black text-[9px] uppercase border-2"
+                            onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: product.approvalStatus === 'archived' ? 'approved' : 'archived' })}
+                          >
+                            {product.approvalStatus === 'archived' ? 'Restore' : 'Archive'}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-lg h-9 font-black text-[9px] uppercase border-2"
+                            onClick={() => updateProductMutation.mutate({ productId: product.id, data: { isAvailable: !product.isAvailable } })}
+                          >
+                            {product.isAvailable ? 'Sleep' : 'Wake'}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-lg h-9 font-black text-[9px] uppercase border-2"
+                            onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}
+                          >
+                            Edit
+                          </Button>
+                          <Button variant="destructive" className="rounded-lg h-9 font-black text-[9px] uppercase col-span-2" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'delete', title: product.title }); setModModalOpen(true); }}>Delete Permanent</Button>
                        </div>
                     </CardContent>
                   </Card>
