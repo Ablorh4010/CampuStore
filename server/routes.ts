@@ -1016,6 +1016,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/stores/user", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const stores = await storage.getStoresByUserId(req.userId!);
+      res.json(stores);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user stores" });
+    }
+  });
+
   app.get("/api/stores/user/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);

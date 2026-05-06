@@ -103,6 +103,7 @@ export default function Dashboard() {
 
   // Auto-create store for admins and sellers if missing
   useEffect(() => {
+    let mounted = true;
     if (!storesLoading && userStores.length === 0 && isMerchantUser && !isAutoCreating) {
       console.log("Auto-creating store for user:", user?.id);
       setIsAutoCreating(true);
@@ -113,15 +114,18 @@ export default function Dashboard() {
         city: user?.city || "Accra", 
         university: user?.university || "All Universities", 
         address: user?.sellerAddress || "HQ"
-      }).then(() => {
-        toast({ title: "Store Initialized", description: "Your merchant dashboard is ready." });
-        refetchStores();
+      }).then(async () => {
+        if (mounted) {
+           toast({ title: "Store Initialized", description: "Your merchant dashboard is ready." });
+           await refetchStores();
+        }
       }).catch(err => {
         console.error("Failed to auto-create store:", err);
       }).finally(() => {
-        setIsAutoCreating(false);
+        if (mounted) setIsAutoCreating(false);
       });
     }
+    return () => { mounted = false; };
   }, [userStores.length, storesLoading, user, refetchStores, isAutoCreating, isMerchantUser]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
@@ -183,6 +187,26 @@ export default function Dashboard() {
       setIsSubmittingChecklist(false);
     }
   };
+
+  const updateProductMutation = useMutation({
+    mutationFn: async ({ productId, data }: { productId: number, data: any }) => {
+      return apiRequest('PUT', `/api/products/${productId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/products/store'] });
+      toast({ title: "Updated", description: "Listing changes saved." });
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      return apiRequest('DELETE', `/api/products/${productId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/products/store'] });
+      toast({ title: "Removed", description: "Listing has been deleted." });
+    },
+  });
 
   const updateOrderApprovalMutation = useMutation({
     mutationFn: async ({ orderId, approval }: { orderId: number, approval: string }) => {
@@ -365,8 +389,58 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="listings" className="mt-0">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {storeProducts.map(p => <ProductCard key={p.id} product={p} />)}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {storeProducts.map(p => (
+                  <div key={p.id} className="group relative flex flex-col bg-white rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all border border-gray-100 overflow-hidden">
+                    <div className="aspect-[4/3] relative">
+                      <img src={p.images?.[0] || '/placeholder.png'} className="w-full h-full object-cover" />
+                      {!p.isAvailable && <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-black text-white uppercase tracking-widest">Sleeping</div>}
+                      <div className="absolute top-4 right-4 flex flex-col gap-2">
+                         <Badge className={`${p.isInstallmentEligible ? 'bg-green-500' : 'bg-gray-400'} text-white border-none font-black text-[9px] uppercase`}>
+                           {p.isInstallmentEligible ? 'Eligible' : 'Standard'}
+                         </Badge>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                       <div>
+                         <h4 className="font-black text-sm uppercase truncate">{p.title}</h4>
+                         <p className="font-black text-primary">GH₵{parseFloat(p.price).toFixed(2)}</p>
+                       </div>
+                       <div className="grid grid-cols-2 gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="rounded-xl h-10 font-black text-[9px] uppercase border-2"
+                            onClick={() => updateProductMutation.mutate({ productId: p.id, data: { isAvailable: !p.isAvailable } })}
+                          >
+                            {p.isAvailable ? <Clock className="w-3 h-3 mr-2 text-amber-500" /> : <Eye className="w-3 h-3 mr-2 text-green-500" />}
+                            {p.isAvailable ? 'Sleep' : 'Wake'}
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-xl h-10 font-black text-[9px] uppercase border-2"
+                            onClick={() => updateProductMutation.mutate({ productId: p.id, data: { isInstallmentEligible: !p.isInstallmentEligible } })}
+                          >
+                            <CreditCard className={`w-3 h-3 mr-2 ${p.isInstallmentEligible ? 'text-green-500' : 'text-gray-400'}`} />
+                            Plan
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="rounded-xl h-10 font-black text-[9px] uppercase border-2"
+                            onClick={() => { setEditingProduct(p); setIsProductFormOpen(true); }}
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            className="rounded-xl h-10 font-black text-[9px] uppercase"
+                            onClick={() => { if(confirm('Delete this listing?')) deleteProductMutation.mutate(p.id); }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                       </div>
+                    </div>
+                  </div>
+                ))}
                 {storeProducts.length === 0 && <p className="col-span-full py-20 text-center text-gray-400 font-bold uppercase text-xs">No listings yet.</p>}
              </div>
           </TabsContent>

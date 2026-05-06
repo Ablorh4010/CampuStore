@@ -278,7 +278,11 @@ export default function AdminDashboard() {
         </NavSection>
         <NavSection title="Inventory"><NavItem value="product-mgmt" label="Catalog" icon={Package} onClick={onNavClick} /><NavItem value="pending-logos" label="Logos" icon={Eye} badge={pendingLogos.length} onClick={onNavClick} /></NavSection>
         <NavSection title="Commerce"><NavItem value="pending-orders" label="Orders" icon={Newspaper} badge={pendingOrders.length} onClick={onNavClick} /><NavItem value="payouts" label="Payouts" icon={DollarSign} badge={pendingPayouts.length} onClick={onNavClick} /></NavSection>
-        <NavSection title="System"><NavItem value="settings" label="Settings" icon={Settings} onClick={onNavClick} /><NavItem value="app-mgmt" label="App Mgmt" icon={Zap} onClick={onNavClick} /></NavSection>
+        <NavSection title="System">
+          <NavItem value="users-mgmt" label="Users" icon={UsersIcon} onClick={onNavClick} />
+          <NavItem value="settings" label="Settings" icon={Settings} onClick={onNavClick} />
+          <NavItem value="app-mgmt" label="App Mgmt" icon={Zap} onClick={onNavClick} />
+        </NavSection>
       </nav>
       <div className="px-6 mt-auto pt-6 border-t border-gray-50 space-y-3">
         <Link href="/dashboard"><Button variant="outline" className="w-full rounded-xl border-2 font-black text-[10px] uppercase tracking-widest h-11">Store Hub</Button></Link>
@@ -412,8 +416,8 @@ export default function AdminDashboard() {
                        </div>
                        <div className="flex flex-col gap-2 w-full md:w-auto">
                           <Button className="rounded-xl bg-green-500 hover:bg-green-600 font-bold" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>Approve Store</Button>
-                          <Button variant="outline" className="rounded-xl border-amber-200 text-amber-700 font-bold">Needs Info</Button>
-                          <Button variant="destructive" className="rounded-xl font-bold">Reject</Button>
+                          <Button variant="outline" className="rounded-xl border-amber-200 text-amber-700 font-bold" onClick={() => { setModItem({ id: store.id, type: 'store', action: 'reject', title: store.name }); setModModalOpen(true); }}>Needs Info</Button>
+                          <Button variant="destructive" className="rounded-xl font-bold" onClick={() => { if(confirm(`Permanently delete store ${store.name}?`)) deleteItemMutation.mutate({ id: store.id, type: 'store', feedback: 'Store removed by admin' }); }}>Delete Store</Button>
                        </div>
                     </div>
                   </Card>
@@ -509,26 +513,77 @@ export default function AdminDashboard() {
              </Card>
           </TabsContent>
           
+          <TabsContent value="users-mgmt" className="mt-0">
+             <div className="flex justify-between items-center mb-8">
+                <div><h3 className="text-3xl font-black uppercase tracking-tighter">User Base.</h3><p className="font-bold text-gray-400">Total verified and registered members.</p></div>
+             </div>
+             <div className="space-y-4">
+                {allUsers.map(u => (
+                  <Card key={u.id} className="rounded-3xl border-none shadow-sm bg-white p-6">
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center font-black text-primary uppercase">{u.username[0]}</div>
+                          <div>
+                             <p className="font-black text-sm uppercase leading-none mb-1">{u.firstName} {u.lastName} ({u.username})</p>
+                             <p className="text-[10px] text-gray-400 font-bold uppercase">{u.email} • {u.userType}</p>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-2">
+                          {u.id !== user.id && (
+                             <Button 
+                               variant="destructive" 
+                               className="rounded-xl h-10 font-black text-[9px] uppercase"
+                               onClick={() => { if(confirm(`Delete user ${u.username}?`)) deleteItemMutation.mutate({ id: u.id, type: 'user', feedback: 'Account removed by admin' }); }}
+                             >
+                               Delete Account
+                             </Button>
+                          )}
+                       </div>
+                    </div>
+                  </Card>
+                ))}
+             </div>
+          </TabsContent>
+
           <TabsContent value="pending-orders" className="mt-0 space-y-6">
              {pendingOrders.map(order => (
                <Card key={order.id} className="rounded-[2.5rem] border-none shadow-sm bg-white p-8">
                   <div className="flex flex-col lg:flex-row justify-between gap-8">
-                     <div className="flex items-center gap-4">
-                        <img src={order.product.images?.[0] || '/placeholder.png'} className="w-16 h-16 rounded-2xl object-cover" alt="" />
-                        <div>
-                           <h4 className="font-black text-lg uppercase">{order.product.title}</h4>
-                           <p className="text-sm font-bold text-primary">Seller: {order.seller.firstName} • Buyer: {order.buyer.firstName || order.buyerEmail || 'Guest'}</p>
-                           <p className="text-xs text-gray-400 mt-1">Amount: GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
+                     <div className="flex items-start gap-6">
+                        <img src={order.product.images?.[0] || '/placeholder.png'} className="w-24 h-24 rounded-[2rem] object-cover shadow-md" alt="" />
+                        <div className="space-y-4">
+                           <div>
+                              <h4 className="font-black text-2xl uppercase tracking-tighter leading-none">{order.product.title}</h4>
+                              <p className="text-sm font-bold text-primary uppercase tracking-widest mt-2">GH₵{parseFloat(order.totalAmount).toFixed(2)}</p>
+                           </div>
+                           
+                           <div className="grid grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-gray-50">
+                              <div className="space-y-1">
+                                 <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Buyer Details</p>
+                                 <p className="text-xs font-black uppercase">{order.buyer.firstName} {order.buyer.lastName}</p>
+                                 <p className="text-[10px] font-bold text-gray-500 uppercase">{order.buyerPhone || order.buyer.phoneNumber}</p>
+                                 <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{order.buyerUniversity || 'Main Campus'}</p>
+                              </div>
+                              <div className="space-y-1">
+                                 <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Delivery Address</p>
+                                 <p className="text-[10px] font-bold text-gray-700 uppercase leading-relaxed max-w-[200px]">{order.buyerAddress || 'Address not provided'}</p>
+                                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{order.buyerCity || 'Accra'}</p>
+                              </div>
+                           </div>
                         </div>
                      </div>
-                     <div className="space-y-4 min-w-[300px]">
+                     <div className="space-y-4 min-w-[300px] bg-gray-50/50 p-6 rounded-3xl">
                         <div className="flex flex-col gap-2">
+                           <p className="text-[9px] font-black uppercase text-gray-400 mb-2 tracking-widest">Order Processing</p>
                            {order.sellerApproval === 'pending' ? (
-                             <Button className="w-full rounded-xl bg-primary font-black uppercase text-[10px] h-12 shadow-lg" onClick={() => updateSellerApprovalMutation.mutate({ orderId: order.id, approval: 'approved' })}>Approve as Hub Store</Button>
+                             <Button className="w-full rounded-2xl bg-black text-white font-black uppercase text-[10px] h-14 shadow-xl" onClick={() => updateSellerApprovalMutation.mutate({ orderId: order.id, approval: 'approved' })}>Hub Store Approval</Button>
                            ) : (
-                             <div className="flex gap-2">
-                                <Input type="date" className="h-12 rounded-xl border-2" onChange={(e) => (order as any).tempDate = e.target.value} />
-                                <Button className="bg-green-500 hover:bg-green-600 h-12 rounded-xl font-bold" onClick={() => updateAdminOrderApprovalMutation.mutate({ orderId: order.id, status: 'approved', estimatedDeliveryDate: (order as any).tempDate })}>Final Approve</Button>
+                             <div className="space-y-4">
+                                <div className="space-y-2">
+                                   <Label className="text-[9px] font-black uppercase text-gray-400">Est. Delivery Date</Label>
+                                   <Input type="date" className="h-12 rounded-xl border-2 font-bold" onChange={(e) => (order as any).tempDate = e.target.value} />
+                                </div>
+                                <Button className="w-full bg-green-500 hover:bg-green-600 h-14 rounded-2xl font-black uppercase text-xs shadow-xl shadow-green-200" onClick={() => updateAdminOrderApprovalMutation.mutate({ orderId: order.id, status: 'approved', estimatedDeliveryDate: (order as any).tempDate })}>Final Release</Button>
                              </div>
                            )}
                         </div>
