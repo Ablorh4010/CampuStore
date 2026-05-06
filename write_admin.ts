@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+import fs from 'fs';
+import path from 'path';
+
+const content = `import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -136,55 +139,55 @@ export default function AdminDashboard() {
   });
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: async (id: number) => apiRequest('DELETE', `/api/categories/${id}`),
+    mutationFn: async (id: number) => apiRequest('DELETE', \`/api/categories/\${id}\`),
     onSuccess: () => { refetchCategories(); toast({ title: 'Category Removed' }); }
   });
 
   const updateProductStatusMutation = useMutation({
     mutationFn: ({ productId, status, feedback }: { productId: number; status: string; feedback?: string }) =>
-      apiRequest('PUT', `/api/admin/products/${productId}/approval`, { status, feedback }),
+      apiRequest('PUT', \`/api/admin/products/\${productId}/approval\`, { status, feedback }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] }); toast({ title: 'Success' }); },
   });
 
   const updateAdminOrderApprovalMutation = useMutation({
     mutationFn: ({ orderId, status, estimatedDeliveryDate }: { orderId: number; status: string; estimatedDeliveryDate: string }) =>
-      apiRequest('PUT', `/api/admin/orders/${orderId}/approval`, { status, estimatedDeliveryDate }),
+      apiRequest('PUT', \`/api/admin/orders/\${orderId}/approval\`, { status, estimatedDeliveryDate }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/orders/pending'] }); toast({ title: 'Success' }); },
   });
 
   const updateSellerApprovalMutation = useMutation({
     mutationFn: async ({ orderId, approval }: { orderId: number, approval: string }) => {
-      await apiRequest('PUT', `/api/orders/${orderId}/seller-approval`, { approval });
+      await apiRequest('PUT', \`/api/orders/\${orderId}/seller-approval\`, { approval });
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/orders/pending'] }); toast({ title: 'Seller Approved' }); },
   });
 
   const approveBuyerMutation = useMutation({
-    mutationFn: (userId: number) => apiRequest('PUT', `/api/admin/users/${userId}/approve-buyer`, {}),
+    mutationFn: (userId: number) => apiRequest('PUT', \`/api/admin/users/\${userId}/approve-buyer\`, {}),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending-buyer-verification'] }); toast({ title: 'Success' }); },
   });
 
   const updateUserVerificationMutation = useMutation({
     mutationFn: ({ userId, status, feedback }: { userId: number; status: string; feedback?: string }) =>
-      apiRequest('PUT', `/api/admin/users/${userId}/verification`, { status, feedback }),
+      apiRequest('PUT', \`/api/admin/users/\${userId}/verification\`, { status, feedback }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending-verification'] }); toast({ title: 'Success' }); },
   });
 
   const updateStoreStatusMutation = useMutation({
     mutationFn: ({ storeId, status }: { storeId: number; status: string }) =>
-      apiRequest('PUT', `/api/admin/stores/${storeId}/approval`, { status }),
+      apiRequest('PUT', \`/api/admin/stores/\${storeId}/approval\`, { status }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/stores/pending'] }); toast({ title: 'Success' }); },
   });
 
   const updateLogoStatusMutation = useMutation({
     mutationFn: ({ storeId, status }: { storeId: number; status: string }) =>
-      apiRequest('PUT', `/api/admin/stores/${storeId}/logo-approval`, { status }),
+      apiRequest('PUT', \`/api/admin/stores/\${storeId}/logo-approval\`, { status }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/logo-changes'] }); toast({ title: 'Success' }); },
   });
 
   const processPayoutMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
-      apiRequest('PUT', `/api/admin/orders/${orderId}/payout`, { status }),
+      apiRequest('PUT', \`/api/admin/orders/\${orderId}/payout\`, { status }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/payouts/pending'] }); toast({ title: 'Success' }); },
   });
 
@@ -194,7 +197,7 @@ export default function AdminDashboard() {
   });
 
   const deleteActivityMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('DELETE', `/api/admin/campus-activity/${id}`),
+    mutationFn: (id: number) => apiRequest('DELETE', \`/api/admin/campus-activity/\${id}\`),
     onSuccess: () => { refetchActivities(); toast({ title: 'Removed' }); },
   });
 
@@ -204,13 +207,13 @@ export default function AdminDashboard() {
   });
 
   const deleteDealMutation = useMutation({
-    mutationFn: (id: number) => apiRequest('DELETE', `/api/admin/weekly-deals/${id}`),
+    mutationFn: (id: number) => apiRequest('DELETE', \`/api/admin/weekly-deals/\${id}\`),
     onSuccess: () => { refetchDeals(); toast({ title: 'Deal Removed' }); },
   });
 
   const deleteItemMutation = useMutation({
     mutationFn: async ({ id, type, feedback }: { id: number; type: 'product' | 'store' | 'user'; feedback: string }) => {
-      return apiRequest('DELETE', `/api/admin/${type}s/${id}`, { feedback });
+      return apiRequest('DELETE', \`/api/admin/\${type}s/\${id}\`, { feedback });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/products'] });
@@ -241,13 +244,13 @@ export default function AdminDashboard() {
   const NavItem = ({ value, label, icon: Icon, badge, onClick }: { value: string, label: string, icon: any, badge?: number, onClick?: () => void }) => (
     <button 
       onClick={() => { setActiveTab(value); onClick?.(); }}
-      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${activeTab === value ? 'bg-black text-white shadow-lg shadow-black/10' : 'text-gray-500 hover:bg-gray-100'}`}
+      className={\`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all \${activeTab === value ? 'bg-black text-white shadow-lg shadow-black/10' : 'text-gray-500 hover:bg-gray-100'}\`}
     >
       <div className="flex items-center gap-3">
-        <Icon className={`w-5 h-5 ${activeTab === value ? 'text-white' : 'text-gray-400'}`} />
+        <Icon className={\`w-5 h-5 \${activeTab === value ? 'text-white' : 'text-gray-400'}\`} />
         <span className="font-bold text-[11px] uppercase tracking-widest">{label}</span>
       </div>
-      {badge ? <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${activeTab === value ? 'bg-white text-black' : 'bg-primary text-white'}`}>{badge}</span> : null}
+      {badge ? <span className={\`px-2 py-0.5 rounded-full text-[9px] font-black \${activeTab === value ? 'bg-white text-black' : 'bg-primary text-white'}\`}>{badge}</span> : null}
     </button>
   );
 
@@ -285,16 +288,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-body">
-      {/* Desktop Sidebar */}
       <aside className="hidden md:block w-64 flex-shrink-0 sticky top-0 h-screen"><SidebarContent /></aside>
-
-      {/* Mobile Header */}
       <header className="md:hidden bg-white border-b border-gray-100 p-4 sticky top-0 z-50 flex items-center justify-between">
         <h1 className="text-xl font-black italic tracking-tighter uppercase">Admin Hub.</h1>
         <Sheet><SheetTrigger asChild><Button variant="ghost" size="icon" className="rounded-xl"><Menu className="h-6 w-6" /></Button></SheetTrigger><SheetContent side="left" className="p-0 w-72 border-none"><SidebarContent onNavClick={() => {}} /></SheetContent></Sheet>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 p-6 md:p-12 min-w-0 overflow-x-hidden">
         <div className="mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
            <div><h2 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase leading-none">{activeTab.replace('-', ' ')}</h2><p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mt-2">Real-time platform insights</p></div>
@@ -308,11 +307,11 @@ export default function AdminDashboard() {
                 { label: 'Users', val: analytics?.totalUsers || 0, icon: UsersIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
                 { label: 'Stores', val: analytics?.totalStores || 0, icon: StoreIcon, color: 'text-purple-600', bg: 'bg-purple-50' },
                 { label: 'Listings', val: analytics?.totalProducts || 0, icon: Package, color: 'text-amber-600', bg: 'bg-amber-50' },
-                { label: 'Revenue', val: `GH₵${analytics?.totalRevenue || 0}`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' }
+                { label: 'Revenue', val: \`GH₵\${analytics?.totalRevenue || 0}\`, icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' }
               ].map((stat, i) => (
                 <Card key={i} className="rounded-3xl border-none shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                   <CardContent className="p-6 md:p-8">
-                    <div className={`${stat.bg} w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center mb-4`}><stat.icon className={`w-5 h-5 md:w-6 md:h-6 ${stat.color}`} /></div>
+                    <div className={\`\${stat.bg} w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center mb-4\`}>\n<stat.icon className={\`w-5 h-5 md:w-6 md:h-6 \${stat.color}\`} /></div>
                     <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
                     <h3 className="text-2xl md:text-3xl font-black text-gray-900 mt-1">{stat.val}</h3>
                   </CardContent>
@@ -599,49 +598,6 @@ export default function AdminDashboard() {
              ))}
           </TabsContent>
           
-          <TabsContent value="installment-approvals" className="mt-0 space-y-6">
-             {pendingBuyerVerifications.map(u => (
-               <Card key={u.id} className="rounded-[2rem] border-none shadow-sm bg-white p-8">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                     <div className="space-y-4">
-                        <div><h4 className="font-black text-2xl tracking-tighter uppercase">{u.firstName} {u.lastName}</h4><p className="text-sm font-bold text-primary uppercase tracking-widest">BUYER INSTALLMENT VERIFICATION</p></div>
-                        <div className="grid grid-cols-2 gap-4 text-xs">
-                           <div className="space-y-1"><p className="font-black text-gray-400 uppercase">Email</p><p className="font-bold">{u.email}</p></div>
-                           <div className="space-y-1"><p className="font-black text-gray-400 uppercase">Phone</p><p className="font-bold">{u.phoneNumber}</p></div>
-                        </div>
-                        <div className="flex gap-2 pt-4">
-                           <Button className="flex-grow rounded-xl bg-black text-white font-bold h-12 shadow-lg shadow-black/10" onClick={() => approveBuyerMutation.mutate(u.id)} disabled={approveBuyerMutation.isPending}>{approveBuyerMutation.isPending ? <Loader2 className="animate-spin" /> : "Approve Plan"}</Button>
-                           <Button variant="outline" className="flex-grow rounded-xl font-bold border-2 h-12">Reject</Button>
-                        </div>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2"><p className="text-[10px] font-black uppercase text-gray-400 text-center flex items-center justify-center gap-1"><ExternalLink className="w-3 h-3" /> Buyer ID Scan</p><div className="aspect-[4/3] rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50 group"><img src={u.buyerIdScanUrl!} className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition-transform" onClick={() => window.open(u.buyerIdScanUrl!, '_blank')} alt="" /></div></div>
-                        <div className="space-y-2"><p className="text-[10px] font-black uppercase text-gray-400 text-center flex items-center justify-center gap-1"><Video className="w-3 h-3" /> Live Face Scan</p><div className="aspect-[4/3] rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50 group"><img src={u.buyerFaceScanUrl!} className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition-transform" onClick={() => window.open(u.buyerFaceScanUrl!, '_blank')} alt="" /></div></div>
-                     </div>
-                  </div>
-               </Card>
-             ))}
-             {pendingBuyerVerifications.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending installment approvals.</p>}
-          </TabsContent>
-
-          <TabsContent value="payouts" className="mt-0 space-y-6">
-             {pendingPayouts.map(order => (
-               <Card key={order.id} className="rounded-[2rem] border-none shadow-sm bg-white p-8 border-l-4 border-green-500">
-                  <div className="flex flex-col lg:flex-row justify-between gap-8">
-                     <div className="space-y-4">
-                        <div><h4 className="font-black text-lg uppercase">Payout for Order #{order.id}</h4><p className="text-sm font-bold text-gray-500">{order.seller.firstName} {order.seller.lastName} • {order.seller.email}</p></div>
-                        <div className="bg-gray-50 p-4 rounded-2xl"><p className="text-[10px] font-black uppercase text-gray-400 mb-2">Seller Payment Info</p><p className="text-xs font-bold">Bank: {(order as any).seller.bankName || 'N/A'}</p><p className="text-xs font-bold">Acc: {(order as any).seller.bankAccountNumber || 'N/A'}</p><p className="text-xs font-bold">Momo: {(order as any).seller.mobileMoneyPhone || 'N/A'}</p></div>
-                     </div>
-                     <div className="text-right space-y-4">
-                        <div><p className="text-[10px] font-black uppercase text-gray-400">Payout Amount</p><p className="text-3xl font-black text-green-600">GH₵{parseFloat(order.totalAmount).toFixed(2)}</p></div>
-                        <div className="flex gap-2 justify-end"><Button className="rounded-xl bg-black text-white font-bold px-8 h-12" onClick={() => processPayoutMutation.mutate({ orderId: order.id, status: 'processed' })}>Mark as Processed</Button></div>
-                     </div>
-                  </div>
-               </Card>
-             ))}
-             {pendingPayouts.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending payouts.</p>}
-          </TabsContent>
-
           <TabsContent value="inbox" className="mt-0"><InboxComponent /></TabsContent>
         </Tabs>
       </main>
@@ -662,3 +618,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+\`;
+
+fs.writeFileSync(path.join(process.cwd(), 'client/src/pages/admin.tsx'), content);
+console.log('✅ admin.tsx written successfully');
