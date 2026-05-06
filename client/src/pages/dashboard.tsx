@@ -168,7 +168,7 @@ export default function Dashboard() {
 
   if (storesLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
-  const isVerified = user?.verificationStatus === 'verified';
+  const isVerified = user?.verificationStatus === 'verified' || user?.isAdmin;
   const isPending = user?.verificationStatus === 'pending';
   const needsCorrection = user?.verificationStatus === 'needs_correction';
 

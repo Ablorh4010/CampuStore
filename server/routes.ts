@@ -2587,6 +2587,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = parseInt(req.params.userId);
       const user = await storage.updateUser(userId, { buyerVerifiedAt: new Date() });
+      
+      if (user) {
+        try {
+          const { uploadBuyerVerificationToDrive } = await import('./google-drive');
+          uploadBuyerVerificationToDrive(user).catch((err: Error) => console.error('Buyer Drive backup failed:', err));
+        } catch (e) {
+          console.error('Failed to import google-drive service for buyer backup:', e);
+        }
+      }
+
       res.json(user);
     } catch (error) {
       res.status(500).json({ message: "Failed to approve buyer verification" });

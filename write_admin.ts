@@ -169,8 +169,12 @@ export default function AdminDashboard() {
 
   const updateUserVerificationMutation = useMutation({
     mutationFn: ({ userId, status, feedback }: { userId: number; status: string; feedback?: string }) =>
-      apiRequest('PUT', \`/api/admin/users/\${userId}/verification\`, { status, feedback }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending-verification'] }); toast({ title: 'Success' }); },
+      apiRequest('PUT', \`/api/admin/users/\${userId}/verify\`, { status, feedback }),
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending-verification'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: 'Success', description: 'Verification status updated.' }); 
+    },
   });
 
   const updateStoreStatusMutation = useMutation({
