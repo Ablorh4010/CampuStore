@@ -9,7 +9,7 @@ import {
   insertWeeklyDealSchema, insertCampusActivitySchema,
   users, orders
 } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, or } from "drizzle-orm";
 import multer from "multer";
 import fs, { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
@@ -2533,11 +2533,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/orders/pending", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
-      const allOrders = await db.select().from(orders).where(eq(orders.sellerApproval, 'approved'));
+      // Show orders that are either pending seller approval OR admin approval
+      const allOrders = await db.select().from(orders).where(
+        or(
+          eq(orders.sellerApproval, 'pending'),
+          eq(orders.adminApproval, 'pending')
+        )
+      );
       const ordersWithDetails = [];
       for (const order of allOrders) {
         const details = await storage.getOrderWithDetails(order.id);
-        if (details && details.adminApproval === 'pending') {
+        if (details && details.status !== 'rejected' && details.status !== 'cancelled') {
           ordersWithDetails.push(details);
         }
       }

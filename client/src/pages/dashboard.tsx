@@ -10,7 +10,8 @@ import {
   Plus, Package, ShoppingCart, TrendingUp, Settings, 
   Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
   Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
-  Sparkles, Wallet, Smartphone, ChevronRight, Info, Download
+  Sparkles, Wallet, Smartphone, ChevronRight, Info, Download,
+  Store as StoreIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
@@ -151,11 +152,42 @@ export default function Dashboard() {
     );
   }
 
-  if (!primaryStore) return null;
-
+  // Define isVerified here so it can be used in the no-store view
   const isVerified = user?.verificationStatus === 'verified';
   const isPending = user?.verificationStatus === 'pending';
   const needsCorrection = user?.verificationStatus === 'needs_correction';
+
+  if (!primaryStore) {
+    return (
+      <div className="min-h-screen bg-white py-24 flex items-center justify-center px-4">
+        <Card className="max-w-md w-full rounded-[3rem] border-none shadow-2xl p-12 text-center">
+          <div className="w-20 h-20 bg-primary/10 text-primary rounded-3xl flex items-center justify-center mx-auto mb-8">
+            <StoreIcon className="w-10 h-10" />
+          </div>
+          <h2 className="text-3xl font-black tracking-tight mb-4 uppercase">Start Selling.</h2>
+          <p className="text-gray-500 font-medium mb-8">
+            You're almost there! Complete your seller profile to start listing products on The Hub.
+          </p>
+          <div className="space-y-4">
+            <Link href="/seller-auth">
+              <Button className="w-full h-14 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-xs">
+                Complete Registration
+              </Button>
+            </Link>
+            {user?.isAdmin && (
+              <Button 
+                variant="outline" 
+                className="w-full h-14 rounded-2xl border-2 font-black uppercase tracking-widest text-xs"
+                onClick={() => refetchStores()}
+              >
+                Refresh Status
+              </Button>
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white py-12">
