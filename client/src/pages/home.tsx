@@ -398,202 +398,120 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Bɔkɔɔ Pay Section - New & Innovative - Reduced Height */}
-      <section className="py-12 bg-black text-white overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="lg:grid lg:grid-cols-2 lg:gap-12 items-center">
-            <div>
-              <Badge className="bg-primary text-black font-black text-[10px] uppercase px-3 py-1 mb-4 rounded-full">Financial Freedom</Badge>
-              <h2 className="text-4xl lg:text-6xl font-black uppercase tracking-tighter leading-[0.85] mb-6">
-                BƆKƆƆ <br />
-                <span className="text-primary italic">PAY.</span>
-              </h2>
-              <p className="text-lg text-gray-400 font-medium leading-relaxed mb-8 max-w-lg">
-                Buy today, pay over time. Split your purchase into 4 easy payments with 0% interest.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <div className="space-y-1">
-                  <h4 className="text-2xl font-black text-white">0%</h4>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Interest</p>
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-2xl font-black text-white">4</h4>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Payments</p>
-                </div>
-              </div>
-
-              <Button 
-                size="lg" 
-                className="h-14 px-8 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-all"
-                onClick={() => setLocation(`${basePrefix}/browse?installment=true`)}
-              >
-                Browse Items
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="mt-12 lg:mt-0 relative">
-              <div className="relative bg-gray-900 rounded-[2.5rem] p-6 border border-white/10 shadow-2xl overflow-hidden">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">1</div>
-                    <div>
-                      <h4 className="font-black uppercase tracking-widest text-[9px] text-white">Choose Bɔkɔɔ Pay</h4>
-                      <p className="text-[8px] text-gray-500 font-bold">Select at checkout</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">2</div>
-                    <div>
-                      <h4 className="font-black uppercase tracking-widest text-[9px] text-white">Quick Verify</h4>
-                      <p className="text-[8px] text-gray-500 font-bold">Done in &lt; 2 mins</p>
-
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">3</div>
-                    <div>
-                      <h4 className="font-black uppercase tracking-widest text-[9px] text-white">Pay Slowly</h4>
-                      <p className="text-[8px] text-gray-500 font-bold">Spread over 4 months</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Campus Activity Feed - Compact */}
+      {/* Campus Pulse & Top Stores - Innovative Integration */}
       <section className="py-12 bg-white border-y border-gray-50">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-10">
-               <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">Campus Pulse.</h2>
-               <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px]">What's happening at {user?.university || 'your university'}</p>
-            </div>
-
-            <div className="flex overflow-x-auto md:grid md:grid-cols-3 gap-6 pb-4 scrollbar-hide snap-x">
-               {activityLoading ? (
-                  Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[280px] md:w-auto h-40 rounded-3xl" />)
-               ) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
-                  <div className="col-span-full text-center py-10">
-                     <p className="text-gray-400 font-medium italic text-xs">No recent activity.</p>
-                  </div>
-               ) : (
-                  campusActivity.slice(0, 3).map((activity) => (
-                     <div key={activity.id} className="flex-shrink-0 w-[280px] md:w-auto bg-gray-50/50 rounded-3xl p-5 border border-transparent hover:border-gray-100 transition-all group snap-start">
-                        <div className="flex items-center gap-2 mb-3 text-[8px] font-black uppercase tracking-widest text-primary">
-                           <Zap className="w-2.5 h-2.5" />
-                           {activity.activityType || 'Update'}
-                        </div>
-                        <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
-                        <p className="text-[11px] text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
+            <div className="grid lg:grid-cols-3 gap-12">
+               {/* Left: Campus Activity Feed */}
+               <div className="lg:col-span-2">
+                  <div className="flex justify-between items-end mb-8">
+                     <div>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter mb-1">Campus Pulse.</h2>
+                        <p className="text-gray-400 font-bold uppercase tracking-widest text-[8px]">Happening at {user?.university || 'your university'}</p>
                      </div>
-                  ))
-               )}
+                  </div>
+
+                  <div className="flex overflow-x-auto gap-6 pb-4 scrollbar-hide snap-x">
+                     {activityLoading ? (
+                        Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[280px] h-32 rounded-3xl" />)
+                     ) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
+                        <div className="text-center py-10 bg-gray-50/50 rounded-3xl w-full border-2 border-dashed border-gray-100">
+                           <p className="text-gray-400 font-medium italic text-xs uppercase tracking-widest">No recent campus pulse.</p>
+                        </div>
+                     ) : (
+                        campusActivity.slice(0, 5).map((activity) => (
+                           <div key={activity.id} className="flex-shrink-0 w-[280px] bg-gray-50/50 rounded-3xl p-5 border border-transparent hover:border-gray-100 transition-all group snap-start">
+                              <div className="flex items-center gap-2 mb-3 text-[8px] font-black uppercase tracking-widest text-primary">
+                                 <Zap className="w-2.5 h-2.5" />
+                                 {activity.activityType || 'Update'}
+                              </div>
+                              <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
+                              <p className="text-[11px] text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
+                           </div>
+                        ))
+                     )}
+                  </div>
+               </div>
+
+               {/* Right: Top Stores / Vendors */}
+               <div className="bg-gray-50/50 rounded-[2.5rem] p-8 border border-gray-100 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-6 opacity-[0.03] rotate-12">
+                     <Store className="w-24 h-24 text-black" />
+                  </div>
+                  <div className="flex justify-between items-center mb-6 relative">
+                     <h3 className="font-black uppercase text-xs tracking-widest">Top Vendors</h3>
+                     <Link href={`${basePrefix}/browse?view=stores`}>
+                        <Button variant="link" className="text-[8px] font-black uppercase tracking-widest p-0 h-auto">View All</Button>
+                     </Link>
+                  </div>
+                  
+                  <div className="space-y-4 relative">
+                     {storesLoading ? (
+                        Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)
+                     ) : (
+                        featuredStores.slice(0, 3).map((store) => (
+                           <Link key={store.id} href={`${basePrefix}/store/${store.id}`}>
+                              <div className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-transparent hover:border-primary/20 transition-all cursor-pointer shadow-sm group">
+                                 <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
+                                    <img src={store.logoUrl || '/placeholder-logo.png'} alt="" className="w-full h-full object-cover" />
+                                 </div>
+                                 <div className="min-w-0 flex-1">
+                                    <h4 className="text-[10px] font-black uppercase truncate group-hover:text-primary transition-colors">{store.name}</h4>
+                                    <div className="flex items-center gap-1">
+                                       <Star className="w-2 h-2 fill-yellow-400 text-yellow-400" />
+                                       <span className="text-[8px] font-bold text-gray-400">{parseFloat(store.rating).toFixed(1)} ({store.reviewCount})</span>
+                                    </div>
+                                 </div>
+                                 <ChevronRight className="w-3 h-3 text-gray-200 group-hover:text-black" />
+                              </div>
+                           </Link>
+                        ))
+                     )}
+                  </div>
+               </div>
             </div>
          </div>
       </section>
 
-      {/* Featured Stores - Compact Grid/Scroll - Reduced Height */}
-      <section className="py-12 bg-gray-50/50">
+      {/* Trust Badges - Restored & Modernized */}
+      <section className="py-12 bg-white border-t border-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-10">
-            <div>
-              <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 leading-none">HUB <br />VENDORS.</h2>
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mt-2">Top performers</p>
-            </div>
-            <Link href={`${basePrefix}/browse?view=stores`}>
-               <Button variant="link" className="font-black uppercase tracking-widest text-[10px] p-0 h-auto group">
-                 All Stores <ArrowRight className="ml-2 w-3 h-3 group-hover:translate-x-1 transition-transform" />
-               </Button>
-            </Link>
-          </div>
-
-          <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 gap-8 pb-6 scrollbar-hide snap-x">
-            {storesLoading ? (
-              Array(3).fill(0).map((_, i) => <Skeleton key={i} className="flex-shrink-0 w-[300px] md:w-auto h-64 rounded-3xl" />)
-            ) : (
-              featuredStores.map((store) => (
-                <Link key={store.id} href={`${basePrefix}/store/${store.id}`}>
-                  <Card className="flex-shrink-0 w-[300px] md:w-auto group cursor-pointer rounded-[2rem] border-none shadow-sm hover:shadow-xl transition-all duration-500 overflow-hidden bg-white snap-start">
-                    <CardContent className="p-0">
-                      <div className="h-24 bg-gray-100 relative overflow-hidden">
-                        {store.logoUrl ? (
-                          <img src={store.logoUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-secondary/10" />
-                        )}
-                      </div>
-                      <div className="px-6 pb-8 -mt-8 relative z-10">
-                        <div className="flex justify-between items-end mb-4">
-                           <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-lg ring-4 ring-white">
-                              {store.logoUrl ? (
-                                <img src={store.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
-                              ) : (
-                                <div className="w-full h-full bg-black text-white flex items-center justify-center font-black rounded-xl text-lg">
-                                  {store.name[0]}
-                                </div>
-                              )}
-                           </div>
-                           <div className="flex gap-1 mb-2">
-                              {[1, 2, 3, 4, 5].map(i => (
-                                 <Star key={i} className={`w-2 h-2 ${i <= parseFloat(store.rating?.toString() || "0") ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} />
-                              ))}
-                           </div>
-                        </div>
-                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-1 group-hover:text-primary transition-colors truncate">{store.name}</h3>
-                        <div className="flex items-center text-[9px] font-black uppercase tracking-widest text-gray-400 gap-1.5 mb-3">
-                          <MapPin className="h-2.5 w-2.5" />
-                          {store.university}
-                        </div>
-                        <p className="text-xs text-gray-500 font-medium line-clamp-2 leading-relaxed h-8 mb-6">{store.description}</p>
-                        <Button className="w-full h-10 rounded-xl bg-gray-50 text-black border border-gray-100 font-black uppercase tracking-widest text-[9px] group-hover:bg-black group-hover:text-white transition-all">
-                          Enter Store
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Trust Badges - Hidden on mobile */}
-      <section className="py-20 border-t border-gray-50 hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           <div className="grid md:grid-cols-4 gap-12">
-              <div className="flex flex-col items-center text-center">
-                 <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6">
-                    <ShieldCheck className="w-8 h-8 text-primary" />
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              <div className="flex items-center gap-4">
+                 <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-5 h-5 text-primary" />
                  </div>
-                 <h4 className="font-black uppercase tracking-widest text-xs mb-2">Verified Sellers</h4>
-                 <p className="text-gray-400 text-xs font-medium">All student IDs are verified</p>
+                 <div>
+                    <h4 className="font-black uppercase tracking-widest text-[9px] mb-0.5 leading-none">Verified</h4>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Student IDs Checked</p>
+                 </div>
               </div>
-              <div className="flex flex-col items-center text-center">
-                 <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6">
-                    <MapPin className="w-8 h-8 text-primary" />
+              <div className="flex items-center gap-4">
+                 <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center shrink-0">
+                    <MapPin className="w-5 h-5 text-primary" />
                  </div>
-                 <h4 className="font-black uppercase tracking-widest text-xs mb-2">Campus Pickup</h4>
-                 <p className="text-gray-400 text-xs font-medium">Safe meeting spots on campus</p>
+                 <div>
+                    <h4 className="font-black uppercase tracking-widest text-[9px] mb-0.5 leading-none">Pickup</h4>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">On-Campus Spots</p>
+                 </div>
               </div>
-              <div className="flex flex-col items-center text-center">
-                 <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6">
-                    <CreditCard className="w-8 h-8 text-primary" />
+              <div className="flex items-center gap-4">
+                 <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center shrink-0">
+                    <CreditCard className="w-5 h-5 text-primary" />
                  </div>
-                 <h4 className="font-black uppercase tracking-widest text-xs mb-2">Secure Pay</h4>
-                 <p className="text-gray-400 text-xs font-medium">Funds held until you receive items</p>
+                 <div>
+                    <h4 className="font-black uppercase tracking-widest text-[9px] mb-0.5 leading-none">Escrow</h4>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Funds Protected</p>
+                 </div>
               </div>
-              <div className="flex flex-col items-center text-center">
-                 <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-6">
-                    <Users className="w-8 h-8 text-primary" />
+              <div className="flex items-center gap-4">
+                 <div className="w-10 h-10 bg-primary/5 rounded-xl flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5 text-primary" />
                  </div>
-                 <h4 className="font-black uppercase tracking-widest text-xs mb-2">Student Community</h4>
-                 <p className="text-gray-400 text-xs font-medium">Exclusive to your university</p>
+                 <div>
+                    <h4 className="font-black uppercase tracking-widest text-[9px] mb-0.5 leading-none">Pulse</h4>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider">Student Hub News</p>
+                 </div>
               </div>
            </div>
         </div>

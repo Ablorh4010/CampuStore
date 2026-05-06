@@ -93,6 +93,11 @@ export default function Product() {
     ...(product.mediaGifUrl ? [product.mediaGifUrl] : [])
   ].filter(url => !!url && url.trim() !== '' && url !== 'uploaded') : [];
   
+  const isVideo = (url: string) => {
+    if (!url) return false;
+    return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*video.*/i);
+  };
+
   const mediaItems = rawMedia.length > 0 ? rawMedia : ['/placeholder-product.png'];
 
   const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery<ProductWithStore[]>({
@@ -241,11 +246,6 @@ export default function Product() {
   const savings = originalPriceWithFee 
     ? ((originalPriceWithFee - priceWithFee) / originalPriceWithFee * 100).toFixed(0)
     : null;
-
-  const isVideo = (url: string) => {
-    if (!url) return false;
-    return url.match(/\.(mp4|webm|ogg|mov)$|^https?:\/\/.*video.*/i);
-  };
 
   const productSchema = product ? {
     "@context": "https://schema.org/",
