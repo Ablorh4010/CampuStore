@@ -46,6 +46,8 @@ const productSchema = z.object({
   mediaGifUrl: z.string().optional(),
   isDigital: z.boolean().default(false),
   downloadUrl: z.string().optional().nullable(),
+  isInstallmentEligible: z.boolean().default(false),
+  isAvailable: z.boolean().default(true),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -100,6 +102,8 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
       mediaGifUrl: initialData?.mediaGifUrl || '',
       isDigital: initialData?.isDigital || false,
       downloadUrl: initialData?.downloadUrl || '',
+      isInstallmentEligible: initialData?.isInstallmentEligible || false,
+      isAvailable: initialData?.isAvailable !== undefined ? initialData.isAvailable : true,
     },
   });
 
@@ -126,6 +130,8 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
         mediaGifUrl: initialData.mediaGifUrl || '',
         isDigital: initialData.isDigital || false,
         downloadUrl: initialData.downloadUrl || '',
+        isInstallmentEligible: initialData.isInstallmentEligible || false,
+        isAvailable: initialData.isAvailable !== undefined ? initialData.isAvailable : true,
       });
 
       if (initialData.images && initialData.images.length > 0) {
@@ -465,6 +471,41 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
                       <FormField control={form.control} name="condition" render={({ field }) => (
                         <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="excellent">Excellent</SelectItem><SelectItem value="good">Good</SelectItem></SelectContent></Select></FormItem>
                       )} />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="isInstallmentEligible" render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-2xl border-2 p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Installments</FormLabel>
+                              <p className="text-[8px] font-bold text-gray-400 uppercase">Allow monthly payments</p>
+                            </div>
+                            <FormControl>
+                              <input 
+                                type="checkbox" 
+                                checked={field.value} 
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="w-5 h-5 accent-primary"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="isAvailable" render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-2xl border-2 p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Status</FormLabel>
+                              <p className="text-[8px] font-bold text-gray-400 uppercase">Visible to buyers</p>
+                            </div>
+                            <FormControl>
+                              <input 
+                                type="checkbox" 
+                                checked={field.value} 
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="w-5 h-5 accent-green-600"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )} />
                       </div>
 
                       {isAcademic && (

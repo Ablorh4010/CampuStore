@@ -34,6 +34,11 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
 
+  const isMerchantUser = user?.isAdmin || user?.userType === 'seller' || user?.isMerchant;
+  const isVerified = user?.verificationStatus === 'verified' || user?.isAdmin;
+  const isPending = user?.verificationStatus === 'pending';
+  const needsCorrection = user?.verificationStatus === 'needs_correction';
+
   // ... (rest of states)
   const [viewingTracking, setViewingTracking] = useState<OrderWithDetails | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
@@ -188,11 +193,6 @@ export default function Dashboard() {
       toast({ title: "Confirmed", description: "Order sent for admin review." });
     },
   });
-
-  const isMerchantUser = user?.isAdmin || user?.userType === 'seller' || user?.isMerchant;
-  const isVerified = user?.verificationStatus === 'verified' || user?.isAdmin;
-  const isPending = user?.verificationStatus === 'pending';
-  const needsCorrection = user?.verificationStatus === 'needs_correction';
 
   // If a store is expected but missing, and we are not already auto-creating, 
   // we show a loader while the useEffect kicks in.
