@@ -29,10 +29,12 @@ import { IdScanCapture, FacialCapture } from '@/components/verification';
 import type { ProductWithStore, Store, OrderWithDetails, User as UserType } from '@shared/schema';
 
 export default function Dashboard() {
-  const { user, countryCode } = useAuth();
+  const { user, countryCode, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
+
+  // ... (rest of states)
   const [viewingTracking, setViewingTracking] = useState<OrderWithDetails | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
@@ -43,6 +45,13 @@ export default function Dashboard() {
   const [reviewOrder, setReviewOrder] = useState<OrderWithDetails | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation('/seller-auth');
+    }
+  }, [user, authLoading, setLocation]);
 
   // Checklist / Limited Access states
   const [idFileFront, setIdFileFront] = useState<File | null>(null);
@@ -187,11 +196,11 @@ export default function Dashboard() {
 
   // If a store is expected but missing, and we are not already auto-creating, 
   // we show a loader while the useEffect kicks in.
-  if (storesLoading || isAutoCreating || (isMerchantUser && !primaryStore)) {
+  if (authLoading || storesLoading || isAutoCreating || (isMerchantUser && !primaryStore)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-primary w-10 h-10" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Initializing Merchant Hub...</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{authLoading ? 'Verifying Session...' : 'Initializing Merchant Hub...'}</p>
       </div>
     );
   }
