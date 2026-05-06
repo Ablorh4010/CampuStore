@@ -2028,19 +2028,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const productWithStore = await storage.getProductWithStore(item.productId);
         if (!productWithStore) continue;
 
+        const itemTotal = (parseFloat(productWithStore.price) * item.quantity).toString();
+
         const order = await storage.createOrder({
           buyerId: userId || 1, // Default to system user for guest orders
           sellerId: productWithStore.store.userId,
           productId: item.productId,
           quantity: item.quantity,
-          totalAmount: totalAmount ? totalAmount.toString() : productWithStore.price,
-          codFee: codFee ? codFee.toString() : null,
+          totalAmount: itemTotal,
+          codFee: codFee ? (parseFloat(codFee.toString()) / cartItems.length).toFixed(2) : null,
           status: 'pending',
           paymentGateway: 'manual',
           shippingMode: (shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
           fulfillmentStatus: 'order_received',
           buyerAddress: details?.address || '',
           buyerUniversity: details?.university || '',
+          buyerCity: details?.city || '',
           buyerPhone: details?.phoneNumber || '',
           buyerEmail: details?.email || '',
           isInstallment: isBokoo,
