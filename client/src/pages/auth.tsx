@@ -43,8 +43,22 @@ export default function Auth() {
   const [showOtpField, setShowOtpField] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [userMode, setUserMode] = useState<'buyer' | 'seller' | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [canResend, setCanResend] = useState(true);
   const { login, register, sendOtp, isLoading } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    } else {
+      setCanResend(true);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -165,7 +179,11 @@ export default function Auth() {
       return;
     }
 
+    if (!canResend) return;
+
     try {
+      setCanResend(false);
+      setResendTimer(60);
       await sendOtp(cleanEmail);
       setOtpSent(true);
       setShowOtpField(true);
@@ -176,6 +194,8 @@ export default function Auth() {
       });
     } catch (error) {
       console.error('OTP send error:', error);
+      setCanResend(true);
+      setResendTimer(0);
       toast({
         title: 'Failed to send verification code',
         description: 'Please try again.',
@@ -270,7 +290,18 @@ export default function Auth() {
                           name="otpCode"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Verification Code</FormLabel>
+                              <FormLabel className="flex justify-between items-center">
+                                Verification Code
+                                <Button 
+                                  type="button" 
+                                  variant="link" 
+                                  className="p-0 h-auto text-xs font-medium" 
+                                  onClick={() => handleSendOtp(activeTab)}
+                                  disabled={!canResend}
+                                >
+                                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+                                </Button>
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   type="text" 
@@ -352,7 +383,18 @@ export default function Auth() {
                           name="otpCode"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Verification Code</FormLabel>
+                              <FormLabel className="flex justify-between items-center">
+                                Verification Code
+                                <Button 
+                                  type="button" 
+                                  variant="link" 
+                                  className="p-0 h-auto text-xs font-medium" 
+                                  onClick={() => handleSendOtp(activeTab)}
+                                  disabled={!canResend}
+                                >
+                                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+                                </Button>
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   type="text" 

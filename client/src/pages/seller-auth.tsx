@@ -60,6 +60,8 @@ export default function SellerAuth() {
   const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isVerifyingFaces, setIsVerifyingFaces] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [canResend, setCanResend] = useState(true);
   
   const [idFileFront, setIdFileFront] = useState<File | null>(null);
   const [idFileBack, setIdFileBack] = useState<File | null>(null);
@@ -67,6 +69,18 @@ export default function SellerAuth() {
   const [faceMatchResult, setFaceMatchResult] = useState<{ match: boolean; reason: string } | null>(null);
   
   const { toast } = useToast();
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    } else {
+      setCanResend(true);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const loginForm = useForm<EmailLoginFormData>({
     resolver: zodResolver(emailLoginSchema),
@@ -106,7 +120,12 @@ export default function SellerAuth() {
        return;
     }
 
+    if (!canResend) return;
+
     try {
+      setCanResend(false);
+      setResendTimer(60); // 60 seconds cooldown
+
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -127,6 +146,8 @@ export default function SellerAuth() {
       });
     } catch (error: any) {
       console.error('Email OTP send error:', error);
+      setCanResend(true);
+      setResendTimer(0);
       toast({
         title: 'Failed to send verification code',
         description: error.message || 'Please try again.',
@@ -439,8 +460,9 @@ export default function SellerAuth() {
                                 variant="link" 
                                 className="p-0 h-auto text-xs font-bold" 
                                 onClick={() => sendEmailOtp(loginForm.getValues('email'))}
+                                disabled={!canResend}
                               >
-                                Resend
+                                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
                               </Button>
                             </FormLabel>
                             <FormControl>
@@ -511,7 +533,18 @@ export default function SellerAuth() {
                             name="otpCode"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="font-bold">6-Digit Code</FormLabel>
+                                <FormLabel className="flex justify-between items-center font-bold">
+                                  6-Digit Code
+                                  <Button 
+                                    type="button" 
+                                    variant="link" 
+                                    className="p-0 h-auto text-xs font-bold" 
+                                    onClick={() => sendEmailOtp(registerForm.getValues('email'))}
+                                    disabled={!canResend}
+                                  >
+                                    {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+                                  </Button>
+                                </FormLabel>
                                 <FormControl>
                                   <Input placeholder="000000" maxLength={6} className="h-12 rounded-xl text-center text-xl tracking-[0.5em] font-black" {...field} />
                                 </FormControl>
