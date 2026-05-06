@@ -460,7 +460,7 @@ export default function Checkout() {
                              <div>
                                <h3 className="font-bold text-sm tracking-tight">Bɔkɔɔ Pay (Installments)</h3>
                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                 {cartTotal < 300 ? "Requires GH₵300+ order" : "25% today • Unpredictable deductions (20th-15th) • 5% Penalty"}
+                                 {cartTotal < 300 ? "Requires GH₵300+ order" : "25% today • Monthly deductions • 5% Penalty"}
                                </p>
                              </div>
                           </div>

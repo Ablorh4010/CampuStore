@@ -152,10 +152,11 @@ export default function Dashboard() {
     );
   }
 
-  // Define isVerified here so it can be used in the no-store view
+  // Define verification flags
   const isVerified = user?.verificationStatus === 'verified';
   const isPending = user?.verificationStatus === 'pending';
   const needsCorrection = user?.verificationStatus === 'needs_correction';
+  const isRejected = user?.verificationStatus === 'rejected';
 
   if (!primaryStore) {
     return (
@@ -164,14 +165,18 @@ export default function Dashboard() {
           <div className="w-20 h-20 bg-primary/10 text-primary rounded-3xl flex items-center justify-center mx-auto mb-8">
             <StoreIcon className="w-10 h-10" />
           </div>
-          <h2 className="text-3xl font-black tracking-tight mb-4 uppercase">Start Selling.</h2>
+          <h2 className="text-3xl font-black tracking-tight mb-4 uppercase">
+            {isRejected ? "Rejected" : "Start Selling."}
+          </h2>
           <p className="text-gray-500 font-medium mb-8">
-            You're almost there! Complete your seller profile to start listing products on The Hub.
+            {isRejected 
+              ? `Your seller application was rejected: "${user?.verificationNotes || 'No notes provided'}"`
+              : "You're almost there! Complete your seller profile to start listing products on The Hub."}
           </p>
           <div className="space-y-4">
             <Link href="/seller-auth">
               <Button className="w-full h-14 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-xs">
-                Complete Registration
+                {isRejected ? "Try Again" : "Complete Registration"}
               </Button>
             </Link>
             {user?.isAdmin && (
