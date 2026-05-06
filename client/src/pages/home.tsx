@@ -27,7 +27,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ProductCard from '@/components/product/product-card';
 import { useAuth } from '@/lib/auth-context';
 import type { ProductWithStore, StoreWithUser, Category, CampusActivityWithUser, WeeklyDealWithProduct } from '@shared/schema';
-import SEO from '@/components/seo/SEO';
 
 // High-quality category thumbnails for a modern, innovative look
 const CATEGORY_IMAGES: Record<string, string> = {
@@ -122,11 +121,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <SEO 
-        title="The Hub - Buy & Sell on Your Campus" 
-        description="The ultimate student marketplace in Ghana. Buy and sell electronics, fashion, academic materials and more with verified IDs and campus pickup."
-        keywords="student marketplace ghana, campus buy and sell, knust market, ug marketplace, university hub ghana, student entrepreneurship"
-      />
       {/* Hero Section - Redesigned for Maximum Impact */}
       <section className="relative overflow-hidden bg-white pt-16 pb-24 lg:pt-24 lg:pb-32">
         {/* Background Patterns */}
