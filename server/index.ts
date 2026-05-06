@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic, log } from "./vite";
 import { setupSocketIO } from "./socket";
+import { installmentService } from "./installment-service";
 
 const app = express();
 app.set("trust proxy", true);
@@ -78,6 +79,9 @@ app.use((req, res, next) => {
 
   // Setup Socket.IO for real-time chat
   const io = setupSocketIO(server);
+
+  // Start the background installment service
+  installmentService.start();
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

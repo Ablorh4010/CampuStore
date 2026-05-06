@@ -13,7 +13,7 @@ import {
   type CampusActivity, type CampusActivityWithUser, type InsertCampusActivity
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, like, desc, sql, gte, inArray } from "drizzle-orm";
+import { eq, and, or, like, desc, sql, gte, inArray, lt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -136,6 +136,8 @@ export interface IStorage {
   getCampusActivities(): Promise<CampusActivityWithUser[]>;
   createCampusActivity(activity: InsertCampusActivity): Promise<CampusActivity>;
   deleteCampusActivity(id: number): Promise<boolean>;
+  // Installments
+  getActiveInstallmentOrders(): Promise<Order[]>;
   // App Config
   getAppConfig(key: string): Promise<string | undefined>;
   setAppConfig(key: string, value: string): Promise<void>;
@@ -1316,6 +1318,15 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.insert(appConfig).values({ key, value });
     }
+  }
+
+  async getActiveInstallmentOrders(): Promise<Order[]> {
+    return await db.select().from(orders).where(
+      and(
+        eq(orders.isInstallment, true),
+        lt(orders.installmentsPaid, 4)
+      )
+    );
   }
 }
 

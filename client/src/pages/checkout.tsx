@@ -460,7 +460,7 @@ export default function Checkout() {
                              <div>
                                <h3 className="font-bold text-sm tracking-tight">Bɔkɔɔ Pay (Installments)</h3>
                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                 {cartTotal < 300 ? "Requires GH₵300+ order" : "Pay 25% today • 0% Interest"}
+                                 {cartTotal < 300 ? "Requires GH₵300+ order" : "25% today • Unpredictable deductions (20th-15th) • 5% Penalty"}
                                </p>
                              </div>
                           </div>
@@ -649,6 +649,22 @@ export default function Checkout() {
                             </div>
                           </div>
                           <RadioGroupItem value="card" id="card" />
+                        </div>
+
+                        <div 
+                          className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${paymentMode === 'bank' ? 'border-black bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-200'}`} 
+                          onClick={() => setPaymentMode('bank')}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-xl ${paymentMode === 'bank' ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <Building2 className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm tracking-tight">Bank Account</p>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">Direct Debit • Secure PayStack</p>
+                            </div>
+                          </div>
+                          <RadioGroupItem value="bank" id="bank" />
                         </div>
                         
                         {!isBokoo && (

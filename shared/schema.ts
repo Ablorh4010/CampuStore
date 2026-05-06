@@ -181,7 +181,11 @@ export const orders = pgTable("orders", {
   isInstallment: boolean("is_installment").notNull().default(false),
   installmentsPaid: integer("installments_paid").notNull().default(0),
   installmentAmount: decimal("installment_amount", { precision: 10, scale: 2 }),
+  installmentDebt: decimal("installment_debt", { precision: 10, scale: 2 }).default("0"),
+  penaltyAmount: decimal("penalty_amount", { precision: 10, scale: 2 }).default("0"),
+  lastInstallmentDate: timestamp("last_installment_date"),
   nextInstallmentDate: timestamp("next_installment_date"),
+  isDefaulted: boolean("is_defaulted").notNull().default(false),
   paystackAuthCode: text("paystack_auth_code"),
   
   createdAt: timestamp("created_at").notNull().defaultNow(),

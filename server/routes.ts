@@ -197,7 +197,11 @@ async function finalizePaystackOrder(data: any) {
       isInstallment: isThisItemEligible,
       installmentsPaid: isThisItemEligible ? 1 : 0,
       installmentAmount: isThisItemEligible ? itemRecurringAmount.toFixed(2) : null,
-      nextInstallmentDate: isThisItemEligible ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+      installmentDebt: "0",
+      penaltyAmount: "0",
+      lastInstallmentDate: isThisItemEligible ? new Date() : null,
+      nextInstallmentDate: isThisItemEligible ? new Date(Date.now() + 20 * 24 * 60 * 60 * 1000) : null, // Start checking from 20 days later
+      isDefaulted: false,
       paystackAuthCode: data.authorization?.authorization_code || null,
     });
     
@@ -2748,12 +2752,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { amount, email, metadata } = req.body;
       
-      let planCode = null;
-      if (metadata.isBokoo && metadata.recurringAmount > 0) {
-        // Create a unique plan for the deferred installments
-        planCode = await createPaystackPlan(metadata.recurringAmount, `Bɔkɔɔ Installment - ${email} - ${Date.now()}`);
-      }
-
       // PayStack uses minor units (pesewas for GHS)
       const paystackAmount = Math.round(amount * 100);
       
@@ -2767,8 +2765,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amount: paystackAmount,
           email,
           currency: "GHS",
-          channels: ["mobile_money", "card"],
-          plan: planCode || undefined,
+          channels: ["mobile_money", "card", "bank"],
           metadata
         })
       });
