@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -92,41 +92,67 @@ export default function Dashboard() {
     }
   };
 
-  const { data: userStores = [], isLoading: storesLoading, refetch: refetchStores } = useQuery<Store[]>({
+  const { data: userStores = [], isLoading: storesLoading, refetch: refetchStores, isFetching: storesFetching } = useQuery<Store[]>({
     queryKey: ['/api/stores/user'],
     enabled: !!user,
+    staleTime: 0, // Ensure we always get fresh data
   });
 
   const primaryStore = userStores[0];
 
   const [isAutoCreating, setIsAutoCreating] = useState(false);
+  const creationAttempted = useRef(false);
 
   // Auto-create store for admins and sellers if missing
   useEffect(() => {
     let mounted = true;
-    if (!storesLoading && userStores.length === 0 && isMerchantUser && !isAutoCreating) {
-      console.log("Auto-creating store for user:", user?.id);
+    
+    // Diagnostic log
+    if (user) {
+      console.log("Dashboard State:", { 
+        userId: user.id, 
+        isMerchantUser, 
+        storesCount: userStores.length, 
+        storesLoading, 
+        isAutoCreating,
+        creationAttempted: creationAttempted.current 
+      });
+    }
+
+    if (!authLoading && user && !storesLoading && !storesFetching && userStores.length === 0 && isMerchantUser && !isAutoCreating && !creationAttempted.current) {
+      console.log("Triggering auto-creation for user:", user.id);
+      creationAttempted.current = true;
       setIsAutoCreating(true);
+      
       apiRequest('POST', '/api/stores', {
-        userId: user?.id,
-        name: user?.isAdmin ? "University Hub Official" : `${user?.firstName}'s Store`,
-        description: user?.isAdmin ? "Official store for The University Hub" : `Official store for ${user?.firstName} ${user?.lastName}`,
-        city: user?.city || "Accra", 
-        university: user?.university || "All Universities", 
-        address: user?.sellerAddress || "HQ"
-      }).then(async () => {
+        userId: user.id,
+        name: user.isAdmin ? "University Hub Official" : `${user.firstName}'s Store`,
+        description: user.isAdmin ? "Official store for The University Hub" : `Official store for ${user.firstName} ${user.lastName}`,
+        city: user.city || "Accra", 
+        university: user.university || "All Universities", 
+        address: user.sellerAddress || "HQ"
+      }).then(async (res) => {
+        if (!res.ok) throw new Error("Store creation request failed");
+        const newStore = await res.json();
+        console.log("Store created successfully:", newStore);
+
         if (mounted) {
            toast({ title: "Store Initialized", description: "Your merchant dashboard is ready." });
+           // Force update the cache with the new store to prevent another check
+           queryClient.setQueryData(['/api/stores/user'], [newStore]);
+           await queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
            await refetchStores();
         }
       }).catch(err => {
         console.error("Failed to auto-create store:", err);
+        // On error, we allow one more attempt after a delay or on next mount
+        setTimeout(() => { if (mounted) creationAttempted.current = false; }, 5000);
       }).finally(() => {
         if (mounted) setIsAutoCreating(false);
       });
     }
     return () => { mounted = false; };
-  }, [userStores.length, storesLoading, user, refetchStores, isAutoCreating, isMerchantUser]);
+  }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, queryClient, authLoading]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', primaryStore?.id],

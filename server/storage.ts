@@ -300,8 +300,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: number): Promise<boolean> {
-    const result = await db.delete(users).where(eq(users.id, id));
-    return (result.rowCount || 0) > 0;
+    try {
+      // 1. Delete user's stores (and their dependencies)
+      const userStores = await this.getStoresByUserId(id);
+      for (const store of userStores) {
+        await this.deleteStore(store.id);
+      }
+
+      // 2. Delete user's bookmarks
+      await db.delete(bookmarks).where(eq(bookmarks.userId, id));
+
+      // 3. Delete user's messages
+      await db.delete(messages).where(or(eq(messages.fromId, id), eq(messages.toId, id)));
+
+      // 4. Finally delete the user
+      const result = await db.delete(users).where(eq(users.id, id));
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error(`Error deleting user ${id}:`, error);
+      return false;
+    }
+  }
+
+  async deleteStore(id: number): Promise<boolean> {
+    try {
+      // 1. Delete all products in this store
+      await db.delete(products).where(eq(products.storeId, id));
+
+      // 2. Delete store
+      const result = await db.delete(stores).where(eq(stores.id, id));
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error(`Error deleting store ${id}:`, error);
+      return false;
+    }
   }
 
   async getAnalytics(): Promise<{
