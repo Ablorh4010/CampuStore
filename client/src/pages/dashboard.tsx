@@ -250,8 +250,23 @@ export default function Dashboard() {
 
   // If a store is expected but missing, or loading is in progress
   const isInitializing = isAutoCreating || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current);
-  
-  if (authLoading || isInitializing) {
+  const showSyncError = !isAutoCreating && creationAttempted.current && userStores.length === 0 && isMerchantUser;
+
+  // Safety Timeout: Don't stay on the loading screen for more than 8 seconds
+  const [stuckTimeout, setStuckTimeout] = useState(false);
+  useEffect(() => {
+    if (isInitializing) {
+      const timer = setTimeout(() => {
+        if (isInitializing) {
+          console.warn("Dashboard initialization taking too long, showing fallback.");
+          setStuckTimeout(true);
+        }
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [isInitializing]);
+
+  if (authLoading || (isInitializing && !showSyncError && !stuckTimeout)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-slate-50">
         <div className="relative">
@@ -275,14 +290,6 @@ export default function Dashboard() {
             </p>
             <p className="text-[10px] font-black text-black">{authLoading ? 30 : Math.max(initializationProgress, 40)}%</p>
           </div>
-          
-          <Button 
-            variant="ghost" 
-            className="text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-black mt-8"
-            onClick={() => window.location.reload()}
-          >
-            Force Refresh
-          </Button>
         </div>
       </div>
     );
@@ -302,14 +309,21 @@ export default function Dashboard() {
     );
   }
 
-  // Safety fallback: If a merchant user still has no store, and we are not in initializing state
+  // If a merchant user still has no store, we show the portal with empty state/retry
   if (!primaryStore && isMerchantUser) {
-    // This shouldn't happen normally as useEffect should have triggered
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-slate-50">
-         <AlertCircle className="w-12 h-12 text-amber-500" />
-         <h2 className="text-xl font-black uppercase tracking-tighter">Portal Sync Error</h2>
-         <Button onClick={() => window.location.reload()} className="rounded-xl px-8">Try Again</Button>
+      <div className="min-h-screen bg-gray-50/50 py-12 px-4 flex items-center justify-center">
+        <div className="max-w-md w-full text-center space-y-6">
+           <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-3xl flex items-center justify-center mx-auto">
+              <AlertCircle className="w-10 h-10" />
+           </div>
+           <h1 className="text-3xl font-black uppercase tracking-tighter">Portal Sync Issue</h1>
+           <p className="text-gray-500 font-medium">We couldn't load your store details. This usually happens if initialization is still in progress.</p>
+           <div className="flex flex-col gap-3">
+              <Button onClick={() => window.location.reload()} className="h-14 rounded-2xl bg-black font-black uppercase">Refresh Portal</Button>
+              <Button variant="ghost" onClick={() => { creationAttempted.current = false; setIsAutoCreating(false); setInitializationProgress(0); setStuckTimeout(false); }} className="text-xs font-bold text-gray-400">Retry Store Creation</Button>
+           </div>
+        </div>
       </div>
     );
   }
