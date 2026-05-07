@@ -32,14 +32,14 @@ export default function SellerSettings() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
+  const [, setNavLocation] = useLocation();
 
   // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
-      setLocation('/seller-auth');
+      setNavLocation('/seller-auth');
     }
-  }, [user, authLoading, setLocation]);
+  }, [user, authLoading, setNavLocation]);
 
   const { data: userStores = [] } = useQuery<any[]>({
     queryKey: ['/api/stores/user', user?.id],
