@@ -124,6 +124,30 @@ async function createPaystackPlan(amount: number, name: string) {
   }
 }
 
+async function finalizePaystackInstallment(data: any) {
+  const { metadata } = data;
+  const { orderId, installmentsCount } = metadata;
+  
+  const order = await storage.getOrderById(parseInt(orderId));
+  if (!order) {
+    console.error(`Order ${orderId} not found during installment finalization`);
+    return;
+  }
+
+  const updatedPaidCount = (order.installmentsPaid || 0) + parseInt(installmentsCount);
+  const newDebt = Math.max(0, parseFloat(order.installmentDebt?.toString() || "0") - (parseFloat(order.installmentAmount?.toString() || "0") * parseInt(installmentsCount)));
+
+  await storage.updateOrder(order.id, {
+    installmentsPaid: updatedPaidCount,
+    installmentDebt: newDebt.toFixed(2),
+    lastInstallmentDate: new Date(),
+    nextInstallmentDate: updatedPaidCount < 4 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+    status: updatedPaidCount >= 4 ? 'completed' : order.status
+  });
+
+  console.log(`✅ Finalized ${installmentsCount} installments for Order ${orderId}. Total paid: ${updatedPaidCount}/4`);
+}
+
 async function finalizePaystackOrder(data: any) {
   const { reference, metadata, customer } = data;
   
@@ -2821,6 +2845,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/paystack/initialize-installment", tryAuthenticate, async (req: AuthRequest, res) => {
+    try {
+      const { orderId, installments, email } = req.body;
+      const order = await storage.getOrderById(orderId);
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      const amountToPay = parseFloat(order.installmentAmount?.toString() || "0") * installments;
+      const paystackAmount = Math.round(amountToPay * 100);
+
+      const response = await fetch('https://api.paystack.co/transaction/initialize', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: paystackAmount,
+          email,
+          currency: "GHS",
+          channels: ["mobile_money", "card", "bank"],
+          metadata: {
+            orderId,
+            installmentsCount: installments,
+            isInstallmentPayment: true
+          }
+        })
+      });
+
+      const data = await response.json();
+      if (!data.status) throw new Error(data.message);
+      res.json(data.data);
+    } catch (error) {
+      console.error('Paystack Installment initialize error:', error);
+      res.status(500).json({ message: "Failed to initialize installment payment" });
+    }
+  });
+
   // Paystack Webhook Handler
   app.post("/api/paystack/webhook", async (req, res) => {
     try {
@@ -2838,7 +2899,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (event.event === 'charge.success') {
         console.log(`Processing successful payment via webhook for reference: ${event.data.reference}`);
-        await finalizePaystackOrder(event.data);
+        
+        if (event.data.metadata?.isInstallmentPayment) {
+          await finalizePaystackInstallment(event.data);
+        } else {
+          await finalizePaystackOrder(event.data);
+        }
       }
 
       res.status(200).send('Webhook processed');

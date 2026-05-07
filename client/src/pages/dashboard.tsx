@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import ProductForm from '@/components/modals/product-form';
 import MagicImportModal from '@/components/modals/magic-import-modal';
 import InboxComponent from '@/components/chat/InboxComponent';
@@ -54,6 +55,9 @@ export default function Dashboard() {
   
   const [rejectingOrder, setRejectingOrder] = useState<OrderWithDetails | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  const [payingInstallmentOrder, setPayingInstallmentOrder] = useState<OrderWithDetails | null>(null);
+  const [selectedInstallments, setSelectedInstallments] = useState<number[]>([]);
 
   // ... (rest of useEffects)
 
@@ -204,6 +208,23 @@ export default function Dashboard() {
       if (order) setReviewOrder(order);
     }
   }, [purchases]);
+
+  const payInstallmentMutation = useMutation({
+    mutationFn: async ({ orderId, installments }: { orderId: number, installments: number }) => {
+      const response = await apiRequest("POST", "/api/paystack/initialize-installment", {
+        orderId,
+        installments,
+        email: user?.email
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      window.location.href = data.authorization_url;
+    },
+    onError: () => {
+      toast({ title: "Payment Error", description: "Could not initialize payment. Please try again.", variant: "destructive" });
+    }
+  });
 
   const handleChecklistSubmit = async () => {
     if (!idFileFront || !faceFile || !bankName || !accNumber || !momoNumber || !logoFile) {
@@ -496,6 +517,7 @@ export default function Dashboard() {
               <TabsTrigger value="overview" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Overview</TabsTrigger>
               <TabsTrigger value="listings" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Inventory</TabsTrigger>
               <TabsTrigger value="sales" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Orders</TabsTrigger>
+              <TabsTrigger value="purchases" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Purchases</TabsTrigger>
               <TabsTrigger value="inbox" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Inbox</TabsTrigger>
               <TabsTrigger value="settings" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Settings</TabsTrigger>
             </TabsList>
@@ -621,6 +643,48 @@ export default function Dashboard() {
                </div>
              ))}
           </TabsContent>
+
+          <TabsContent value="purchases" className="mt-0 space-y-4">
+             {purchases.map(p => (
+               <div key={p.id} className="p-4 md:p-8 bg-white rounded-2xl md:rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center transition-all hover:shadow-xl gap-4">
+                  <div className="flex items-center gap-4 md:gap-6">
+                     <img src={p.product.images?.[0]} className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl object-cover shrink-0" />
+                     <div className="min-w-0">
+                       <h4 className="font-black text-sm md:text-lg uppercase truncate">{p.product.title}</h4>
+                       <p className="text-[10px] md:text-sm font-bold text-gray-500 truncate">
+                         Order: {p.orderNumber || `#${p.id}`} • {p.deliveryStatus?.toUpperCase()} • {new Date(p.createdAt!).toLocaleDateString()}
+                       </p>
+                     </div>
+                  </div>
+                  <div className="flex items-center justify-between w-full md:w-auto gap-4">
+                     <div className="text-right">
+                        <p className="font-black text-lg md:text-2xl">GH₵{parseFloat(p.totalAmount).toFixed(2)}</p>
+                        {p.isInstallment && (
+                          <p className="text-[8px] font-black uppercase text-primary tracking-widest mt-1">BƆKƆƆ Pay™ • {p.installmentsPaid}/4 Parts Paid</p>
+                        )}
+                     </div>
+                     <div className="flex gap-2">
+                        {p.isInstallment && p.installmentsPaid < 4 && (
+                          <Button 
+                            className="rounded-xl bg-primary text-black font-black text-[10px] h-10 px-6 uppercase"
+                            onClick={() => {
+                               setPayingInstallmentOrder(p);
+                               setSelectedInstallments([p.installmentsPaid + 1]);
+                            }}
+                          >
+                            Pay Installments
+                          </Button>
+                        )}
+                        <Button variant="outline" className="rounded-xl font-black text-[10px] h-10 px-6 uppercase border-2" onClick={() => setViewingTracking(p)}>Track</Button>
+                        {p.deliveryStatus === 'delivered' && !p.buyerConfirmation && (
+                          <Button className="rounded-xl bg-green-500 font-black text-[10px] h-10 px-6 uppercase">Confirm Receipt</Button>
+                        )}
+                     </div>
+                  </div>
+               </div>
+             ))}
+             {purchases.length === 0 && <p className="py-20 text-center text-gray-400 font-bold uppercase text-xs">No purchases yet.</p>}
+          </TabsContent>
           <TabsContent value="inbox" className="mt-0"><InboxComponent /></TabsContent>
           <TabsContent value="settings" className="mt-0">
              <StoreSettingsForm store={primaryStore} user={user} />
@@ -629,6 +693,79 @@ export default function Dashboard() {
 
         <ProductForm isOpen={isProductFormOpen} onClose={() => { setIsProductFormOpen(false); setEditingProduct(null); }} userStores={userStores} initialData={editingProduct} />
         <MagicImportModal isOpen={isMagicImportOpen} onClose={() => {setIsMagicImportOpen(false); setInitialMagicUrl('');}} userStores={userStores} initialUrl={initialMagicUrl} />
+        
+        {/* Installment Payment Dialog */}
+        <Dialog open={!!payingInstallmentOrder} onOpenChange={(open) => !open && setPayingInstallmentOrder(null)}>
+           <DialogContent className="rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden max-w-md">
+              <DialogHeader className="bg-primary text-black p-8">
+                 <div className="flex items-center gap-2 mb-2"><Badge variant="outline" className="border-black text-black font-black uppercase text-[8px]">BƆKƆƆ Pay™</Badge></div>
+                 <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Pay Installments</DialogTitle>
+                 <DialogDescription className="text-black/60 font-bold uppercase text-[9px] tracking-widest">Select parts to pay for Order {payingInstallmentOrder?.orderNumber}</DialogDescription>
+              </DialogHeader>
+              <div className="p-8 space-y-6">
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Choose parts to pay now:</p>
+                    <div className="grid gap-3">
+                       {[1, 2, 3, 4].map((i) => {
+                          const isPaid = i <= (payingInstallmentOrder?.installmentsPaid || 0);
+                          const isNext = i === (payingInstallmentOrder?.installmentsPaid || 0) + 1;
+                          
+                          return (
+                             <div 
+                               key={i} 
+                               className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${isPaid ? 'bg-gray-50 border-gray-100 opacity-50' : selectedInstallments.includes(i) ? 'border-primary bg-primary/5' : 'border-gray-100 bg-white hover:border-gray-200'}`}
+                               onClick={() => {
+                                  if (isPaid) return;
+                                  if (selectedInstallments.includes(i)) {
+                                     setSelectedInstallments(selectedInstallments.filter(id => id !== i));
+                                  } else {
+                                     // Ensure they pay in order
+                                     const missingPrev = [1,2,3,4].filter(id => id < i && !selectedInstallments.includes(id) && id > (payingInstallmentOrder?.installmentsPaid || 0));
+                                     setSelectedInstallments([...new Set([...selectedInstallments, ...missingPrev, i])]);
+                                  }
+                               }}
+                             >
+                                <div className="flex items-center gap-3">
+                                   <Checkbox 
+                                     checked={isPaid || selectedInstallments.includes(i)} 
+                                     disabled={isPaid}
+                                     className="h-5 w-5 rounded-lg"
+                                   />
+                                   <div>
+                                      <p className="font-black text-xs uppercase">Part {i}</p>
+                                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{isPaid ? 'Already Paid' : `GH₵${(parseFloat(payingInstallmentOrder?.installmentAmount?.toString() || "0")).toFixed(2)}`}</p>
+                                   </div>
+                                </div>
+                                {isPaid && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                             </div>
+                          );
+                       })}
+                    </div>
+                 </div>
+
+                 <div className="bg-black rounded-2xl p-6 text-white flex justify-between items-center">
+                    <div>
+                       <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">Total to Pay</p>
+                       <h4 className="text-2xl font-black text-primary">GH₵{(selectedInstallments.length * parseFloat(payingInstallmentOrder?.installmentAmount?.toString() || "0")).toFixed(2)}</h4>
+                    </div>
+                    <Button 
+                      disabled={selectedInstallments.length === 0 || payInstallmentMutation.isPending} 
+                      className="rounded-xl bg-primary text-black font-black uppercase text-[10px] h-12 px-6"
+                      onClick={() => {
+                         if (payingInstallmentOrder) {
+                            payInstallmentMutation.mutate({
+                               orderId: payingInstallmentOrder.id,
+                               installments: selectedInstallments.length
+                            });
+                         }
+                      }}
+                    >
+                      {payInstallmentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Pay Now'}
+                    </Button>
+                 </div>
+              </div>
+           </DialogContent>
+        </Dialog>
         
         {/* Rejection Reason Dialog */}
         <Dialog open={!!rejectingOrder} onOpenChange={(open) => !open && setRejectingOrder(null)}>

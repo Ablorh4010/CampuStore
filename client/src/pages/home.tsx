@@ -185,38 +185,57 @@ export default function Home() {
 
             <div className="flex justify-center lg:justify-end relative mt-16 lg:mt-0">
                {weeklyDeals.length > 0 && (
-                  <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.8 }} className="relative w-full max-w-[300px] aspect-[1/2] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-[8px] border-[#333] overflow-hidden z-20">
-                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-[#333] rounded-b-2xl z-30 flex items-center justify-center gap-2">
-                        <div className="w-8 h-1 bg-white/10 rounded-full"></div>
-                        <div className="w-2 h-2 bg-white/10 rounded-full"></div>
-                     </div>
+                  <motion.div 
+                    initial={{ x: 50, opacity: 0 }} 
+                    animate={{ x: 0, opacity: 1 }} 
+                    transition={{ duration: 0.8 }} 
+                    className="relative w-full max-w-[320px] aspect-[9/16] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border-[10px] border-[#222] overflow-hidden z-20 group/phone"
+                  >
+                     {/* Dynamic Ad Flyer Carousel within the Phone */}
                      <div className="relative h-full w-full bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
-                        <div className="p-5 pt-10 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-20">
-                           <h4 className="font-black uppercase tracking-tighter text-[11px]">Deals of the Week</h4>
-                           <Badge className="bg-primary text-black font-black text-[7px] uppercase px-2 py-0.5 rounded-full animate-pulse">Live Now</Badge>
-                        </div>
-                        <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-4">
-                           {weeklyDeals.map((deal) => (
-                               <Link key={deal.id} href={`/product/${deal.productId}`}>                                 <div className="bg-gray-50 rounded-2xl p-3 border border-transparent hover:border-primary/20 transition-all cursor-pointer group/deal">
-                                    <div className="flex gap-4 items-center">
-                                       <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-white">
-                                          <img src={deal.product.images[0]} alt="" className="w-full h-full object-cover group-hover/deal:scale-110 transition-transform duration-500" />
-                                       </div>
-                                       <div className="min-w-0">
-                                          <h4 className="text-gray-900 font-black text-[10px] uppercase truncate mb-1">{deal.product.title}</h4>
-                                          <div className="flex items-center gap-2 mb-1">
-                                             <span className="text-primary font-black text-xs">GH₵{(parseFloat(deal.product.price.toString()) * (1 - (deal.discountPercentage || 0) / 100)).toFixed(2)}</span>
-                                             <span className="text-gray-300 line-through text-[8px]">GH₵{deal.product.price}</span>
-                                          </div>
-                                          <Badge className="bg-primary/10 text-primary border-none font-black text-[7px] uppercase tracking-widest px-2 py-0.5">-{deal.discountPercentage}% OFF</Badge>
-                                       </div>
-                                    </div>
-                                 </div>
-                              </Link>
-                           ))}
-                        </div>
-                        <div className="p-4 bg-gray-50 border-t border-gray-100">
-                           <Link href="/browse" className="w-full"><Button className="w-full h-10 rounded-xl bg-black text-white font-black uppercase tracking-widest text-[8px]">View Catalog</Button></Link>
+                        <AnimatePresence mode="wait">
+                          {weeklyDeals.map((deal, idx) => (
+                            <motion.div 
+                              key={deal.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              transition={{ duration: 1 }}
+                              className={`absolute inset-0 z-10 ${idx === (Math.floor(Date.now() / 4000) % weeklyDeals.length) ? 'block' : 'hidden'}`}
+                            >
+                               <Link href={`/product/${deal.productId}`}>
+                                  <div className="h-full w-full relative cursor-pointer overflow-hidden">
+                                     {/* Background Image (The Flyer) */}
+                                     <img src={deal.product.images[0]} alt="" className="w-full h-full object-cover scale-105 group-hover/phone:scale-110 transition-transform duration-[2s]" />
+                                     
+                                     {/* Gradient Overlay */}
+                                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                                     
+                                     {/* Promo Content */}
+                                     <div className="absolute bottom-0 left-0 w-full p-8 text-white">
+                                        <Badge className="bg-primary text-black font-black text-[8px] uppercase px-3 py-1 rounded-full mb-4 animate-bounce">
+                                          Deal of the Week
+                                        </Badge>
+                                        <h4 className="text-2xl font-black uppercase leading-tight mb-2 tracking-tighter drop-shadow-2xl">
+                                          {deal.product.title}
+                                        </h4>
+                                        <div className="flex items-center gap-3 mb-6">
+                                           <span className="text-3xl font-black text-primary">GH₵{(parseFloat(deal.product.price.toString()) * (1 - (deal.discountPercentage || 0) / 100)).toFixed(0)}</span>
+                                           <span className="text-white/50 line-through text-sm font-bold">GH₵{deal.product.price}</span>
+                                        </div>
+                                        <Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary transition-colors">
+                                          Grab Deal Now
+                                        </Button>
+                                     </div>
+                                  </div>
+                               </Link>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                        
+                        {/* Status Bar */}
+                        <div className="absolute top-0 left-0 w-full h-12 bg-gradient-to-b from-black/40 to-transparent z-30 flex items-center justify-center pt-2">
+                           <div className="w-16 h-1 bg-white/30 rounded-full"></div>
                         </div>
                      </div>
                   </motion.div>
@@ -311,15 +330,45 @@ export default function Home() {
                     <div className="flex -ml-4">
                        {activityLoading ? (Array(3).fill(0).map((_, i) => <div key={i} className="flex-[0_0_85%] sm:flex-[0_0_45%] pl-4"><Skeleton className="w-full h-32 rounded-3xl" /></div>)) : !Array.isArray(campusActivity) || campusActivity.length === 0 ? (
                           <div className="pl-4 w-full"><div className="text-center py-10 bg-gray-50/50 rounded-3xl w-full border-2 border-dashed border-gray-100"><p className="text-gray-400 font-medium italic text-xs uppercase tracking-widest">No recent campus pulse.</p></div></div>
-                       ) : (campusActivity.slice(0, 5).map((activity) => (
-                           <div key={activity.id} className="flex-[0_0_85%] sm:flex-[0_0_45%] pl-4">
-                              <motion.div whileHover={{ y: -5 }} className="bg-gray-50/50 rounded-3xl p-5 border border-transparent hover:border-gray-100 transition-all group h-full shadow-sm">
-                                <div className="flex items-center gap-2 mb-3 text-[8px] font-black uppercase tracking-widest text-primary"><Zap className="w-2.5 h-2.5" />{activity.activityType || 'Update'}</div>
-                                <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 mb-2 leading-tight line-clamp-2">{activity.title}</h3>
-                                <p className="text-[11px] text-gray-500 font-medium leading-relaxed line-clamp-2">{activity.content}</p>
-                              </motion.div>
+                       ) : (
+                        campusActivity.slice(0, 5).map((activity) => (
+                           <div key={activity.id} className="flex-[0_0_85%] sm:flex-[0_0_55%] pl-4">
+                              <Link href={activity.externalLink || '#'}>
+                                <motion.div whileHover={{ y: -5 }} className="relative bg-black rounded-[2.5rem] overflow-hidden group/pulse h-64 shadow-2xl">
+                                  {/* Ad Flyer Background */}
+                                  <img 
+                                    src={activity.imageUrl || 'https://images.unsplash.com/photo-1523240715634-19183492723c?auto=format&fit=crop&q=80&w=600'} 
+                                    className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/pulse:scale-110 transition-transform duration-[3000ms]" 
+                                    alt="" 
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                                  
+                                  {/* Flyer Content */}
+                                  <div className="absolute inset-0 p-8 flex flex-col justify-end">
+                                    <div className="flex items-center gap-2 mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                                      <Zap className="w-3 h-3 fill-primary" />
+                                      {activity.activityType || 'Campus Update'}
+                                    </div>
+                                    <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-white mb-2 leading-[0.9] group-hover/pulse:text-primary transition-colors">
+                                      {activity.title}
+                                    </h3>
+                                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest line-clamp-1 opacity-0 group-hover/pulse:opacity-100 transition-all transform translate-y-4 group-hover/pulse:translate-y-0">
+                                      {activity.content}
+                                    </p>
+                                  </div>
+
+                                  {/* "Read Flyer" Badge */}
+                                  <div className="absolute top-6 right-6">
+                                    <Badge className="bg-white/10 backdrop-blur-md text-white border-white/20 font-black text-[8px] uppercase tracking-widest px-3 py-1.5 rounded-full">
+                                      View Pulse
+                                    </Badge>
+                                  </div>
+                                </motion.div>
+                              </Link>
                            </div>
-                        )))}
+                        ))
+                       )}
+
                     </div>
                   </div>
                </div>
