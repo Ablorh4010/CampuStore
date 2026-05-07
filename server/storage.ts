@@ -1034,6 +1034,20 @@ export class DatabaseStorage implements IStorage {
     if (orderData.estimatedDeliveryDate && typeof orderData.estimatedDeliveryDate === 'string') {
       orderData.estimatedDeliveryDate = new Date(orderData.estimatedDeliveryDate);
     }
+    
+    // Auto-generate Order and Invoice numbers if not provided
+    const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const randomSeg = Math.random().toString(36).substring(2, 7).toUpperCase();
+    
+    if (!orderData.orderNumber) {
+      const prefix = orderData.isInstallment ? 'BP' : 'UH';
+      orderData.orderNumber = `${prefix}${dateStr}${randomSeg}`;
+    }
+    
+    if (!orderData.invoiceNumber) {
+      orderData.invoiceNumber = `INV-${dateStr}${randomSeg}`;
+    }
+
     const [order] = await db.insert(orders).values(orderData as any).returning();
     return order;
   }

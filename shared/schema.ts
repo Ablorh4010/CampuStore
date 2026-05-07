@@ -144,8 +144,9 @@ export const orders = pgTable("orders", {
   shippingMode: text("shipping_mode"), // seller_delivery, affordcampus_pickup, ems, ghana_post_standard, express_delivery
   shippingStatus: text("shipping_status").default("pending"),
   trackingNumber: text("tracking_number"),
-  paymentReference: text("payment_reference"),
-  paymentGateway: text("payment_gateway").default("paystack"), // paystack, stripe, manual
+  orderNumber: text("order_number").unique(),
+  invoiceNumber: text("invoice_number").unique(),
+  paymentReference: text("payment_reference"),  paymentGateway: text("payment_gateway").default("paystack"), // paystack, stripe, manual
   carrier: text("carrier"), // Ghana Post, FedEx, etc.
   estimatedDeliveryDate: timestamp("estimated_delivery_date"),
   trackingHistory: text("tracking_history"), // Text summary of updates
@@ -187,6 +188,7 @@ export const orders = pgTable("orders", {
   nextInstallmentDate: timestamp("next_installment_date"),
   isDefaulted: boolean("is_defaulted").notNull().default(false),
   paystackAuthCode: text("paystack_auth_code"),
+  rejectionReason: text("rejection_reason"),
   
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

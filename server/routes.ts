@@ -153,6 +153,13 @@ async function finalizePaystackOrder(data: any) {
     const isThisItemEligible = product.isInstallmentEligible && metadata.isBokoo;
     const itemRecurringAmount = isThisItemEligible ? (parseFloat(product.price.toString()) * item.quantity * 0.75) / 3 : 0;
 
+    // Innovative Order Number Generation
+    // UH for standard, BP for installment + YYMMDD + unique random string
+    const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+    const randomSeg = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const orderNumber = `${isThisItemEligible ? 'BP' : 'UH'}${dateStr}${randomSeg}`;
+    const invoiceNumber = `INV-${dateStr}${randomSeg}`;
+
     const order = await storage.createOrder({
       buyerId: userId || 0,
       sellerId: store.userId,
@@ -162,6 +169,8 @@ async function finalizePaystackOrder(data: any) {
       codFee: codFee ? codFee.toString() : null,
       status: product.isDigital ? 'completed' : 'confirmed',
       paymentReference: reference,
+      orderNumber: orderNumber,
+      invoiceNumber: invoiceNumber,
       paymentGateway: 'paystack',
       shippingMode: product.isDigital ? 'digital_delivery' : (metadata.shippingMode === 'ghana_post_ems' ? 'ems' : 'express_delivery'),
       fulfillmentStatus: product.isDigital ? 'delivered' : 'order_received',
@@ -1088,7 +1097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/orders/:id/seller-approval", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { approval } = req.body;
+      const { approval, rejectionReason } = req.body;
       const order = await storage.getOrderById(id);
       
       if (!order) return res.status(404).json({ message: "Order not found" });
@@ -1102,7 +1111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedOrder = await storage.updateOrder(id, { 
         sellerApproval: approval,
         fulfillmentStatus: approval === 'approved' ? 'seller_approved' : 'order_received',
-        status: approval === 'rejected' ? 'rejected' : order.status
+        status: approval === 'rejected' ? 'rejected' : order.status,
+        rejectionReason: approval === 'rejected' ? rejectionReason : null
       });
 
       if (approval === 'approved') {
@@ -1115,6 +1125,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } catch (err) {
           console.error('Failed to notify buyer of seller approval:', err);
+        }
+      } else if (approval === 'rejected') {
+        try {
+          const buyer = await storage.getUserById(order.buyerId);
+          if (buyer && buyer.email) {
+            await sendLocalEmail(buyer.email, 'Order Declined', `
+              <h1>Order Declined</h1>
+              <p>We regret to inform you that your order #${id} has been declined by the seller.</p>
+              ${rejectionReason ? `<p><strong>Reason:</strong> ${rejectionReason}</p>` : ''}
+              <p>If you have already paid, a refund will be processed shortly.</p>
+            `);
+          }
+        } catch (err) {
+          console.error('Failed to notify buyer of rejection:', err);
         }
       }
 

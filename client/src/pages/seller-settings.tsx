@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+import { useLocation } from "wouter";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,9 +29,17 @@ const paymentDetailsSchema = z.object({
 type PaymentDetailsData = z.infer<typeof paymentDetailsSchema>;
 
 export default function SellerSettings() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation('/seller-auth');
+    }
+  }, [user, authLoading, setLocation]);
 
   const { data: userStores = [] } = useQuery<any[]>({
     queryKey: ['/api/stores/user', user?.id],
@@ -46,6 +55,21 @@ export default function SellerSettings() {
   const [idScanPreview, setIdScanPreview] = useState<string | null>(null);
   const [idScanBackPreview, setIdScanBackPreview] = useState<string | null>(null);
   const [faceScanPreview, setFaceScanPreview] = useState<string | null>(null);
+  
+  // Update state when user loads
+  useEffect(() => {
+    if (user?.paymentMethod) {
+      setSelectedPaymentMethod(user.paymentMethod);
+    }
+  }, [user]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   // New verification fields state
   const [idType, setIdType] = useState<string>('national_id');
