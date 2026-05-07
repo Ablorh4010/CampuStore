@@ -16,14 +16,6 @@ import { useAuth } from '@/lib/auth-context';
 import { IdScanCapture, FacialCapture } from '@/components/verification';
 import { Progress } from '@/components/ui/progress';
 
-const emailLoginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  otpCode: z.string().optional(),
-}).refine((data) => !data.otpCode || data.otpCode.length === 6, {
-  message: 'Verification code must be 6 digits',
-  path: ['otpCode'],
-});
-
 const sellerRegisterSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   otpCode: z.string().optional(),
@@ -49,12 +41,10 @@ const sellerRegisterSchema = z.object({
   path: ['otpCode'],
 });
 
-type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
 type SellerRegisterFormData = z.infer<typeof sellerRegisterSchema>;
 
 export default function SellerAuth() {
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('register');
   const [step, setStep] = useState(1);
   const [showOtpField, setShowOtpField] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -81,14 +71,6 @@ export default function SellerAuth() {
     }
     return () => clearInterval(interval);
   }, [resendTimer]);
-
-  const loginForm = useForm<EmailLoginFormData>({
-    resolver: zodResolver(emailLoginSchema),
-    defaultValues: {
-      email: '',
-      otpCode: '',
-    },
-  });
 
   const registerForm = useForm<SellerRegisterFormData>({
     resolver: zodResolver(sellerRegisterSchema),
@@ -168,60 +150,6 @@ export default function SellerAuth() {
       }
     }
   }, [authUser, setLocation]);
-
-  const onLogin = async (data: EmailLoginFormData) => {
-    if (!data.otpCode || data.otpCode.length !== 6) {
-      toast({
-        title: 'Verification Code Required',
-        description: 'Please enter the 6-digit verification code sent to your email.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: data.email,
-          otpCode: data.otpCode,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
-      }
-
-      const result = await response.json();
-      localStorage.setItem('token', result.token);
-      localStorage.setItem('user', JSON.stringify(result.user));
-      
-      toast({
-        title: '✅ Welcome back!',
-        description: 'You have been successfully signed in.',
-        duration: 6000,
-      });
-
-      // Redirection logic based on status
-      const user = result.user;
-      if (user.isAdmin || user.userType === 'admin') {
-        setLocation('/admin');
-      } else {
-        setLocation('/dashboard');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Sign in failed',
-        description: error.message || 'Please check your verification code and try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleFaceMatch = async () => {
     if (!idFileFront || !faceFile) return;
@@ -403,95 +331,7 @@ export default function SellerAuth() {
         </div>
 
         <Card className="border-none shadow-2xl shadow-slate-200/50 rounded-[2rem] overflow-hidden">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'login' | 'register')}>
-            <div className="bg-white px-8 pt-6">
-              <TabsList className="grid w-full grid-cols-2 h-14 bg-slate-100/50 p-1.5 rounded-2xl">
-                <TabsTrigger value="login" className="rounded-xl data-[state=active]:shadow-sm">Sign In</TabsTrigger>
-                <TabsTrigger value="register" className="rounded-xl data-[state=active]:shadow-sm">Register</TabsTrigger>
-              </TabsList>
-            </div>
-
             <CardContent className="p-8">
-              <TabsContent value="login" className="space-y-6 mt-0">
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-6">
-                    <FormField
-                      control={loginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-bold">Email Address</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                placeholder="name@email.com" 
-                                className="h-12 rounded-xl pl-10"
-                                {...field}
-                                disabled={showOtpField}
-                              />
-                              <Mail className="absolute left-3.5 top-3.5 h-5 w-5 text-gray-400" />
-                            </div>
-                          </FormControl>
-                          {!showOtpField && (
-                             <Button
-                               type="button"
-                               variant="secondary"
-                               className="w-full mt-2 h-11 rounded-xl font-bold"
-                               onClick={() => sendEmailOtp(field.value)}
-                               disabled={!field.value}
-                             >
-                               Send Login Code
-                             </Button>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {showOtpField && (
-                      <FormField
-                        control={loginForm.control}
-                        name="otpCode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex justify-between items-center font-bold">
-                              6-Digit Code
-                              <Button 
-                                type="button" 
-                                variant="link" 
-                                className="p-0 h-auto text-xs font-bold" 
-                                onClick={() => sendEmailOtp(loginForm.getValues('email'))}
-                                disabled={!canResend}
-                              >
-                                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
-                              </Button>
-                            </FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="000000" 
-                                maxLength={6}
-                                className="h-12 rounded-xl text-center text-xl tracking-[0.5em] font-black"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    <Button 
-                      type="submit" 
-                      className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-xs"
-                      disabled={isLoading || !showOtpField}
-                    >
-                      {isLoading ? <Loader2 className="animate-spin" /> : 'Sign In to Portal'}
-                    </Button>
-                  </form>
-                </Form>
-              </TabsContent>
-
-              <TabsContent value="register" className="mt-0">
                 <div className="mb-8">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-primary">
@@ -855,9 +695,7 @@ export default function SellerAuth() {
                     )}
                   </div>
                 </Form>
-              </TabsContent>
             </CardContent>
-          </Tabs>
         </Card>
 
         <p className="text-center mt-8 text-sm text-gray-500 font-medium">
