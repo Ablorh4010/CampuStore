@@ -94,7 +94,7 @@ export default function Dashboard() {
   };
 
   const { data: userStores = [], isLoading: storesLoading, refetch: refetchStores, isFetching: storesFetching } = useQuery<Store[]>({
-    queryKey: ['/api/stores/user'],
+    queryKey: ['/api/stores/user', user?.id],
     enabled: !!user,
     staleTime: 0, // Ensure we always get fresh data
   });
@@ -103,6 +103,7 @@ export default function Dashboard() {
 
   const [isAutoCreating, setIsAutoCreating] = useState(false);
   const [initializationProgress, setInitializationProgress] = useState(0);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
   const creationAttempted = useRef(false);
 
   // Auto-create store for admins and sellers if missing
@@ -122,6 +123,7 @@ export default function Dashboard() {
       creationAttempted.current = true;
       setIsAutoCreating(true);
       setInitializationProgress(10);
+      setInitializationError(null);
       
       const simulateProgress = setInterval(() => {
         if (mounted) {
@@ -140,15 +142,14 @@ export default function Dashboard() {
         university: user.university || "All Universities", 
         address: user.sellerAddress || "HQ"
       }).then(async (res) => {
-        if (!res.ok) throw new Error("Store creation request failed");
         const newStore = await res.json();
         
         if (mounted) {
            setInitializationProgress(100);
            clearInterval(simulateProgress);
            toast({ title: "Store Initialized", description: "Your merchant dashboard is ready." });
-           queryClient.setQueryData(['/api/stores/user'], [newStore]);
-           await queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
+           queryClient.setQueryData(['/api/stores/user', user.id], [newStore]);
+           await queryClient.invalidateQueries({ queryKey: ['/api/stores/user', user.id] });
            await refetchStores();
         }
       }).catch(err => {
@@ -156,8 +157,9 @@ export default function Dashboard() {
         if (mounted) {
           clearInterval(simulateProgress);
           setInitializationProgress(0);
+          setInitializationError(err instanceof Error ? err.message : String(err));
           // On error, reset after a delay to allow retry if needed, but don't loop infinitely
-          setTimeout(() => { if (mounted) creationAttempted.current = false; }, 10000);
+          setTimeout(() => { if (mounted) creationAttempted.current = false; }, 15000);
         }
       }).finally(() => {
         if (mounted) {
@@ -335,10 +337,34 @@ export default function Dashboard() {
               <AlertCircle className="w-10 h-10" />
            </div>
            <h1 className="text-3xl font-black uppercase tracking-tighter">Portal Sync Issue</h1>
-           <p className="text-gray-500 font-medium">We couldn't load your store details. This usually happens if initialization is still in progress.</p>
+           <p className="text-gray-500 font-medium">We couldn't load your store details. This usually happens if initialization is still in progress or failed.</p>
+           
+           {initializationError && (
+             <Alert variant="destructive" className="text-left rounded-2xl">
+               <AlertCircle className="h-4 w-4" />
+               <AlertTitle className="text-xs font-black uppercase">Initialization Error</AlertTitle>
+               <AlertDescription className="text-xs">{initializationError}</AlertDescription>
+             </Alert>
+           )}
+
+           <div className="p-4 bg-slate-100 rounded-2xl text-[10px] text-left font-mono space-y-1">
+             <p>USER_ID: {user?.id}</p>
+             <p>USER_TYPE: {user?.userType}</p>
+             <p>IS_MERCHANT: {String(user?.isMerchant)}</p>
+             <p>STORES_COUNT: {userStores.length}</p>
+             <p>IS_FETCHING: {String(storesFetching)}</p>
+           </div>
+
            <div className="flex flex-col gap-3">
               <Button onClick={() => window.location.reload()} className="h-14 rounded-2xl bg-black font-black uppercase">Refresh Portal</Button>
-              <Button variant="ghost" onClick={() => { creationAttempted.current = false; setIsAutoCreating(false); setInitializationProgress(0); setStuckTimeout(false); }} className="text-xs font-bold text-gray-400">Retry Store Creation</Button>
+              <Button variant="ghost" onClick={() => { 
+                creationAttempted.current = false; 
+                setIsAutoCreating(false); 
+                setInitializationProgress(0); 
+                setStuckTimeout(false);
+                setInitializationError(null);
+                queryClient.invalidateQueries({ queryKey: ['/api/stores/user', user?.id] });
+              }} className="text-xs font-bold text-gray-400">Retry Store Creation</Button>
            </div>
         </div>
       </div>
