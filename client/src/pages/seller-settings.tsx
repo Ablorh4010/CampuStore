@@ -270,6 +270,13 @@ export default function SellerSettings() {
             Pending Review
           </Badge>
         );
+      case 'needs_correction':
+        return (
+          <Badge className="bg-amber-500">
+            <AlertCircle className="w-4 h-4 mr-1" />
+            Needs Correction
+          </Badge>
+        );
       case 'rejected':
         return (
           <Badge variant="destructive">

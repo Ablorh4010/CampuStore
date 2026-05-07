@@ -319,6 +319,7 @@ export default function SellerAuth() {
             'Authorization': `Bearer ${result.token}`
           },
           body: JSON.stringify({
+            userId: result.user.id,
             name: data.businessName || `${data.firstName}'s Store`,
             description: `Official store for ${data.firstName} ${data.lastName}`,
             city: data.city,

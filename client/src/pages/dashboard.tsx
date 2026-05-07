@@ -11,7 +11,7 @@ import {
   Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
   Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
   Sparkles, Wallet, Smartphone, ChevronRight, Info, Download,
-  Store as StoreIcon, Star, CreditCard, User as UserIcon, Building2, Upload, ShieldCheck
+  Store as StoreIcon, Star, CreditCard, User as UserIcon, Building2, Upload, ShieldCheck, XCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
@@ -38,6 +38,7 @@ export default function Dashboard() {
   const isVerified = user?.verificationStatus === 'verified' || user?.isAdmin;
   const isPending = user?.verificationStatus === 'pending';
   const needsCorrection = user?.verificationStatus === 'needs_correction';
+  const isRejected = user?.verificationStatus === 'rejected';
 
   // ... (rest of states)
   const [viewingTracking, setViewingTracking] = useState<OrderWithDetails | null>(null);
@@ -115,7 +116,9 @@ export default function Dashboard() {
         storesFetching,
         isMerchantUser,
         isAutoCreating,
-        creationAttempted: creationAttempted.current
+        creationAttempted: creationAttempted.current,
+        userType: user.userType,
+        isMerchant: user.isMerchant
       });
     }
 
@@ -126,7 +129,7 @@ export default function Dashboard() {
       
       apiRequest('POST', '/api/stores', {
         userId: user.id,
-        name: user.isAdmin ? "University Hub Official" : `${user.firstName}'s Store`,
+        name: user.businessName || (user.isAdmin ? "University Hub Official" : `${user.firstName}'s Store`),
         description: user.isAdmin ? "Official store for The University Hub" : `Official store for ${user.firstName} ${user.lastName}`,
         city: user.city || "Accra", 
         university: user.university || "All Universities", 
@@ -282,6 +285,14 @@ export default function Dashboard() {
                <AlertCircle className="h-5 w-5 text-amber-600" />
                <AlertTitle className="font-black uppercase text-[10px] text-amber-600">Admin Feedback</AlertTitle>
                <AlertDescription className="font-bold text-amber-800">{user?.verificationNotes}</AlertDescription>
+             </Alert>
+           )}
+
+           {isRejected && (
+             <Alert variant="destructive" className="rounded-3xl py-6 mb-8">
+               <XCircle className="h-5 w-5" />
+               <AlertTitle className="font-black uppercase text-[10px]">Application Rejected</AlertTitle>
+               <AlertDescription className="font-bold">{user?.verificationNotes || "Your seller application has been rejected by the administrator."}</AlertDescription>
              </Alert>
            )}
 
