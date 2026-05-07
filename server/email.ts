@@ -205,7 +205,9 @@ export async function sendPurchaseConfirmationEmail(
   trackingUrl: string,
   isCOD: boolean = false,
   totalAmount: string = "0",
-  bcc?: string[]
+  bcc?: string[],
+  orderNumber?: string,
+  invoiceNumber?: string
 ) {
   if (!resend) {
     console.error('❌ ERROR: RESEND_API_KEY is missing. Purchase confirmation email cannot be sent to:', email);
@@ -214,6 +216,7 @@ export async function sendPurchaseConfirmationEmail(
 
   const deliveryDays = deliveryMethod === 'ems' ? '1-14 days' : '1-5 days';
   const deliveryPartner = deliveryMethod === 'ems' ? 'Ghana Post EMS' : 'Express by Kaydem Logistics';
+  const displayOrderNum = orderNumber || `#${orderId}`;
 
   const codSection = isCOD ? `
     <div style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: 16px; padding: 25px; margin: 25px 0;">
@@ -226,15 +229,21 @@ export async function sendPurchaseConfirmationEmail(
   try {
     const content = `
       <p>Hi ${buyerName},</p>
-      <p>We're excited to let you know that your order <strong>#${orderId}</strong> was successful. Thank you for choosing The University Hub!</p>
+      <p>We're excited to let you know that your order <strong>${displayOrderNum}</strong> was successful. Thank you for choosing The University Hub!</p>
       
       <div style="background-color: #f9fafb; border-radius: 20px; padding: 25px; margin: 25px 0; border: 1px solid #f3f4f6;">
         <h3 style="color: #111827; margin-top: 0; font-size: 14px; text-transform: uppercase; font-weight: 900; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 15px;">📄 Order Summary</h3>
         <table style="width: 100%; border-collapse: collapse;">
           <tr>
-            <td style="padding: 5px 0; color: #6b7280; font-size: 13px;">Order ID:</td>
-            <td style="padding: 5px 0; text-align: right; font-weight: bold; font-size: 13px;">#${orderId}</td>
+            <td style="padding: 5px 0; color: #6b7280; font-size: 13px;">Order Number:</td>
+            <td style="padding: 5px 0; text-align: right; font-weight: bold; font-size: 13px;">${displayOrderNum}</td>
           </tr>
+          ${invoiceNumber ? `
+          <tr>
+            <td style="padding: 5px 0; color: #6b7280; font-size: 13px;">Invoice Number:</td>
+            <td style="padding: 5px 0; text-align: right; font-weight: bold; font-size: 13px;">${invoiceNumber}</td>
+          </tr>
+          ` : ''}
           <tr>
             <td style="padding: 5px 0; color: #6b7280; font-size: 13px;">Payment:</td>
             <td style="padding: 5px 0; text-align: right; font-weight: bold; font-size: 13px;">${isCOD ? 'Cash on Delivery' : 'Paid Online'}</td>
@@ -269,7 +278,7 @@ export async function sendPurchaseConfirmationEmail(
       from: FROM_EMAIL,
       to: email.trim(),
       bcc: bcc,
-      subject: `Order Confirmation #${orderId} - The University Hub`,
+      subject: `Order Confirmation ${displayOrderNum} - The University Hub`,
       html
     });
     

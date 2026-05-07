@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,16 +11,17 @@ import {
   Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
   Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
   Sparkles, Wallet, Smartphone, ChevronRight, Info, Download,
-  Store as StoreIcon, Star, CreditCard, User as UserIcon, Building2, Upload, ShieldCheck, XCircle
+  Store as StoreIcon, Star, CreditCard, User as UserIcon, Building2, Upload, ShieldCheck, XCircle, Image as ImageIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import ProductForm from '@/components/modals/product-form';
 import MagicImportModal from '@/components/modals/magic-import-modal';
 import InboxComponent from '@/components/chat/InboxComponent';
@@ -40,7 +41,6 @@ export default function Dashboard() {
   const needsCorrection = user?.verificationStatus === 'needs_correction';
   const isRejected = user?.verificationStatus === 'rejected';
 
-  // ... (rest of states)
   const [viewingTracking, setViewingTracking] = useState<OrderWithDetails | null>(null);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
@@ -51,6 +51,11 @@ export default function Dashboard() {
   const [reviewOrder, setReviewOrder] = useState<OrderWithDetails | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  
+  const [rejectingOrder, setRejectingOrder] = useState<OrderWithDetails | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  // ... (rest of useEffects)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -112,14 +117,12 @@ export default function Dashboard() {
     
     // If stores are found, ensure we are not in auto-creating state
     if (userStores.length > 0 && isAutoCreating) {
-      console.log("Stores found, clearing auto-creation state.");
       setIsAutoCreating(false);
       setInitializationProgress(100);
       return;
     }
 
     if (!authLoading && user && !storesLoading && !storesFetching && userStores.length === 0 && isMerchantUser && !isAutoCreating && !creationAttempted.current) {
-      console.log("Triggering auto-creation for user:", user.id);
       creationAttempted.current = true;
       setIsAutoCreating(true);
       setInitializationProgress(10);
@@ -136,7 +139,7 @@ export default function Dashboard() {
 
       apiRequest('POST', '/api/stores', {
         userId: user.id,
-        name: user.businessName || (user.isAdmin ? "University Hub Official" : `${user.firstName}'s Store`),
+        name: user.isAdmin ? "University Hub Official" : `${user.firstName}'s Store`,
         description: user.isAdmin ? "Official store for The University Hub" : `Official store for ${user.firstName} ${user.lastName}`,
         city: user.city || "Accra", 
         university: user.university || "All Universities", 
@@ -175,7 +178,7 @@ export default function Dashboard() {
       };
     }
     return () => { mounted = false; };
-  }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, authLoading, queryClient]);
+  }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, authLoading]);
 
   const { data: storeProducts = [] } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/store', primaryStore?.id],
@@ -258,12 +261,17 @@ export default function Dashboard() {
   });
 
   const updateOrderApprovalMutation = useMutation({
-    mutationFn: async ({ orderId, approval }: { orderId: number, approval: string }) => {
-      return apiRequest('PUT', `/api/orders/${orderId}/seller-approval`, { approval });
+    mutationFn: async ({ orderId, approval, rejectionReason }: { orderId: number, approval: string, rejectionReason?: string }) => {
+      return apiRequest('PUT', `/api/orders/${orderId}/seller-approval`, { approval, rejectionReason });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/orders/seller'] });
-      toast({ title: "Confirmed", description: "Order sent for admin review." });
+      toast({ 
+        title: variables.approval === 'approved' ? "Order Confirmed" : "Order Declined", 
+        description: variables.approval === 'approved' ? "Order sent for admin review." : "Buyer has been notified of the cancellation." 
+      });
+      setRejectingOrder(null);
+      setRejectionReason('');
     },
   });
 
@@ -277,7 +285,6 @@ export default function Dashboard() {
     if (isInitializing && !stuckTimeout) {
       const timer = setTimeout(() => {
         if (isInitializing) {
-          console.warn("Dashboard initialization taking too long, showing fallback.");
           setStuckTimeout(true);
         }
       }, 15000);
@@ -477,34 +484,36 @@ export default function Dashboard() {
               <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mt-1">Status: Active</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setIsMagicImportOpen(true)} className="rounded-xl border-primary/20 text-primary font-black uppercase tracking-widest text-[10px] h-12 px-6"><Sparkles className="w-4 h-4 mr-2" /> Magic Import</Button>
             <Button onClick={() => setIsProductFormOpen(true)} className="rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6"><Plus className="w-4 h-4 mr-2" /> New Listing</Button>
           </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="inline-flex h-14 bg-gray-50 p-1 border rounded-2xl">
-            <TabsTrigger value="overview" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Overview</TabsTrigger>
-            <TabsTrigger value="listings" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Inventory</TabsTrigger>
-            <TabsTrigger value="sales" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Orders</TabsTrigger>
-            <TabsTrigger value="inbox" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Inbox</TabsTrigger>
-            <TabsTrigger value="settings" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Settings</TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto pb-2 tabs-scroll">
+            <TabsList className="inline-flex h-14 bg-gray-50 p-1 border rounded-2xl min-w-max">
+              <TabsTrigger value="overview" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Overview</TabsTrigger>
+              <TabsTrigger value="listings" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Inventory</TabsTrigger>
+              <TabsTrigger value="sales" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Orders</TabsTrigger>
+              <TabsTrigger value="inbox" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Inbox</TabsTrigger>
+              <TabsTrigger value="settings" className="rounded-xl px-6 md:px-8 font-black uppercase tracking-widest text-[10px]">Settings</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="mt-0 space-y-10">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {[
                 { label: 'Sales', val: orders.length, icon: ShoppingCart, color: 'text-blue-600', bg: 'bg-blue-50' },
                 { label: 'Products', val: storeProducts.length, icon: Package, color: 'text-purple-600', bg: 'bg-purple-50' },
                 { label: 'Views', val: storeProducts.reduce((s, p) => s + (p.viewCount || 0), 0), icon: Eye, color: 'text-amber-600', bg: 'bg-amber-50' },
                 { label: 'Rating', val: `${parseFloat(primaryStore.rating).toFixed(1)}/5`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' }
               ].map((stat, i) => (
-                <Card key={i} className="rounded-3xl border-none shadow-sm">
-                  <CardContent className="p-8">
-                    <div className={`${stat.bg} w-12 h-12 rounded-2xl flex items-center justify-center mb-4`}><stat.icon className={`w-6 h-6 ${stat.color}`} /></div>
-                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
-                    <h3 className="text-3xl font-black text-gray-900 mt-1">{stat.val}</h3>
+                <Card key={i} className="rounded-2xl md:rounded-3xl border-none shadow-sm">
+                  <CardContent className="p-4 md:p-8">
+                    <div className={`${stat.bg} w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center mb-4`}><stat.icon className={`w-5 h-5 md:w-6 md:h-6 ${stat.color}`} /></div>
+                    <p className="text-[10px] md:text-sm font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                    <h3 className="text-xl md:text-3xl font-black text-gray-900 mt-1">{stat.val}</h3>
                   </CardContent>
                 </Card>
               ))}
@@ -512,13 +521,13 @@ export default function Dashboard() {
             {/* Recent Orders List */}
             <div className="space-y-4">
                {orders.slice(0, 5).map(o => (
-                  <Card key={o.id} className="p-6 rounded-[2rem] border-none shadow-sm bg-gray-50/50">
-                     <div className="flex justify-between items-center">
-                        <div className="flex gap-4 items-center">
-                           <img src={o.product.images?.[0]} className="w-12 h-12 rounded-xl object-cover" />
-                           <div><p className="font-black text-sm uppercase">{o.product.title}</p><p className="text-xs font-bold text-gray-400">#{o.id} • {new Date(o.createdAt!).toLocaleDateString()}</p></div>
+                  <Card key={o.id} className="p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-none shadow-sm bg-gray-50/50">
+                     <div className="flex justify-between items-center gap-4">
+                        <div className="flex gap-4 items-center min-w-0">
+                           <img src={o.product.images?.[0]} className="w-10 h-10 md:w-12 md:h-12 rounded-xl object-cover shrink-0" />
+                           <div className="min-w-0"><p className="font-black text-xs md:text-sm uppercase truncate">{o.product.title}</p><p className="text-[10px] font-bold text-gray-400 truncate">{o.orderNumber || `#${o.id}`} • {new Date(o.createdAt!).toLocaleDateString()}</p></div>
                         </div>
-                        <p className="font-black text-lg text-primary">GH₵{parseFloat(o.totalAmount).toFixed(2)}</p>
+                        <p className="font-black text-sm md:text-lg text-primary shrink-0">GH₵{parseFloat(o.totalAmount).toFixed(2)}</p>
                      </div>
                   </Card>
                ))}
@@ -526,9 +535,9 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="listings" className="mt-0">
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                 {storeProducts.map(p => (
-                  <div key={p.id} className="group relative flex flex-col bg-white rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all border border-gray-100 overflow-hidden">
+                  <div key={p.id} className="group relative flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-sm hover:shadow-xl transition-all border border-gray-100 overflow-hidden">
                     <div className="aspect-[4/3] relative">
                       <img src={p.images?.[0] || '/placeholder.png'} className="w-full h-full object-cover" />
                       {!p.isAvailable && <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-black text-white uppercase tracking-widest">Sleeping</div>}
@@ -541,7 +550,7 @@ export default function Dashboard() {
                          </Badge>
                       </div>
                     </div>
-                    <div className="p-6 space-y-4">
+                    <div className="p-4 md:p-6 space-y-4">
                        <div>
                          <h4 className="font-black text-sm uppercase truncate">{p.title}</h4>
                          <p className="font-black text-primary">GH₵{parseFloat(p.price).toFixed(2)}</p>
@@ -587,19 +596,27 @@ export default function Dashboard() {
 
           <TabsContent value="sales" className="mt-0 space-y-4">
              {orders.map(o => (
-               <div key={o.id} className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 flex justify-between items-center transition-all hover:shadow-xl">
-                  <div className="flex items-center gap-6">
-                     <img src={o.product.images?.[0]} className="w-16 h-16 rounded-2xl object-cover" />
-                     <div>
-                       <h4 className="font-black text-lg uppercase">{o.product.title}</h4>
-                       <p className="text-sm font-bold text-gray-500">
-                         Buyer: {o.buyer.firstName} {o.buyer.lastName} • {o.buyer.city || 'Location N/A'} • {o.deliveryStatus?.toUpperCase()}
+               <div key={o.id} className="p-4 md:p-8 bg-white rounded-2xl md:rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center transition-all hover:shadow-xl gap-4">
+                  <div className="flex items-center gap-4 md:gap-6">
+                     <img src={o.product.images?.[0]} className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl object-cover shrink-0" />
+                     <div className="min-w-0">
+                       <h4 className="font-black text-sm md:text-lg uppercase truncate">{o.product.title}</h4>
+                       <p className="text-[10px] md:text-sm font-bold text-gray-500 truncate">
+                         Order: {o.orderNumber || `#${o.id}`} • Buyer: {o.buyer.firstName} {o.buyer.lastName} • {o.deliveryStatus?.toUpperCase()}
                        </p>
                      </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                     <p className="font-black text-2xl">GH₵{parseFloat(o.totalAmount).toFixed(2)}</p>
-                     {o.sellerApproval === 'pending' && <Button className="rounded-xl bg-green-500 font-black text-[10px] h-10 px-6 uppercase" onClick={() => updateOrderApprovalMutation.mutate({ orderId: o.id, approval: 'approved' })}>Confirm</Button>}
+                  <div className="flex items-center justify-between w-full md:w-auto gap-4">
+                     <p className="font-black text-lg md:text-2xl">GH₵{parseFloat(o.totalAmount).toFixed(2)}</p>
+                     <div className="flex gap-2">
+                        {o.sellerApproval === 'pending' && (
+                          <>
+                            <Button className="rounded-xl bg-green-500 font-black text-[10px] h-10 px-6 uppercase" onClick={() => updateOrderApprovalMutation.mutate({ orderId: o.id, approval: 'approved' })}>Confirm</Button>
+                            <Button variant="destructive" className="rounded-xl font-black text-[10px] h-10 px-6 uppercase" onClick={() => setRejectingOrder(o)}>Decline</Button>
+                          </>
+                        )}
+                        {o.status === 'rejected' && <Badge variant="destructive" className="uppercase font-black text-[10px]">Declined</Badge>}
+                     </div>
                   </div>
                </div>
              ))}
@@ -612,6 +629,39 @@ export default function Dashboard() {
 
         <ProductForm isOpen={isProductFormOpen} onClose={() => { setIsProductFormOpen(false); setEditingProduct(null); }} userStores={userStores} initialData={editingProduct} />
         <MagicImportModal isOpen={isMagicImportOpen} onClose={() => {setIsMagicImportOpen(false); setInitialMagicUrl('');}} userStores={userStores} initialUrl={initialMagicUrl} />
+        
+        {/* Rejection Reason Dialog */}
+        <Dialog open={!!rejectingOrder} onOpenChange={(open) => !open && setRejectingOrder(null)}>
+           <DialogContent className="rounded-[2rem] border-none shadow-2xl p-0 overflow-hidden max-w-md">
+              <DialogHeader className="bg-black text-white p-8">
+                 <DialogTitle className="text-2xl font-black uppercase tracking-tighter">Decline Order</DialogTitle>
+                 <DialogDescription className="text-gray-400">Please provide a reason for declining this order. This will be sent to the buyer.</DialogDescription>
+              </DialogHeader>
+              <div className="p-8 space-y-4">
+                 <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Rejection Reason</Label>
+                    <Textarea 
+                      placeholder="e.g. Out of stock, price error, etc." 
+                      value={rejectionReason} 
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRejectionReason(e.target.value)}
+                      className="rounded-xl border-2 min-h-[100px]"
+                    />
+                 </div>
+                 <Button 
+                   variant="destructive" 
+                   className="w-full h-14 rounded-xl font-black uppercase tracking-widest text-xs"
+                   disabled={!rejectionReason || updateOrderApprovalMutation.isPending}
+                   onClick={() => updateOrderApprovalMutation.mutate({ 
+                     orderId: rejectingOrder!.id, 
+                     approval: 'rejected', 
+                     rejectionReason 
+                   })}
+                 >
+                    {updateOrderApprovalMutation.isPending ? <Loader2 className="animate-spin" /> : "Decline Permanently"}
+                 </Button>
+              </div>
+           </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -673,8 +723,8 @@ function StoreSettingsForm({ store, user }: { store: Store, user: any }) {
   };
 
   return (
-    <div className="grid md:grid-cols-3 gap-10">
-       <div className="md:col-span-1 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+       <div className="lg:col-span-1 space-y-6">
           <Card className="rounded-[2.5rem] border-none shadow-sm overflow-hidden bg-gray-50/50 p-8">
              <div className="text-center space-y-4">
                 <div className="relative group w-32 h-32 mx-auto">
@@ -704,8 +754,8 @@ function StoreSettingsForm({ store, user }: { store: Store, user: any }) {
           </Card>
        </div>
 
-       <div className="md:col-span-2 space-y-8">
-          <div className="grid md:grid-cols-2 gap-8">
+       <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
              <div className="space-y-6">
                 <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
                    <StoreIcon className="w-5 h-5 text-primary" /> Store Profile
@@ -717,7 +767,7 @@ function StoreSettingsForm({ store, user }: { store: Store, user: any }) {
                    </div>
                    <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Bio / Description</Label>
-                      <Textarea value={description} onChange={e => setDescription(e.target.value)} className="rounded-xl border-2 min-h-[100px]" />
+                      <Textarea value={description} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)} className="rounded-xl border-2 min-h-[100px]" />
                    </div>
                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -772,4 +822,6 @@ function StoreSettingsForm({ store, user }: { store: Store, user: any }) {
     </div>
   );
 }
+
+
 

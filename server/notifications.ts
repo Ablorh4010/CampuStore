@@ -1,10 +1,30 @@
 import { Resend } from 'resend';
 import { whatsappOtpService, sendWhatsAppMessage } from './whatsapp';
 import { storage } from './storage';
+import { Server } from 'socket.io';
+
+let io: Server | null = null;
+
+export function setIo(socketServer: Server) {
+  io = socketServer;
+}
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = 'The University Hub <support@uniexchangehub.com>';
 const LOGO_URL = 'https://campustore-808678925426.europe-west1.run.app/assets/logo.png'; // Fallback if logo not found
+
+/**
+ * Emit a real-time notification to a specific user
+ */
+function emitRealTimeNotification(userId: number, data: { type: string, message: string, title: string, orderId?: number }) {
+  if (io) {
+    console.log(`📡 Emitting real-time notification to user ${userId}: ${data.title}`);
+    io.to(`user:${userId}`).emit('chat:notification', {
+      ...data,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
 
 /**
  * Modern Email Wrapper
@@ -116,6 +136,16 @@ export async function sendAdminAlert(subject: string, message: string, html?: st
         await sendEmailNotification(email, `Admin Alert: ${subject}`, finalHtml);
       }
     }
+
+    // 3. Socket Alert to all admins
+    if (io) {
+      io.to('admin').emit('chat:notification', {
+        type: 'admin_alert',
+        title: subject,
+        message: message,
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error('Failed to send admin alert:', error);
   }
@@ -139,37 +169,98 @@ export async function notifyAdminViaWhatsApp(message: string) {
 }
 
 export async function sendOrderConfirmation(order: any, buyer: any, product: any) {
-  const subject = `Order Confirmed: ${product.title}`;
+  const orderNum = order.orderNumber || `#${order.id}`;
+  const subject = `Invoice for Order ${orderNum} - The University Hub`;
+  
+  const isInstallment = order.isInstallment;
+  const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  
   const content = `
-    <p>Hi ${buyer.firstName},</p>
-    <p>Your order for <strong>${product.title}</strong> has been successfully placed.</p>
-    <div style="background-color: #f9fafb; padding: 25px; border-radius: 20px; margin: 25px 0; border: 1px solid #f3f4f6;">
-      <p style="margin: 0 0 10px 0;"><strong>Order ID:</strong> #${order.id}</p>
-      <p style="margin: 0 0 10px 0;"><strong>Amount:</strong> GH₵${parseFloat(order.totalAmount).toFixed(2)}</p>
-      <p style="margin: 0;"><strong>Shipping Mode:</strong> ${order.shippingMode.replace(/_/g, ' ')}</p>
+    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; padding-bottom: 20px; margin-bottom: 30px;">
+        <div>
+          <h2 style="margin: 0; color: #413796; text-transform: uppercase; letter-spacing: 2px;">Invoice</h2>
+          <p style="margin: 5px 0; color: #888; font-size: 14px;">Date: ${date}</p>
+        </div>
+        <div style="text-align: right;">
+          <h3 style="margin: 0; color: #333;">${orderNum}</h3>
+          <p style="margin: 5px 0; color: #888; font-size: 12px; font-weight: bold;">${isInstallment ? 'BƆKƆƆ PAY PLAN' : 'STANDARD PURCHASE'}</p>
+        </div>
+      </div>
+
+      <p style="font-size: 16px;">Hi <strong>${buyer.firstName}</strong>,</p>
+      <p style="font-size: 14px; line-height: 1.6;">Thank you for shopping with The University Hub. Your order has been confirmed and is being processed.</p>
+
+      <div style="background-color: #fcfcfc; border: 1px solid #f0f0f0; border-radius: 15px; padding: 25px; margin: 30px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="text-align: left; border-bottom: 1px solid #eee; padding-bottom: 10px; font-size: 12px; text-transform: uppercase; color: #aaa;">Item</th>
+              <th style="text-align: center; border-bottom: 1px solid #eee; padding-bottom: 10px; font-size: 12px; text-transform: uppercase; color: #aaa;">Qty</th>
+              <th style="text-align: right; border-bottom: 1px solid #eee; padding-bottom: 10px; font-size: 12px; text-transform: uppercase; color: #aaa;">Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 15px 0; font-weight: bold; color: #444;">${product.title}</td>
+              <td style="padding: 15px 0; text-align: center; color: #666;">${order.quantity}</td>
+              <td style="padding: 15px 0; text-align: right; font-weight: bold; color: #413796;">GH₵${parseFloat(order.totalAmount).toFixed(2)}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            ${isInstallment ? `
+            <tr>
+              <td colspan="2" style="padding: 15px 0 5px 0; text-align: right; font-size: 13px; color: #888;">Initial Deposit Paid</td>
+              <td style="padding: 15px 0 5px 0; text-align: right; font-weight: bold; color: #22c55e;">GH₵${(parseFloat(order.totalAmount) * 0.25).toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td colspan="2" style="padding: 5px 0; text-align: right; font-size: 13px; color: #888;">Remaining Debt</td>
+              <td style="padding: 5px 0; text-align: right; font-weight: bold; color: #ef4444;">GH₵${(parseFloat(order.totalAmount) * 0.75).toFixed(2)}</td>
+            </tr>
+            ` : `
+            <tr>
+              <td colspan="2" style="padding: 20px 0 0 0; text-align: right; font-weight: bold; font-size: 16px;">Total Paid</td>
+              <td style="padding: 20px 0 0 0; text-align: right; font-weight: 800; font-size: 20px; color: #413796;">GH₵${parseFloat(order.totalAmount).toFixed(2)}</td>
+            </tr>
+            `}
+          </tfoot>
+        </table>
+      </div>
+
+      <div style="display: grid; grid-template-cols: 1fr 1px 1fr; gap: 20px; margin-top: 20px;">
+        <div>
+          <h4 style="margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; color: #aaa;">Delivery Details</h4>
+          <p style="margin: 0; font-size: 14px; font-weight: bold;">${order.shippingMode?.replace(/_/g, ' ').toUpperCase() || 'EXPRESS DELIVERY'}</p>
+          <p style="margin: 5px 0 0 0; font-size: 13px; color: #666;">Status: Processing</p>
+        </div>
+      </div>
+      
+      <div style="margin-top: 40px; text-align: center; border-top: 1px solid #f0f0f0; padding-top: 20px;">
+        <p style="font-size: 12px; color: #aaa; margin: 0;">This is an automated invoice from The University Hub platform.</p>
+      </div>
     </div>
-    <p>The seller has been notified and will begin processing your order shortly.</p>
   `;
   
   const modernHtml = wrapInModernTemplate('Order Confirmed!', content, `${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard`, 'Track My Order');
   await sendEmailNotification(buyer.email, subject, modernHtml);
   
-  // Also notify admin via the new unified alert system (Email + WhatsApp)
+  // Also notify admin
   await sendAdminAlert(
     'New Online Payment', 
-    `Order #${order.id} for ${product.title} - GH₵${parseFloat(order.totalAmount).toFixed(2)}`
+    `Order ${orderNum} for ${product.title} - GH₵${parseFloat(order.totalAmount).toFixed(2)}`
   );
 }
 
 export async function notifySellerOfNewOrder(order: any, seller: any, product: any) {
-  const subject = `New Order Received: #${order.id}`;
+  const orderNum = order.orderNumber || `#${order.id}`;
+  const subject = `New Order Received: ${orderNum}`;
   const isCOD = order.paymentGateway === 'manual' || order.paymentMode === 'cod';
   
   const content = `
     <p>Hi ${seller.username},</p>
     <p>You have received a new order for <strong>${product.title}</strong>.</p>
     <div style="background-color: #f9fafb; padding: 25px; border-radius: 20px; margin: 25px 0; border: 1px solid #f3f4f6;">
-      <p style="margin: 0 0 10px 0;"><strong>Order ID:</strong> #${order.id}</p>
+      <p style="margin: 0 0 10px 0;"><strong>Order Number:</strong> ${orderNum}</p>
       <p style="margin: 0 0 10px 0;"><strong>Quantity:</strong> ${order.quantity}</p>
       <p style="margin: 0 0 10px 0;"><strong>Total Amount:</strong> GH₵${parseFloat(order.totalAmount).toFixed(2)}</p>
       <p style="margin: 0;"><strong>Payment Method:</strong> ${isCOD ? 'Cash on Delivery' : 'Paid Online'}</p>
@@ -179,6 +270,14 @@ export async function notifySellerOfNewOrder(order: any, seller: any, product: a
   
   const modernHtml = wrapInModernTemplate('New Order Received!', content, `${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard`, 'Go to Seller Dashboard');
   await sendEmailNotification(seller.email, subject, modernHtml);
+
+  // 3. Socket Alert to seller
+  emitRealTimeNotification(seller.id, {
+    type: 'new_order',
+    title: 'New Order Received!',
+    message: `Order ${orderNum} received for ${product.title}`,
+    orderId: order.id
+  });
 }
 
 export async function notifyAdminOfNewOrder(order: any, adminEmail: string, product: any, seller: any) {
@@ -186,7 +285,8 @@ export async function notifyAdminOfNewOrder(order: any, adminEmail: string, prod
   const content = `
     <p>A new order has been placed on the platform.</p>
     <div style="background-color: #f9fafb; padding: 25px; border-radius: 20px; margin: 25px 0; border: 1px solid #f3f4f6;">
-      <p style="margin: 0 0 10px 0;"><strong>Order ID:</strong> #${order.id}</p>
+      <p style="margin: 0 0 10px 0;"><strong>Order Number:</strong> ${order.orderNumber || order.id}</p>
+      ${order.invoiceNumber ? `<p style="margin: 0 0 10px 0;"><strong>Invoice Number:</strong> ${order.invoiceNumber}</p>` : ''}
       <p style="margin: 0 0 10px 0;"><strong>Product:</strong> ${product.title}</p>
       <p style="margin: 0 0 10px 0;"><strong>Seller:</strong> ${seller.username} (${seller.email})</p>
       <p style="margin: 0 0 10px 0;"><strong>Amount:</strong> GH₵${parseFloat(order.totalAmount).toFixed(2)}</p>

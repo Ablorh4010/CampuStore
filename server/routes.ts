@@ -256,7 +256,9 @@ async function finalizePaystackOrder(data: any) {
       trackingUrl,
       false, // isCOD is false for Paystack
       createdOrders[0]?.totalAmount || "0",
-      adminEmails
+      adminEmails,
+      createdOrders[0]?.orderNumber,
+      createdOrders[0]?.invoiceNumber
     );
   } catch (emailErr) {
     console.error('Failed to send secondary purchase confirmation email:', emailErr);
@@ -2127,7 +2129,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           trackingUrl,
           paymentMode === 'cod',
           totalAmount ? totalAmount.toString() : "0",
-          adminEmails
+          adminEmails,
+          createdOrders[0]?.orderNumber,
+          createdOrders[0]?.invoiceNumber
         );
 
         // 2. Notify Seller & Admin for each order
