@@ -686,7 +686,7 @@ export type StoreWithUser = Store & {
 
 export type OrderWithDetails = Order & {
   product: Product & { category: Category };
-  buyer: Pick<User, 'firstName' | 'lastName' | 'email' | 'phoneNumber'>;
+  buyer: Pick<User, 'firstName' | 'lastName' | 'email' | 'phoneNumber'> & { city?: string | null };
   seller: Pick<User, 'firstName' | 'lastName' | 'email' | 'bankName' | 'bankAccountNumber' | 'mobileMoneyPhone'>;
 };
 

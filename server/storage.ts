@@ -1155,8 +1155,9 @@ export class DatabaseStorage implements IStorage {
       buyer: {
         firstName: result.buyer!.firstName,
         lastName: result.buyer!.lastName,
-        email: result.buyer!.email,
-        phoneNumber: result.buyer!.phoneNumber,
+        city: result.order.buyerCity,
+        email: 'REDACTED', // Sellers shouldn't see full contact
+        phoneNumber: 'REDACTED',
       }
     }));
   }

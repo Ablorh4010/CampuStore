@@ -489,6 +489,7 @@ export default function Dashboard() {
             <TabsTrigger value="listings" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Inventory</TabsTrigger>
             <TabsTrigger value="sales" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Orders</TabsTrigger>
             <TabsTrigger value="inbox" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Inbox</TabsTrigger>
+            <TabsTrigger value="settings" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="mt-0 space-y-10">
@@ -532,6 +533,9 @@ export default function Dashboard() {
                       <img src={p.images?.[0] || '/placeholder.png'} className="w-full h-full object-cover" />
                       {!p.isAvailable && <div className="absolute inset-0 bg-black/60 flex items-center justify-center font-black text-white uppercase tracking-widest">Sleeping</div>}
                       <div className="absolute top-4 right-4 flex flex-col gap-2">
+                         <Badge className={`${p.approvalStatus === 'approved' ? 'bg-green-500' : 'bg-amber-500'} text-white border-none font-black text-[9px] uppercase`}>
+                           {p.approvalStatus === 'approved' ? 'Approved' : 'Pending'}
+                         </Badge>
                          <Badge className={`${p.isInstallmentEligible ? 'bg-green-500' : 'bg-gray-400'} text-white border-none font-black text-[9px] uppercase`}>
                            {p.isInstallmentEligible ? 'Eligible' : 'Standard'}
                          </Badge>
@@ -586,7 +590,12 @@ export default function Dashboard() {
                <div key={o.id} className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 flex justify-between items-center transition-all hover:shadow-xl">
                   <div className="flex items-center gap-6">
                      <img src={o.product.images?.[0]} className="w-16 h-16 rounded-2xl object-cover" />
-                     <div><h4 className="font-black text-lg uppercase">{o.product.title}</h4><p className="text-sm font-bold text-gray-500">Buyer: {o.buyer.firstName} • {o.deliveryStatus?.toUpperCase()}</p></div>
+                     <div>
+                       <h4 className="font-black text-lg uppercase">{o.product.title}</h4>
+                       <p className="text-sm font-bold text-gray-500">
+                         Buyer: {o.buyer.firstName} {o.buyer.lastName} • {o.buyer.city || 'Location N/A'} • {o.deliveryStatus?.toUpperCase()}
+                       </p>
+                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                      <p className="font-black text-2xl">GH₵{parseFloat(o.totalAmount).toFixed(2)}</p>
@@ -596,6 +605,9 @@ export default function Dashboard() {
              ))}
           </TabsContent>
           <TabsContent value="inbox" className="mt-0"><InboxComponent /></TabsContent>
+          <TabsContent value="settings" className="mt-0">
+             <StoreSettingsForm store={primaryStore} user={user} />
+          </TabsContent>
         </Tabs>
 
         <ProductForm isOpen={isProductFormOpen} onClose={() => { setIsProductFormOpen(false); setEditingProduct(null); }} userStores={userStores} initialData={editingProduct} />
@@ -604,3 +616,160 @@ export default function Dashboard() {
     </div>
   );
 }
+
+function StoreSettingsForm({ store, user }: { store: Store, user: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdatingLogo, setIsUpdatingLogo] = useState(false);
+
+  const [name, setName] = useState(store.name);
+  const [description, setDescription] = useState(store.description || '');
+  const [city, setCity] = useState(store.city || '');
+  const [university, setUniversity] = useState(store.university || '');
+  
+  const [bankName, setBankName] = useState(user?.bankName || '');
+  const [bankAcc, setBankAcc] = useState(user?.bankAccountNumber || '');
+  const [momo, setMomo] = useState(user?.mobileMoneyPhone || '');
+
+  const handleUpdateStore = async () => {
+    setIsUpdating(true);
+    try {
+      // 1. Update Store Details
+      await apiRequest('PUT', `/api/stores/${store.id}`, {
+        name, description, city, university
+      });
+
+      // 2. Update User Payment Details
+      await apiRequest('PUT', `/api/users/${user.id}`, {
+        bankName, bankAccountNumber: bankAcc, mobileMoneyPhone: momo
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      toast({ title: "Updated", description: "Your store and profile settings have been saved." });
+    } catch (err) {
+      toast({ title: "Update Failed", description: "Please check your information and try again.", variant: "destructive" });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleLogoChange = async (file: File) => {
+    setIsUpdatingLogo(true);
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    try {
+      const res = await apiRequest('POST', `/api/stores/${store.id}/request-logo-change`, formData);
+      const data = await res.json();
+      toast({ title: "Request Sent", description: data.message });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
+    } catch (err) {
+      toast({ title: "Upload Failed", description: "Could not submit logo change request.", variant: "destructive" });
+    } finally {
+      setIsUpdatingLogo(false);
+    }
+  };
+
+  return (
+    <div className="grid md:grid-cols-3 gap-10">
+       <div className="md:col-span-1 space-y-6">
+          <Card className="rounded-[2.5rem] border-none shadow-sm overflow-hidden bg-gray-50/50 p-8">
+             <div className="text-center space-y-4">
+                <div className="relative group w-32 h-32 mx-auto">
+                   <img src={store.logoUrl || '/placeholder-logo.png'} className="w-32 h-32 rounded-[2rem] object-cover border-4 border-white shadow-xl" />
+                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all rounded-[2rem] flex items-center justify-center">
+                      <ImageIcon className="text-white w-6 h-6" />
+                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => e.target.files?.[0] && handleLogoChange(e.target.files[0])} accept="image/*" />
+                   </div>
+                </div>
+                {isUpdatingLogo && <Loader2 className="w-4 h-4 animate-spin mx-auto text-primary" />}
+                {store.pendingLogoUrl && <Badge variant="outline" className="text-[8px] uppercase border-amber-200 text-amber-600 bg-amber-50">Logo Change Pending</Badge>}
+                <div>
+                   <h3 className="font-black text-xl uppercase tracking-tighter">{store.name}</h3>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.email}</p>
+                </div>
+             </div>
+          </Card>
+
+          <Card className="rounded-[2.5rem] border-none shadow-sm p-8 space-y-4">
+             <h4 className="font-black uppercase text-xs tracking-widest text-primary flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Account Health
+             </h4>
+             <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-gray-400">Merchant Status</span><span className="text-green-600">Active</span></div>
+                <div className="flex justify-between text-[10px] font-black uppercase"><span className="text-gray-400">Verification</span><span className="text-blue-600">Verified</span></div>
+             </div>
+          </Card>
+       </div>
+
+       <div className="md:col-span-2 space-y-8">
+          <div className="grid md:grid-cols-2 gap-8">
+             <div className="space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                   <StoreIcon className="w-5 h-5 text-primary" /> Store Profile
+                </h3>
+                <div className="space-y-4">
+                   <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Display Name</Label>
+                      <Input value={name} onChange={e => setName(e.target.value)} className="h-12 rounded-xl border-2" />
+                   </div>
+                   <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Bio / Description</Label>
+                      <Textarea value={description} onChange={e => setDescription(e.target.value)} className="rounded-xl border-2 min-h-[100px]" />
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                         <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">City</Label>
+                         <Input value={city} onChange={e => setCity(e.target.value)} className="h-12 rounded-xl border-2" />
+                      </div>
+                      <div className="space-y-2">
+                         <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">University</Label>
+                         <Input value={university} onChange={e => setUniversity(e.target.value)} className="h-12 rounded-xl border-2" />
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+             <div className="space-y-6">
+                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                   <CreditCard className="w-5 h-5 text-green-600" /> Payout Settings
+                </h3>
+                <div className="space-y-4">
+                   <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Bank Name (GHS)</Label>
+                      <Input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="e.g. GCB, Ecobank, Stanbic" className="h-12 rounded-xl border-2" />
+                   </div>
+                   <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Account Number</Label>
+                      <Input value={bankAcc} onChange={e => setBankAcc(e.target.value)} className="h-12 rounded-xl border-2" />
+                   </div>
+                   <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Mobile Money Phone</Label>
+                      <Input value={momo} onChange={e => setMomo(e.target.value)} placeholder="024XXXXXXX" className="h-12 rounded-xl border-2" />
+                   </div>
+                   <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                      <p className="text-[9px] font-bold text-amber-700 leading-relaxed uppercase">
+                         Ensure your payment details are accurate. Earnings are disbursed within 24-48 hours of successful delivery.
+                      </p>
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          <div className="pt-6 border-t">
+             <Button 
+                className="w-full md:w-auto px-10 h-14 rounded-2xl bg-black text-white font-black uppercase tracking-widest text-xs"
+                onClick={handleUpdateStore}
+                disabled={isUpdating}
+              >
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                Save Changes
+             </Button>
+          </div>
+       </div>
+    </div>
+  );
+}
+
