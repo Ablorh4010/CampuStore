@@ -248,9 +248,10 @@ export default function Dashboard() {
     },
   });
 
-  // If a store is expected but missing, and we are not already auto-creating, 
-  // we show a loader while the useEffect kicks in.
-  if (authLoading || isAutoCreating || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current)) {
+  // If a store is expected but missing, or loading is in progress
+  const isInitializing = isAutoCreating || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current);
+  
+  if (authLoading || isInitializing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-slate-50">
         <div className="relative">
@@ -265,14 +266,14 @@ export default function Dashboard() {
           <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
             <div 
               className="bg-black h-full transition-all duration-500 ease-out" 
-              style={{ width: `${initializationProgress}%` }}
+              style={{ width: `${authLoading ? 30 : Math.max(initializationProgress, 40)}%` }}
             />
           </div>
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              {isAutoCreating ? 'Syncing Profile' : 'Verifying Account'}
+              {authLoading ? 'Verifying Account' : isAutoCreating ? 'Syncing Profile' : 'Finalizing Portal'}
             </p>
-            <p className="text-[10px] font-black text-black">{initializationProgress}%</p>
+            <p className="text-[10px] font-black text-black">{authLoading ? 30 : Math.max(initializationProgress, 40)}%</p>
           </div>
           
           <Button 
@@ -301,12 +302,14 @@ export default function Dashboard() {
     );
   }
 
-  // If a merchant user still has no store after auto-creation check, show a loader or fallback
+  // Safety fallback: If a merchant user still has no store, and we are not in initializing state
   if (!primaryStore && isMerchantUser) {
+    // This shouldn't happen normally as useEffect should have triggered
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-primary w-10 h-10" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Finalizing Merchant Hub...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-slate-50">
+         <AlertCircle className="w-12 h-12 text-amber-500" />
+         <h2 className="text-xl font-black uppercase tracking-tighter">Portal Sync Error</h2>
+         <Button onClick={() => window.location.reload()} className="rounded-xl px-8">Try Again</Button>
       </div>
     );
   }
