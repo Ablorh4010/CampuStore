@@ -24,6 +24,7 @@ interface AuthContextType {
   }) => Promise<void>;
   sendOtp: (email: string) => Promise<void>;
   logout: () => void;
+  setUserAndToken: (user: User, token: string) => void;
   countryCode: string;
 }
 
@@ -131,10 +132,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   };
 
+  const setUserAndToken = (newUser: User, newToken: string) => {
+    setUser(newUser);
+    setToken(newToken);
+    localStorage.setItem('user', JSON.stringify(newUser));
+    localStorage.setItem('token', newToken);
+    queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+  };
+
   const { data: verifiedUser, isLoading: isCheckingAuth } = useQuery<User | null>({
-    queryKey: ['/api/auth/me'],
+    queryKey: ['/api/auth/me', token],
     queryFn: async () => {
-      const storedToken = localStorage.getItem('token');
+      const storedToken = token || localStorage.getItem('token');
       if (!storedToken) return null;
       try {
         const res = await fetch('/api/auth/me', {
@@ -183,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         registerAdmin,
         sendOtp,
         logout,
+        setUserAndToken,
         countryCode,
       }}
     >

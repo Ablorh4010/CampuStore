@@ -138,7 +138,7 @@ export default function SellerAuth() {
     }
   };
 
-  const { user: authUser } = useAuth();
+  const { user: authUser, setUserAndToken } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -235,12 +235,11 @@ export default function SellerAuth() {
       }
 
       const result = await response.json();
-      localStorage.setItem('token', result.token);
-      localStorage.setItem('user', JSON.stringify(result.user));
+      setUserAndToken(result.user, result.token);
 
       // NEW: Create a store for the seller immediately so they don't get redirected back to auth
       try {
-        await fetch('/api/stores', {
+        const storeRes = await fetch('/api/stores', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -255,6 +254,10 @@ export default function SellerAuth() {
             address: data.sellerAddress
           }),
         });
+        
+        if (!storeRes.ok) {
+           console.error("Initial store creation returned not ok:", storeRes.status);
+        }
       } catch (storeError) {
         console.error("Initial store creation failed:", storeError);
         // We continue anyway, the dashboard might try to handle it or user can try again

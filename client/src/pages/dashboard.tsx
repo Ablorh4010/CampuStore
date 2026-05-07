@@ -109,6 +109,14 @@ export default function Dashboard() {
   useEffect(() => {
     let mounted = true;
     
+    // If stores are found, ensure we are not in auto-creating state
+    if (userStores.length > 0 && isAutoCreating) {
+      console.log("Stores found, clearing auto-creation state.");
+      setIsAutoCreating(false);
+      setInitializationProgress(100);
+      return;
+    }
+
     if (!authLoading && user && !storesLoading && !storesFetching && userStores.length === 0 && isMerchantUser && !isAutoCreating && !creationAttempted.current) {
       console.log("Triggering auto-creation for user:", user.id);
       creationAttempted.current = true;
@@ -116,11 +124,13 @@ export default function Dashboard() {
       setInitializationProgress(10);
       
       const simulateProgress = setInterval(() => {
-        setInitializationProgress(prev => {
-          if (prev >= 90) return prev;
-          return prev + Math.floor(Math.random() * 15);
-        });
-      }, 800);
+        if (mounted) {
+          setInitializationProgress(prev => {
+            if (prev >= 90) return prev;
+            return prev + Math.floor(Math.random() * 10);
+          });
+        }
+      }, 1000);
 
       apiRequest('POST', '/api/stores', {
         userId: user.id,
@@ -143,17 +153,24 @@ export default function Dashboard() {
         }
       }).catch(err => {
         console.error("Failed to auto-create store:", err);
-        clearInterval(simulateProgress);
-        setInitializationProgress(0);
-        // On error, reset after a delay to allow retry if needed, but don't loop infinitely
-        setTimeout(() => { if (mounted) creationAttempted.current = false; }, 10000);
+        if (mounted) {
+          clearInterval(simulateProgress);
+          setInitializationProgress(0);
+          // On error, reset after a delay to allow retry if needed, but don't loop infinitely
+          setTimeout(() => { if (mounted) creationAttempted.current = false; }, 10000);
+        }
       }).finally(() => {
         if (mounted) {
           setTimeout(() => {
             if (mounted) setIsAutoCreating(false);
-          }, 500);
+          }, 1000);
         }
       });
+      
+      return () => { 
+        mounted = false; 
+        clearInterval(simulateProgress);
+      };
     }
     return () => { mounted = false; };
   }, [userStores.length, storesLoading, storesFetching, user, refetchStores, isAutoCreating, isMerchantUser, authLoading, queryClient]);
@@ -249,22 +266,22 @@ export default function Dashboard() {
   });
 
   // If a store is expected but missing, or loading is in progress
-  const isInitializing = isAutoCreating || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current);
-  const showSyncError = !isAutoCreating && creationAttempted.current && userStores.length === 0 && isMerchantUser;
+  const isInitializing = authLoading || storesLoading || isAutoCreating || (user && userStores.length === 0 && isMerchantUser && (storesFetching || !creationAttempted.current));
+  const showSyncError = !isAutoCreating && !storesLoading && !storesFetching && creationAttempted.current && userStores.length === 0 && isMerchantUser;
 
-  // Safety Timeout: Don't stay on the loading screen for more than 8 seconds
+  // Safety Timeout: Don't stay on the loading screen for more than 15 seconds
   const [stuckTimeout, setStuckTimeout] = useState(false);
   useEffect(() => {
-    if (isInitializing) {
+    if (isInitializing && !stuckTimeout) {
       const timer = setTimeout(() => {
         if (isInitializing) {
           console.warn("Dashboard initialization taking too long, showing fallback.");
           setStuckTimeout(true);
         }
-      }, 8000);
+      }, 15000);
       return () => clearTimeout(timer);
     }
-  }, [isInitializing]);
+  }, [isInitializing, stuckTimeout]);
 
   if (authLoading || (isInitializing && !showSyncError && !stuckTimeout)) {
     return (
