@@ -292,42 +292,48 @@ export async function extractProductFromHtml(html: string) {
     // Extract JSON-LD
     const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
     if (jsonLdMatch) {
-      metaTags.jsonLd = jsonLdMatch.slice(0, 2).map(s => {
+      metaTags.jsonLd = jsonLdMatch.slice(0, 5).map(s => {
         try {
-          return JSON.parse(s.replace(/<script type="application\/ld\+json">|<\/script>/gi, '').trim());
+          const content = s.replace(/<script type="application\/ld\+json">|<\/script>/gi, '').trim();
+          return JSON.parse(content);
         } catch (e) { return null; }
       }).filter(Boolean);
     }
 
     // Extract OpenGraph and standard Meta tags
-    const metaMatches = html.match(/<meta (?:property|name)="(.*?)" content="(.*?)"/gi);
+    const metaMatches = html.match(/<meta (?:property|name|itemprop)="(.*?)" content="(.*?)"/gi);
     if (metaMatches) {
       metaMatches.forEach(m => {
-        const propMatch = m.match(/(?:property|name)="(.*?)"/);
+        const propMatch = m.match(/(?:property|name|itemprop)="(.*?)"/);
         const contMatch = m.match(/content="(.*?)"/);
         if (propMatch && contMatch) {
           const key = propMatch[1];
           const val = contMatch[1];
-          if (key.startsWith('og:') || key.startsWith('product:') || key === 'description' || key.includes('price')) {
+          if (key.startsWith('og:') || key.startsWith('product:') || key === 'description' || key === 'title' || key.includes('price')) {
             metaTags[key] = val;
           }
         }
       });
     }
 
-    // 2. Truncate HTML to avoid token limits, but keep the head and body start
-    const truncatedHtml = html.substring(0, 30000); 
+    // 2. Truncate HTML to avoid token limits, focus on body content
+    // Remove scripts and styles to keep only useful text/tags
+    const cleanedHtml = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+      .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, "")
+      .substring(0, 40000); 
 
     const text = await callGenerativeModel({
-      defaultSystemInstruction: "You are an expert e-commerce data extraction assistant for a campus marketplace in Ghana. Your goal is to return a clean JSON object representing a product.",
+      defaultSystemInstruction: "You are a professional e-commerce web scraping agent. Your task is to identify and extract product details from messy HTML content. You are highly accurate at finding the real price, title, and images even when they are buried in complex code.",
       defaultPrompt: `
     Extract product information from the provided HTML and Meta Data. 
-    Prioritize the Meta Data (JSON-LD and OpenGraph) as they are more accurate.
+    Prioritize the Meta Data (JSON-LD and OpenGraph) as they are usually the most accurate source of truth.
 
     Meta Data Found:
     ${JSON.stringify(metaTags, null, 2)}
 
-    Categories and Subcategories:
+    Categories and Subcategories for our marketplace:
     - Electronics: Laptops, Smartphones, Headphones, Accessories
     - Academic: Textbooks, Stationery, Lab Gear
     - Fashion: Clothing, Shoes, Accessories
@@ -335,7 +341,15 @@ export async function extractProductFromHtml(html: string) {
     - Sports & Leisure: Gym Gear, Musical Instruments, Games
     - Services: Tutoring, Delivery, Hair & Beauty
 
-    Target JSON structure:
+    Instructions:
+    1. Find the product name/title.
+    2. Find the current price (as a number).
+    3. Find the original price if on sale (as a number or null).
+    4. Extract at least 1-3 high-quality product image URLs.
+    5. Determine the condition ("new" or "used"). Default to "new" unless specified.
+    6. Map it to one of the categories/subcategories above.
+
+    Return ONLY a JSON object:
     {
       "title": string,
       "description": string,
@@ -347,8 +361,8 @@ export async function extractProductFromHtml(html: string) {
       "subcategoryName": string
     }
 
-    HTML Content (Partial):
-    ${truncatedHtml}`,
+    HTML Content:
+    ${cleanedHtml}`,
       responseMimeType: "application/json"
     });
     

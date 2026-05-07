@@ -389,33 +389,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Magic Import: Fetching content from ${url}`);
       
+      const { smartFetch } = await import('./scraper');
       let html = '';
       try {
-        // First attempt with full headers
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Cache-Control': 'no-cache'
-          }
-        });
-
-        if (response.ok) {
-          html = await response.text();
-        } else if (response.status === 403 || response.status === 401) {
-          // Secondary attempt with minimalist headers if forbidden
-          console.log(`Magic Import: Primary fetch failed (${response.status}), trying secondary attempt...`);
-          const response2 = await fetch(url, {
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-          });
-          if (response2.ok) {
-            html = await response2.text();
-          } else {
+        const result = await smartFetch(url);
+        html = result.html;
+        
+        if (!html) {
+          if (result.status === 403 || result.status === 401) {
             return res.status(400).json({ message: "This website is protecting its data from being imported. Please try another product link." });
           }
-        } else {
-          return res.status(400).json({ message: `Failed to fetch URL: ${response.statusText}` });
+          return res.status(400).json({ message: `Failed to retrieve content. Status: ${result.status}` });
         }
       } catch (fetchErr) {
         console.error("Fetch Error:", fetchErr);
