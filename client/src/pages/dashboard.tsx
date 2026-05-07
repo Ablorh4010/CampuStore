@@ -247,17 +247,19 @@ export default function Dashboard() {
 
   // If a store is expected but missing, and we are not already auto-creating, 
   // we show a loader while the useEffect kicks in.
-  if (authLoading || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current)) {
+  if (authLoading || isAutoCreating || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin text-primary w-10 h-10" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Loading Dashboard...</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+          {isAutoCreating ? 'Initializing Store...' : 'Loading Dashboard...'}
+        </p>
       </div>
     );
   }
 
   // If no store and NOT a merchant/admin, show "Start Selling"
-  if (!primaryStore) {
+  if (!primaryStore && !isMerchantUser) {
     return (
       <div className="min-h-screen bg-white py-24 flex items-center justify-center">
          <Card className="max-w-md w-full rounded-[3rem] border-none shadow-2xl p-12 text-center">
@@ -266,6 +268,16 @@ export default function Dashboard() {
             <p className="text-gray-500 mb-8 font-medium">Click below to set up your merchant profile.</p>
             <Link href="/seller-auth"><Button className="w-full h-14 rounded-2xl bg-black font-black uppercase">Begin Setup</Button></Link>
          </Card>
+      </div>
+    );
+  }
+
+  // If a merchant user still has no store after auto-creation check, show a loader or fallback
+  if (!primaryStore && isMerchantUser) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-primary w-10 h-10" />
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Finalizing Merchant Hub...</p>
       </div>
     );
   }
