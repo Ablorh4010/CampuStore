@@ -2636,6 +2636,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (status === 'verified') {
+        // Also approve their store if they have one
+        const userStores = await storage.getStoresByUserId(id);
+        for (const store of userStores) {
+          await storage.updateStoreApprovalStatus(store.id, 'approved');
+        }
+
         const approvedContent = `
           <p>Hi ${user.firstName},</p>
           <p>Congratulations! Your seller application for The University Hub has been <strong>approved</strong>.</p>

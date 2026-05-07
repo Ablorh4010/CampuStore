@@ -102,31 +102,26 @@ export default function Dashboard() {
   const primaryStore = userStores[0];
 
   const [isAutoCreating, setIsAutoCreating] = useState(false);
+  const [initializationProgress, setInitializationProgress] = useState(0);
   const creationAttempted = useRef(false);
 
   // Auto-create store for admins and sellers if missing
   useEffect(() => {
     let mounted = true;
     
-    // Diagnostic log to see why it might not trigger
-    if (user && !authLoading) {
-      console.log("Dashboard Auto-Creation Check:", {
-        storesCount: userStores.length,
-        storesLoading,
-        storesFetching,
-        isMerchantUser,
-        isAutoCreating,
-        creationAttempted: creationAttempted.current,
-        userType: user.userType,
-        isMerchant: user.isMerchant
-      });
-    }
-
     if (!authLoading && user && !storesLoading && !storesFetching && userStores.length === 0 && isMerchantUser && !isAutoCreating && !creationAttempted.current) {
       console.log("Triggering auto-creation for user:", user.id);
       creationAttempted.current = true;
       setIsAutoCreating(true);
+      setInitializationProgress(10);
       
+      const simulateProgress = setInterval(() => {
+        setInitializationProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.floor(Math.random() * 15);
+        });
+      }, 800);
+
       apiRequest('POST', '/api/stores', {
         userId: user.id,
         name: user.businessName || (user.isAdmin ? "University Hub Official" : `${user.firstName}'s Store`),
@@ -139,6 +134,8 @@ export default function Dashboard() {
         const newStore = await res.json();
         
         if (mounted) {
+           setInitializationProgress(100);
+           clearInterval(simulateProgress);
            toast({ title: "Store Initialized", description: "Your merchant dashboard is ready." });
            queryClient.setQueryData(['/api/stores/user'], [newStore]);
            await queryClient.invalidateQueries({ queryKey: ['/api/stores/user'] });
@@ -146,10 +143,16 @@ export default function Dashboard() {
         }
       }).catch(err => {
         console.error("Failed to auto-create store:", err);
+        clearInterval(simulateProgress);
+        setInitializationProgress(0);
         // On error, reset after a delay to allow retry if needed, but don't loop infinitely
         setTimeout(() => { if (mounted) creationAttempted.current = false; }, 10000);
       }).finally(() => {
-        if (mounted) setIsAutoCreating(false);
+        if (mounted) {
+          setTimeout(() => {
+            if (mounted) setIsAutoCreating(false);
+          }, 500);
+        }
       });
     }
     return () => { mounted = false; };
@@ -249,11 +252,37 @@ export default function Dashboard() {
   // we show a loader while the useEffect kicks in.
   if (authLoading || isAutoCreating || (storesLoading && user && userStores.length === 0 && isMerchantUser && !creationAttempted.current)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-primary w-10 h-10" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-          {isAutoCreating ? 'Initializing Store...' : 'Loading Dashboard...'}
-        </p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 p-8 bg-slate-50">
+        <div className="relative">
+          <div className="w-24 h-24 rounded-full border-4 border-slate-200 border-t-black animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <StoreIcon className="w-8 h-8 text-black" />
+          </div>
+        </div>
+        
+        <div className="text-center space-y-4 max-w-xs w-full">
+          <h2 className="text-xl font-black uppercase tracking-tighter">Setting Up Your Hub.</h2>
+          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+            <div 
+              className="bg-black h-full transition-all duration-500 ease-out" 
+              style={{ width: `${initializationProgress}%` }}
+            />
+          </div>
+          <div className="flex justify-between items-center">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {isAutoCreating ? 'Syncing Profile' : 'Verifying Account'}
+            </p>
+            <p className="text-[10px] font-black text-black">{initializationProgress}%</p>
+          </div>
+          
+          <Button 
+            variant="ghost" 
+            className="text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-black mt-8"
+            onClick={() => window.location.reload()}
+          >
+            Force Refresh
+          </Button>
+        </div>
       </div>
     );
   }
