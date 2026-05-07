@@ -2613,12 +2613,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (status === 'rejected') {
         // Send rejection email first
         await sendLocalEmail(user.email, 'Seller Application Rejected - The University Hub', `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2 style="color: #e11d48;">Application Rejected</h2>
+          <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #111827; margin: 0; text-transform: uppercase; letter-spacing: -0.025em; font-weight: 900;">The University Hub</h1>
+            </div>
+            <h2 style="color: #e11d48; text-transform: uppercase; font-weight: 900; font-size: 18px;">Application Rejected</h2>
             <p>Hi ${user.firstName},</p>
             <p>We regret to inform you that your seller application for The University Hub has been rejected.</p>
-            ${feedback ? `<p><strong>Reason:</strong> ${feedback}</p>` : ''}
-            <p>Your account has been removed from our system. You may try to register again in the future with valid information.</p>
+            ${feedback ? `<div style="background: #fff1f2; padding: 15px; border-radius: 8px; border-left: 4px solid #e11d48; margin: 20px 0;">
+              <p style="margin: 0; color: #9f1239; font-weight: bold;">Reason for Rejection:</p>
+              <p style="margin: 5px 0 0 0; color: #be123c;">${feedback}</p>
+            </div>` : ''}
+            <p>Your previous information has been removed from our system to protect your privacy. If you still wish to sell on our platform, you are welcome to <strong>register again</strong> with valid and updated information.</p>
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/seller-auth" style="background: #000; color: #fff; padding: 15px 30px; text-decoration: none; border-radius: 12px; font-weight: 900; text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em; display: inline-block;">Register Again</a>
+            </div>
+            <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">To log in in the future, visit the homepage and use the "Sign In" button in the menu. You will receive a secure 6-digit code via email to access your account.</p>
           </div>
         `);
 
@@ -2634,14 +2644,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (status === 'verified') {
         await sendLocalEmail(user.email, 'Seller Application Approved! - The University Hub', `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2 style="color: #059669;">Welcome Aboard!</h2>
-            <p>Hi ${user.firstName},</p>
-            <p>Congratulations! Your seller application for The University Hub has been approved.</p>
-            <p>You now have full access to our seller tools and can start launching your products.</p>
-            <div style="margin: 20px 0;">
-              <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard" style="background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Go to Dashboard</a>
+          <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #111827; margin: 0; text-transform: uppercase; letter-spacing: -0.025em; font-weight: 900;">The University Hub</h1>
             </div>
+            <h2 style="color: #059669; text-transform: uppercase; font-weight: 900; font-size: 18px;">Welcome Aboard!</h2>
+            <p>Hi ${user.firstName},</p>
+            <p>Congratulations! Your seller application for The University Hub has been <strong>approved</strong>.</p>
+            <p>You now have <strong>full access</strong> to our merchant tools. You can now list products, manage orders, and track your sales directly from your dashboard.</p>
+            
+            <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; border-left: 4px solid #059669; margin: 20px 0;">
+              <p style="margin: 0; color: #166534; font-weight: bold;">Merchant Hub Unlocked:</p>
+              <ul style="color: #15803d; margin: 10px 0 0 0; padding-left: 20px;">
+                <li>Unlimited Product Listings</li>
+                <li>Order Management & Processing</li>
+                <li>Sales Analytics & Insights</li>
+                <li>Direct Inbox with Buyers</li>
+              </ul>
+            </div>
+
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard" style="background: #000; color: #fff; padding: 15px 30px; text-decoration: none; border-radius: 12px; font-weight: 900; text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em; display: inline-block;">Go to Merchant Hub</a>
+            </div>
+
+            <p style="font-weight: bold; color: #374151;">How to log in:</p>
+            <p style="color: #6b7280; font-size: 14px;">1. Visit <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}" style="color: #000; font-weight: bold;">The University Hub</a>.<br>
+            2. Click the <strong>Sign In</strong> button in the top menu.<br>
+            3. Enter your email to receive a secure 6-digit verification code.<br>
+            4. Once signed in, you'll be taken directly to your Merchant Hub.</p>
           </div>
         `);
 
@@ -2653,15 +2683,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else if (status === 'needs_correction') {
         await sendLocalEmail(user.email, 'Action Required: Seller Application Correction - The University Hub', `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2 style="color: #d97706;">Action Required</h2>
-            <p>Hi ${user.firstName},</p>
-            <p>Your seller application requires some corrections before we can proceed with approval.</p>
-            <p><strong>Notes from Admin:</strong> ${feedback || 'Please review your uploaded documents.'}</p>
-            <p>Please log in to your dashboard to update your information and resubmit.</p>
-            <div style="margin: 20px 0;">
-              <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard" style="background: #d97706; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Update My Information</a>
+          <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #111827; margin: 0; text-transform: uppercase; letter-spacing: -0.025em; font-weight: 900;">The University Hub</h1>
             </div>
+            <h2 style="color: #d97706; text-transform: uppercase; font-weight: 900; font-size: 18px;">Action Required</h2>
+            <p>Hi ${user.firstName},</p>
+            <p>Your seller application requires some corrections before we can proceed with approval. Your merchant tools will remain <strong>locked</strong> until these updates are resubmitted and approved.</p>
+            
+            <div style="background: #fffbeb; padding: 15px; border-radius: 8px; border-left: 4px solid #d97706; margin: 20px 0;">
+              <p style="margin: 0; color: #92400e; font-weight: bold;">Notes from Admin:</p>
+              <p style="margin: 5px 0 0 0; color: #b45309;">${feedback || 'Please review your uploaded documents.'}</p>
+            </div>
+
+            <p>Please log in to your dashboard. You will see the registration checklist again where you can update your information and resubmit for review.</p>
+            
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${process.env.APP_URL || 'https://uniexchangehub.com'}/dashboard" style="background: #d97706; color: #fff; padding: 15px 30px; text-decoration: none; border-radius: 12px; font-weight: 900; text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em; display: inline-block;">Update My Information</a>
+            </div>
+
+            <p style="font-weight: bold; color: #374151;">How to log in:</p>
+            <p style="color: #6b7280; font-size: 14px;">Visit our homepage and click <strong>Sign In</strong>. Use your email to receive a secure code. After signing in, you will be taken to the verification checklist to fix the issues mentioned above.</p>
           </div>
         `);
       }
