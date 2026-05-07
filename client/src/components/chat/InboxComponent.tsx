@@ -104,9 +104,17 @@ export default function InboxComponent() {
     setMessageInput('');
   };
 
-  const filteredConversations = conversations.filter(c => 
-    `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredConversations = conversations.filter(c => {
+    const matchesSearch = `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // If current user is a seller, they should only see admins in their inbox
+    if (user?.userType === 'seller') {
+      return matchesSearch && c.userType === 'admin';
+    }
+    
+    // Admins see everyone
+    return matchesSearch;
+  });
 
   return (
     <div className="flex h-[700px] bg-white rounded-[2.5rem] shadow-2xl shadow-black/5 overflow-hidden border border-gray-100">

@@ -130,6 +130,21 @@
   display: none;
 }
 
+/* Custom scrollbar for mobile visibility */
+.tabs-scroll::-webkit-scrollbar {
+  height: 4px;
+  display: block;
+}
+
+.tabs-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tabs-scroll::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
 /* Smooth scrolling animation */
 .scroll-smooth {
   scroll-behavior: smooth;

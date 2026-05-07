@@ -7,7 +7,6 @@ import { GraduationCap, Mail, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/lib/auth-context';
@@ -21,31 +20,16 @@ const emailAuthSchema = z.object({
   path: ['otpCode'],
 });
 
-const registerSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  otpCode: z.string().optional(),
-  username: z.string().min(3, 'Username must be at least 3 characters'),
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  university: z.string().min(1, 'University is required'),
-  city: z.string().min(1, 'City is required'),
-}).refine((data) => !data.otpCode || data.otpCode.length === 6, {
-  message: 'Verification code must be 6 digits',
-  path: ['otpCode'],
-});
-
 type EmailAuthFormData = z.infer<typeof emailAuthSchema>;
-type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function Auth() {
   const [location, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [showOtpField, setShowOtpField] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [userMode, setUserMode] = useState<'buyer' | 'seller' | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [canResend, setCanResend] = useState(true);
-  const { login, register, sendOtp, isLoading } = useAuth();
+  const { login, sendOtp, isLoading } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -80,19 +64,6 @@ export default function Auth() {
     },
   });
 
-  const registerForm = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      email: '',
-      otpCode: '',
-      username: '',
-      firstName: '',
-      lastName: '',
-      university: '',
-      city: '',
-    },
-  });
-
   const onEmailLogin = async (data: EmailAuthFormData) => {
     try {
       const response = await login({ email: data.email, otpCode: data.otpCode });
@@ -122,52 +93,8 @@ export default function Auth() {
     }
   };
 
-  const onRegister = async (data: RegisterFormData) => {
-    if (!data.otpCode || data.otpCode.length !== 6) {
-      toast({
-        title: 'Verification Code Required',
-        description: 'Please enter the 6-digit verification code sent to your email.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    try {
-      await register({
-        email: data.email,
-        otpCode: data.otpCode,
-        username: data.username,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        university: data.university,
-        city: data.city,
-        isMerchant: userMode === 'seller',
-      });
-      toast({
-        title: '✅ Account created successfully!',
-        description: 'Welcome to The University Hub!',
-        duration: 8000,
-      });
-      
-      if (userMode === 'seller') {
-        setLocation('/dashboard?onboarding=true');
-      } else {
-        setLocation('/');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Registration failed',
-        description: error.message || 'Please try again with different details.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSendOtp = async (formType: 'login' | 'register') => {
-    const email = formType === 'login' 
-      ? emailAuthForm.getValues('email')
-      : registerForm.getValues('email');
-      
+  const handleSendOtp = async () => {
+    const email = emailAuthForm.getValues('email');
     const cleanEmail = email?.trim();
     
     if (!cleanEmail || !cleanEmail.includes('@')) {
@@ -220,281 +147,106 @@ export default function Auth() {
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle className="text-center text-2xl">
-              {activeTab === 'login' ? 'Welcome Back' : 'Create Account'}
+              Welcome Back
             </CardTitle>
             <CardDescription className="text-center">
-              {activeTab === 'login' 
-                ? 'Sign in to continue shopping' 
-                : 'Join your campus marketplace'
-              }
+              Sign in to continue shopping
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'login' | 'register')} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login" data-testid="tab-sign-in">Sign In</TabsTrigger>
-                <TabsTrigger value="register" data-testid="tab-sign-up">Sign Up</TabsTrigger>
-              </TabsList>
+            <div className="w-full">
+              {/* Login View */}
+              <Form {...emailAuthForm}>
+                <form onSubmit={emailAuthForm.handleSubmit(onEmailLogin)} className="space-y-4">
+                  <FormField
+                    control={emailAuthForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Address</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input 
+                              type="email" 
+                              placeholder="your@email.com" 
+                              className="pl-10"
+                              {...field}
+                              data-testid="input-email-login"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              {/* Login Tab */}
-              <TabsContent value="login">
-                <Form {...emailAuthForm}>
-                  <form onSubmit={emailAuthForm.handleSubmit(onEmailLogin)} className="space-y-4">
-                    <FormField
-                      control={emailAuthForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Address</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  {!showOtpField && (
+                    <Button
+                      type="button"
+                      onClick={handleSendOtp}
+                      className="w-full"
+                      variant="outline"
+                      data-testid="button-send-code-login"
+                    >
+                      Send Verification Code
+                    </Button>
+                  )}
+
+                  {showOtpField && (
+                    <>
+                      <Alert className="bg-green-50 border-green-200">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <AlertDescription className="text-green-800">
+                          Verification code sent! Check your email inbox.
+                        </AlertDescription>
+                      </Alert>
+
+                      <FormField
+                        control={emailAuthForm.control}
+                        name="otpCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex justify-between items-center">
+                              Verification Code
+                              <Button 
+                                type="button" 
+                                variant="link" 
+                                className="p-0 h-auto text-xs font-medium" 
+                                onClick={handleSendOtp}
+                                disabled={!canResend}
+                              >
+                                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
+                              </Button>
+                            </FormLabel>
+                            <FormControl>
                               <Input 
-                                type="email" 
-                                placeholder="your@email.com" 
-                                className="pl-10"
+                                type="text" 
+                                placeholder="Enter 6-digit code" 
+                                maxLength={6}
                                 {...field}
-                                data-testid="input-email-login"
+                                data-testid="input-otp-login"
                               />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    {!showOtpField && (
                       <Button
-                        type="button"
-                        onClick={() => handleSendOtp('login')}
+                        type="submit"
                         className="w-full"
-                        variant="outline"
-                        data-testid="button-send-code-login"
+                        disabled={isLoading}
+                        data-testid="button-submit-login"
                       >
-                        Send Verification Code
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                       </Button>
-                    )}
-
-                    {showOtpField && (
-                      <>
-                        <Alert className="bg-green-50 border-green-200">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-800">
-                            Verification code sent! Check your email inbox.
-                          </AlertDescription>
-                        </Alert>
-
-                        <FormField
-                          control={emailAuthForm.control}
-                          name="otpCode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex justify-between items-center">
-                                Verification Code
-                                <Button 
-                                  type="button" 
-                                  variant="link" 
-                                  className="p-0 h-auto text-xs font-medium" 
-                                  onClick={() => handleSendOtp(activeTab)}
-                                  disabled={!canResend}
-                                >
-                                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
-                                </Button>
-                              </FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="text" 
-                                  placeholder="Enter 6-digit code" 
-                                  maxLength={6}
-                                  {...field}
-                                  data-testid="input-otp-login"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={isLoading}
-                          data-testid="button-submit-login"
-                        >
-                          {isLoading ? 'Signing in...' : 'Sign In'}
-                        </Button>
-                      </>
-                    )}
-                  </form>
-                </Form>
-              </TabsContent>
-
-              {/* Register Tab */}
-              <TabsContent value="register">
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email Address</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                              <Input 
-                                type="email" 
-                                placeholder="your@email.com" 
-                                className="pl-10"
-                                {...field}
-                                data-testid="input-email-register"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {!otpSent && (
-                      <Button
-                        type="button"
-                        onClick={() => handleSendOtp('register')}
-                        className="w-full"
-                        variant="outline"
-                        data-testid="button-send-code-register"
-                      >
-                        Send Verification Code
-                      </Button>
-                    )}
-
-                    {otpSent && (
-                      <>
-                        <Alert className="bg-green-50 border-green-200">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-800">
-                            Verification code sent! Check your email inbox.
-                          </AlertDescription>
-                        </Alert>
-
-                        <FormField
-                          control={registerForm.control}
-                          name="otpCode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex justify-between items-center">
-                                Verification Code
-                                <Button 
-                                  type="button" 
-                                  variant="link" 
-                                  className="p-0 h-auto text-xs font-medium" 
-                                  onClick={() => handleSendOtp(activeTab)}
-                                  disabled={!canResend}
-                                >
-                                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
-                                </Button>
-                              </FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="text" 
-                                  placeholder="Enter 6-digit code" 
-                                  maxLength={6}
-                                  {...field}
-                                  data-testid="input-otp-register"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={registerForm.control}
-                            name="firstName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>First Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="John" {...field} data-testid="input-first-name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={registerForm.control}
-                            name="lastName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Last Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Doe" {...field} data-testid="input-last-name" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <FormField
-                          control={registerForm.control}
-                          name="username"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Username</FormLabel>
-                              <FormControl>
-                                <Input placeholder="johndoe" {...field} data-testid="input-username" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={registerForm.control}
-                          name="university"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Institution or Primary Hub</FormLabel>
-                              <FormControl>
-                                <Input placeholder="E.g. KNUST, High School, or Local Area" {...field} data-testid="input-university" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={registerForm.control}
-                          name="city"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>City</FormLabel>
-                              <FormControl>
-                                <Input placeholder="New York" {...field} data-testid="input-city" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={isLoading}
-                          data-testid="button-submit-register"
-                        >
-                          {isLoading ? 'Creating account...' : 'Create Account'}
-                        </Button>
-                      </>
-                    )}
-                  </form>
-                </Form>
-              </TabsContent>
-            </Tabs>
+                    </>
+                  )}
+                </form>
+              </Form>
+            </div>
           </CardContent>
         </Card>
 
@@ -505,3 +257,4 @@ export default function Auth() {
     </div>
   );
 }
+

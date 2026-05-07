@@ -33,6 +33,44 @@ import Contact from "./pages/contact";
 import NotFound from "@/pages/not-found";
 import WhatsAppSupport from "./components/whatsapp-support";
 import ErrorBoundary from "./components/error-boundary";
+import { useChatNotifications } from "./lib/socket-context";
+import { useToast } from "./hooks/use-toast";
+import { useEffect } from "react";
+
+function NotificationHandler() {
+  const { notifications, clearNotifications } = useChatNotifications();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (notifications.length > 0) {
+      notifications.forEach(notification => {
+        if (notification.type === 'new_message') {
+          toast({
+            title: `New message from ${notification.fromUser?.firstName}`,
+            description: notification.preview,
+            variant: "default",
+          });
+        } else if (notification.type === 'new_order') {
+          toast({
+            title: notification.title || "New Order Received!",
+            description: notification.message || `You have a new order (#${notification.orderId})`,
+            variant: "default",
+            className: "bg-black text-white border-none",
+          });
+        } else if (notification.type === 'admin_alert') {
+          toast({
+            title: notification.title || "Admin Alert",
+            description: notification.message,
+            variant: "destructive",
+          });
+        }
+      });
+      clearNotifications();
+    }
+  }, [notifications, toast, clearNotifications]);
+
+  return null;
+}
 
 function Router() {
   return (
@@ -85,6 +123,7 @@ function App() {
         <TooltipProvider>
           <AuthProvider>
             <SocketProvider>
+              <NotificationHandler />
               <CartProvider>
                 <div className="min-h-screen bg-gray-50 overflow-x-hidden">
                   <ErrorBoundary>

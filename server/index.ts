@@ -80,6 +80,10 @@ app.use((req, res, next) => {
   // Setup Socket.IO for real-time chat
   const io = setupSocketIO(server);
 
+  // Initialize notifications with io instance
+  const { setIo } = await import('./notifications');
+  setIo(io);
+
   // Start the background installment service
   installmentService.start();
 

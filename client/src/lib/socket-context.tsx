@@ -33,13 +33,17 @@ interface UserStatus {
 }
 
 interface Notification {
-  type: 'new_message';
-  fromUser: {
+  type: 'new_message' | 'new_order' | 'admin_alert';
+  title?: string;
+  message?: string;
+  fromUser?: {
     id: number;
     firstName: string;
     lastName: string;
   };
-  preview: string;
+  preview?: string;
+  orderId?: number;
+  timestamp?: string;
 }
 
 interface SocketContextType {

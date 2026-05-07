@@ -469,7 +469,24 @@ export default function ProductForm({ isOpen, onClose, userStores, initialData }
                           </FormItem>
                         )} />
                       <FormField control={form.control} name="condition" render={({ field }) => (
-                        <FormItem><FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-14 rounded-2xl border-2"><SelectValue placeholder="Select" /></SelectTrigger></FormControl><SelectContent><SelectItem value="new">New</SelectItem><SelectItem value="excellent">Excellent</SelectItem><SelectItem value="good">Good</SelectItem></SelectContent></Select></FormItem>
+                        <FormItem>
+                          <FormLabel className="font-black uppercase text-[10px] text-gray-400 tracking-widest">Condition</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="h-14 rounded-2xl border-2">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="new">New</SelectItem>
+                              <SelectItem value="excellent">Excellent</SelectItem>
+                              <SelectItem value="good">Good</SelectItem>
+                              <SelectItem value="used">Used</SelectItem>
+                              <SelectItem value="refurbished">Refurbished</SelectItem>
+                              <SelectItem value="preowned">Preowned</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
                       )} />
                       </div>
 

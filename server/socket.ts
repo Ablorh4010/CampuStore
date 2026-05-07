@@ -78,6 +78,12 @@ export function setupSocketIO(httpServer: HttpServer): Server {
     // Join personal room for direct messages
     socket.join(`user:${user.id}`);
 
+    // Join admin room if applicable
+    if (user.userType === 'admin' || user.isAdmin) {
+      socket.join('admin');
+      console.log(`User ${user.id} joined admin room`);
+    }
+
     // Broadcast online status
     io.emit('user:status', { userId: user.id, online: true });
 
@@ -159,6 +165,15 @@ export function setupSocketIO(httpServer: HttpServer): Server {
     socket.on('helpdesk:join', () => {
       socket.join('helpdesk');
       console.log(`User ${user.id} joined helpdesk`);
+    });
+
+    // Handle notifications (relay to specific user or admin room)
+    socket.on('chat:notification', (data: any) => {
+      if (data.toId) {
+        io.to(`user:${data.toId}`).emit('chat:notification', data);
+      } else if (data.toAdmin) {
+        io.to('admin').emit('chat:notification', data);
+      }
     });
 
     socket.on('helpdesk:message', (data: { content: string }) => {
