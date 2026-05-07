@@ -282,15 +282,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Bɔkɔɔ Pay Section */}
+      {/* BƆKƆƆ Pay™ Section */}
       <section className="py-8 bg-black text-white overflow-hidden relative">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/2"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="max-w-xl text-center md:text-left">
-              <div className="inline-flex items-center gap-2 mb-3"><Badge className="bg-primary text-black font-black text-[9px] uppercase px-2 py-0.5 rounded-full">Bɔkɔɔ Pay</Badge><span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">0% Interest • 4 Months</span></div>
-              <h2 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter mb-4">BUY NOW. PAY <span className="text-primary italic">LATER.</span></h2>
-              <Button size="sm" className="h-12 px-8 rounded-xl bg-primary text-black font-black uppercase tracking-widest text-[9px] hover:bg-primary/90 transition-all" onClick={() => setLocation("/browse?installment=true")}>Browse Items <ArrowRight className="ml-2 w-3.5 h-3.5" /></Button>
+              <div className="inline-flex items-center gap-2 mb-3"><Badge className="bg-primary text-black font-black text-[9px] uppercase px-2 py-0.5 rounded-full">BƆKƆƆ Pay™</Badge><span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">0% Interest • 4 Months</span></div>
+              <h2 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter mb-4">BUY NOW. PAY <span className="text-primary italic">BƆKƆƆ.</span></h2>
+              <Button size="sm" className="h-12 px-8 rounded-xl bg-primary text-black font-black uppercase tracking-widest text-[9px] hover:bg-primary/90 transition-all" onClick={() => setLocation("/browse?installment=true")}>Browse BƆKƆƆ Items <ArrowRight className="ml-2 w-3.5 h-3.5" /></Button>
             </div>
             <div className="grid grid-cols-3 gap-8 text-center border-l border-white/10 pl-8 hidden md:grid">
                <div><p className="text-2xl font-black text-white leading-none">01</p><p className="text-[8px] font-black uppercase text-gray-500 mt-1">Choose</p></div>

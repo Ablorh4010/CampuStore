@@ -52,6 +52,7 @@ export default function Checkout() {
 
   const [paymentMode, setPaymentMode] = useState<'card' | 'momo' | 'bank' | 'cod'>('momo');
   const [isBokoo, setIsBokoo] = useState(false);
+  const [numInstallments, setNumInstallments] = useState(1); // How many installments to pay now (1-4)
   const [verificationType, setVerificationType] = useState<'student' | 'worker'>('student');
   const [applicantOccupation, setApplicantOccupation] = useState('');
   const [applicantSalary, setApplicantSalary] = useState('');
@@ -161,10 +162,10 @@ export default function Checkout() {
   const grandTotal = cartTotal + shippingFee + codFee;
   
   const upfrontAmount = isBokoo 
-    ? nonEligibleTotal + (eligibleTotal / 4) + shippingFee + codFee
+    ? nonEligibleTotal + (eligibleTotal * (numInstallments / 4)) + shippingFee + codFee
     : grandTotal;
   
-  const recurringAmount = isBokoo ? (eligibleTotal * 3 / 4) / 3 : 0;
+  const recurringAmount = isBokoo ? (eligibleTotal * (1 - numInstallments/4)) / Math.max(1, 4 - numInstallments) : 0;
 
   useEffect(() => {
     if (cartItems.length === 0 && !new URLSearchParams(window.location.search).get('reference')) {
@@ -439,7 +440,7 @@ export default function Checkout() {
                           if (cartTotal < 300) {
                             toast({
                               title: "Minimum Order GH₵300",
-                              description: "Add more items to unlock Bɔkɔɔ Pay installments.",
+                              description: "Add more items to unlock BƆKƆƆ Pay™ installments.",
                               variant: "destructive"
                             });
                             return;
@@ -453,9 +454,11 @@ export default function Checkout() {
                                <Wallet className="h-5 w-5" />
                              </div>
                              <div>
-                               <h3 className="font-bold text-sm tracking-tight">Bɔkɔɔ Pay (Installments)</h3>
+                               <h3 className="font-bold text-sm tracking-tight flex items-center gap-2">
+                                 BƆKƆƆ Pay™ <Badge variant="outline" className="text-[8px] font-black uppercase border-primary text-primary bg-primary/5">Official Brand</Badge>
+                               </h3>
                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                 {cartTotal < 300 ? "Requires GH₵300+ order" : "25% today • Monthly deductions • 5% Penalty"}
+                                 {cartTotal < 300 ? "Requires GH₵300+ order" : "Pay in 4 easy installments • Instant Approval"}
                                </p>
                              </div>
                           </div>
@@ -468,6 +471,31 @@ export default function Checkout() {
                             className="h-5 w-5 rounded-full border-gray-300 data-[state=checked]:bg-primary data-[state=checked]:border-primary" 
                           />
                         </div>
+
+                        {isBokoo && (
+                          <div className="mt-6 pt-6 border-t border-primary/10">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-4">Select installments to pay now:</p>
+                            <div className="grid grid-cols-4 gap-2">
+                              {[1, 2, 3, 4].map((i) => (
+                                <div 
+                                  key={i}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNumInstallments(i);
+                                  }}
+                                  className={`p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${numInstallments === i ? 'border-primary bg-primary text-white' : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'}`}
+                                >
+                                  <p className="text-xs font-black">{i}</p>
+                                  <p className="text-[7px] font-bold uppercase">Part{i > 1 ? 's' : ''}</p>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-[9px] text-gray-400 mt-3 font-medium italic">
+                              * You are paying {numInstallments}/4 of the installment items today (GH₵{((eligibleTotal * numInstallments) / 4).toFixed(2)}). 
+                              {numInstallments < 4 ? ` The remaining ${4 - numInstallments} parts will be split over the next 3 months.` : ' You are paying the installment portion in full today.'}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-start gap-3 p-4 mt-6 bg-gray-50/50 rounded-2xl border border-gray-100">

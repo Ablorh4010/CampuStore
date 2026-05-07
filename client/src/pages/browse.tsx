@@ -259,7 +259,7 @@ export default function Browse() {
                                   }}
                                 >
                                    <Wallet className="w-4 h-4 mr-3" />
-                                   Bɔkɔɔ Pay (Installments)
+                                   BƆKƆƆ Pay™ (Installments)
                                 </Button>
                              </section>
 
@@ -317,7 +317,7 @@ export default function Browse() {
         <main>
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
              <h2 className="text-sm font-black tracking-[0.1em] text-gray-900 uppercase">
-               {isInstallmentOnly ? 'Bɔkɔɔ Pay Eligible' : (selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Explore Market')}
+               {isInstallmentOnly ? 'BƆKƆƆ Pay™ Eligible' : (selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Explore Market')}
                <span className="ml-2 text-gray-300 font-medium tracking-normal text-xs uppercase">({viewMode === 'products' ? filteredProducts.length : filteredStores.length} results)</span>
              </h2>
           </div>

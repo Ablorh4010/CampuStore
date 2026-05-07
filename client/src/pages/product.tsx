@@ -358,8 +358,8 @@ export default function Product() {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white"><Wallet className="w-5 h-5" /></div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Pay in 4 installments</p>
-                    <p className="text-xs font-black">4 payments of GH₵{(priceWithFee / 4).toFixed(2)} with <span className="text-primary italic">Bɔkɔɔ Pay.</span></p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">BƆKƆƆ Pay™ • 4 Installments</p>
+                    <p className="text-xs font-black">4 payments of GH₵{(priceWithFee / 4).toFixed(2)} with <span className="text-primary italic font-black">BƆKƆƆ Pay™.</span></p>
                   </div>
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-300 group-hover:text-black transition-colors" />
