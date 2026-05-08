@@ -7,35 +7,36 @@ import { AuthProvider } from "./lib/auth-context";
 import { CartProvider } from "./lib/cart-context";
 import { SocketProvider } from "./lib/socket-context";
 import { HelmetProvider } from 'react-helmet-async';
-import { Suspense, lazy } from "react";
-import Header from "./components/layout/header";
-import Footer from "./components/layout/footer";
-import Home from "./pages/home";
-import Browse from "./pages/browse";
-import Store from "./pages/store";
-import Product from "./pages/product";
-import Dashboard from "./pages/dashboard";
-import SellerSettings from "./pages/seller-settings";
-import Checkout from "./pages/checkout";
-import PaymentSuccess from "./pages/payment-success";
-import AdminDashboard from "./pages/admin";
-import AdminPortal from "./pages/admin-portal";
-import AdminRegister from "./pages/admin-register";
-import Auth from "./pages/auth";
-import SellerAuth from "./pages/seller-auth";
-import ModeSelection from "./pages/mode-selection";
+import { Suspense, lazy, useEffect } from "react";
 import CartSidebar from "./components/cart/cart-sidebar";
 import PWAInstallPrompt from "./components/pwa-install-prompt";
-import ForgotPassword from "./pages/forgot-password";
-import ResetPassword from "./pages/reset-password";
-import About from "./pages/about";
-import Contact from "./pages/contact";
-import NotFound from "@/pages/not-found";
 import WhatsAppSupport from "./components/whatsapp-support";
 import ErrorBoundary from "./components/error-boundary";
 import { useChatNotifications } from "./lib/socket-context";
 import { useToast } from "./hooks/use-toast";
-import { useEffect } from "react";
+
+// Lazy load components to prevent circular dependencies and initialization errors
+const Header = lazy(() => import("./components/layout/header"));
+const Footer = lazy(() => import("./components/layout/footer"));
+const Home = lazy(() => import("./pages/home"));
+const Browse = lazy(() => import("./pages/browse"));
+const Store = lazy(() => import("./pages/store"));
+const Product = lazy(() => import("./pages/product"));
+const Dashboard = lazy(() => import("./pages/dashboard"));
+const SellerSettings = lazy(() => import("./pages/seller-settings"));
+const Checkout = lazy(() => import("./pages/checkout"));
+const PaymentSuccess = lazy(() => import("./pages/payment-success"));
+const AdminDashboard = lazy(() => import("./pages/admin"));
+const AdminPortal = lazy(() => import("./pages/admin-portal"));
+const AdminRegister = lazy(() => import("./pages/admin-register"));
+const Auth = lazy(() => import("./pages/auth"));
+const SellerAuth = lazy(() => import("./pages/seller-auth"));
+const ModeSelection = lazy(() => import("./pages/mode-selection"));
+const ForgotPassword = lazy(() => import("./pages/forgot-password"));
+const ResetPassword = lazy(() => import("./pages/reset-password"));
+const About = lazy(() => import("./pages/about"));
+const Contact = lazy(() => import("./pages/contact"));
+const NotFound = lazy(() => import("@/pages/not-found"));
 
 function NotificationHandler() {
   const { notifications, clearNotifications } = useChatNotifications();
@@ -127,14 +128,16 @@ function App() {
               <CartProvider>
                 <div className="min-h-screen bg-gray-50 overflow-x-hidden">
                   <ErrorBoundary>
-                    <Header />
-                    <main>
-                      <Router />
-                    </main>
-                    <Footer />
-                    <CartSidebar />
-                    <PWAInstallPrompt />
-                    <WhatsAppSupport />
+                    <Suspense fallback={null}>
+                      <Header />
+                      <main>
+                        <Router />
+                      </main>
+                      <Footer />
+                      <CartSidebar />
+                      <PWAInstallPrompt />
+                      <WhatsAppSupport />
+                    </Suspense>
                   </ErrorBoundary>
                 </div>
                 <Toaster />

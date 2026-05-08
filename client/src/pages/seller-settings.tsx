@@ -63,6 +63,18 @@ export default function SellerSettings() {
     }
   }, [user]);
 
+  // New verification fields state
+  const [idType, setIdType] = useState<string>('national_id');
+  const [whatsappBusinessNumber, setWhatsappBusinessNumber] = useState<string>('');
+  const [socialMediaPresence, setSocialMediaPresence] = useState<string>('');
+  const [sellerVerificationType, setSellerVerificationType] = useState<string>('student');
+  const [sellerAddress, setSellerAddress] = useState<string>('');
+  const [coords, setCoords] = useState<{lat: string, lng: string} | null>(null);
+  
+  // Store logo change state
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
   if (authLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -70,24 +82,12 @@ export default function SellerSettings() {
       </div>
     );
   }
-  
-  // New verification fields state
-  const [idType, setIdType] = useState<string>('national_id');
-  const [whatsappBusinessNumber, setWhatsappBusinessNumber] = useState<string>('');
-  const [socialMediaPresence, setSocialMediaPresence] = useState<string>('');
-  const [sellerVerificationType, setSellerVerificationType] = useState<string>('student');
-  const [sellerAddress, setSellerAddress] = useState<string>('');
-  const [location, setLocation] = useState<{lat: string, lng: string} | null>(null);
-  
-  // Store logo change state
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const captureLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setLocation({
+          setCoords({
             lat: position.coords.latitude.toString(),
             lng: position.coords.longitude.toString()
           });
@@ -151,7 +151,7 @@ export default function SellerSettings() {
         throw new Error('Please upload the back of your ID');
       }
 
-      if (!location) {
+      if (!coords) {
         throw new Error('Please capture your live location');
       }
 
@@ -166,8 +166,8 @@ export default function SellerSettings() {
       formData.append('socialMediaPresence', socialMediaPresence);
       formData.append('sellerVerificationType', sellerVerificationType);
       formData.append('sellerAddress', sellerAddress);
-      formData.append('latitude', location.lat);
-      formData.append('longitude', location.lng);
+      formData.append('latitude', coords.lat);
+      formData.append('longitude', coords.lng);
 
       const response = await apiRequest('POST', '/api/upload/verification', formData);
       return response.json();
@@ -681,13 +681,13 @@ export default function SellerSettings() {
               <Button 
                 variant="outline" 
                 onClick={captureLocation}
-                className={location ? "border-green-500 text-green-500" : ""}
+                className={coords ? "border-green-500 text-green-500" : ""}
               >
-                {location ? "Location Captured ✓" : "Capture Live Location"}
+                {coords ? "Location Captured ✓" : "Capture Live Location"}
               </Button>
-              {location && (
+              {coords && (
                 <span className="text-xs text-gray-500">
-                  {location.lat.substring(0, 8)}, {location.lng.substring(0, 8)}
+                  {coords.lat.substring(0, 8)}, {coords.lng.substring(0, 8)}
                 </span>
               )}
             </div>
@@ -767,7 +767,7 @@ export default function SellerSettings() {
           {user?.verificationStatus !== 'verified' && (
             <Button
               onClick={handleVerificationSubmit}
-              disabled={!idScanFile || (idType !== 'passport' && !idScanBackFile) || !faceScanFile || !location || verificationMutation.isPending}
+              disabled={!idScanFile || (idType !== 'passport' && !idScanBackFile) || !faceScanFile || !coords || verificationMutation.isPending}
               className="w-full"
               data-testid="button-submit-verification"
             >

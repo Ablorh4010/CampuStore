@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Search, ShoppingCart, Bell, Plus, Menu, X, BookOpen, Store, GraduationCap, Shield, ChevronDown, Mic, MicOff, Truck, LayoutDashboard } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useVoiceSearch } from '@/hooks/use-voice-search';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

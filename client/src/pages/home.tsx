@@ -57,32 +57,8 @@ const getCategoryImage = (name: string) => {
 export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', loop: false, dragFree: true });
-  const [pulseRef, pulseApi] = useEmblaCarousel({ align: 'start', loop: true, dragFree: true });
-  const scrollPrev = useCallback(() => { if (emblaApi) emblaApi.scrollPrev(); }, [emblaApi]);
-  const scrollNext = useCallback(() => { if (emblaApi) emblaApi.scrollNext(); }, [emblaApi]);
 
-  const [currentDealIndex, setCurrentDealIndex] = useState(0);
-
-  // Auto-play for Pulse and Weekly Deals
-  useEffect(() => {
-    const intervals: NodeJS.Timeout[] = [];
-
-    if (pulseApi) {
-      intervals.push(setInterval(() => pulseApi.scrollNext(), 4000));
-    }
-
-    const dealsInterval = setInterval(() => {
-      setCurrentDealIndex(prev => {
-        const count = weeklyDeals?.length || 0;
-        return count > 0 ? (prev + 1) % count : 0;
-      });
-    }, 5000);
-    intervals.push(dealsInterval);
-
-    return () => intervals.forEach(clearInterval);
-  }, [pulseApi, weeklyDeals?.length]);
-
+  // Queries - Move to top to avoid TDZ issues
   const { data: featuredProducts = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/featured', user?.university, user?.city, user?.campus],
     queryFn: () => {
@@ -121,6 +97,32 @@ export default function Home() {
   const { data: weeklyDeals = [], isLoading: dealsLoading } = useQuery<WeeklyDealWithProduct[]>({
     queryKey: ['/api/weekly-deals'],
   });
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', loop: false, dragFree: true });
+  const [pulseRef, pulseApi] = useEmblaCarousel({ align: 'start', loop: true, dragFree: true });
+  const scrollPrev = useCallback(() => { if (emblaApi) emblaApi.scrollPrev(); }, [emblaApi]);
+  const scrollNext = useCallback(() => { if (emblaApi) emblaApi.scrollNext(); }, [emblaApi]);
+
+  const [currentDealIndex, setCurrentDealIndex] = useState(0);
+
+  // Auto-play for Pulse and Weekly Deals
+  useEffect(() => {
+    const intervals: NodeJS.Timeout[] = [];
+
+    if (pulseApi) {
+      intervals.push(setInterval(() => pulseApi.scrollNext(), 4000));
+    }
+
+    const dealsInterval = setInterval(() => {
+      setCurrentDealIndex(prev => {
+        const count = weeklyDeals?.length || 0;
+        return count > 0 ? (prev + 1) % count : 0;
+      });
+    }, 5000);
+    intervals.push(dealsInterval);
+
+    return () => intervals.forEach(clearInterval);
+  }, [pulseApi, weeklyDeals?.length]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -205,20 +207,19 @@ export default function Home() {
                   {/* Dynamic Ad Flyer Carousel within the Phone */}
                   <div className="relative h-full w-full bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
                      <AnimatePresence mode="wait">
-                       {weeklyDeals.length > 0 ? (
-                         weeklyDeals.map((deal, idx) => (
-                           <motion.div 
-                             key={deal.id}
-                             initial={{ opacity: 0 }}
-                             animate={{ opacity: 1 }}
-                             exit={{ opacity: 0 }}
-                             transition={{ duration: 1 }}
-                             className={`absolute inset-0 z-10 ${idx === currentDealIndex ? 'block' : 'hidden'}`}
-                           >
-                              <Link href={`/product/${deal.productId}`}>
+                       {weeklyDeals.length > 0 && weeklyDeals[currentDealIndex] ? (
+                         <motion.div 
+                           key={weeklyDeals[currentDealIndex].id}
+                           initial={{ opacity: 0 }}
+                           animate={{ opacity: 1 }}
+                           exit={{ opacity: 0 }}
+                           transition={{ duration: 1 }}
+                           className="absolute inset-0 z-10"
+                         >
+                              <Link href={`/product/${weeklyDeals[currentDealIndex].productId}`}>
                                  <div className="h-full w-full relative cursor-pointer overflow-hidden">
                                     {/* Background Image (The Flyer) */}
-                                    <img src={deal.product.images[0]} alt="" className="w-full h-full object-cover scale-105 group-hover/phone:scale-110 transition-transform duration-[2s]" />
+                                    <img src={weeklyDeals[currentDealIndex].product.images[0]} alt="" className="w-full h-full object-cover scale-105 group-hover/phone:scale-110 transition-transform duration-[2s]" />
                                     
                                     {/* Gradient Overlay */}
                                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
@@ -226,17 +227,17 @@ export default function Home() {
                                     {/* Promo Content */}
                                     <div className="absolute bottom-0 left-0 w-full p-8 text-white">
                                        <Badge className="bg-primary text-black font-black text-[8px] uppercase px-3 py-1 rounded-full mb-4 animate-bounce">
-                                         {deal.dealLabel}
+                                         {weeklyDeals[currentDealIndex].dealLabel}
                                        </Badge>
                                        <h4 className="text-2xl font-black uppercase leading-tight mb-2 tracking-tighter drop-shadow-2xl">
-                                         {deal.flyerHeadline || deal.product.title}
+                                         {weeklyDeals[currentDealIndex].flyerHeadline || weeklyDeals[currentDealIndex].product.title}
                                        </h4>
                                        <p className="text-xs font-bold text-gray-300 leading-snug mb-6 line-clamp-2">
-                                          {deal.flyerSubtext || "Exclusive savings for students this week only!"}
+                                          {weeklyDeals[currentDealIndex].flyerSubtext || "Exclusive savings for students this week only!"}
                                        </p>
                                        <div className="flex items-center gap-3 mb-6">
-                                          <span className="text-3xl font-black text-primary">GH₵{(parseFloat(deal.product.price.toString()) * (1 - (deal.discountPercentage || 0) / 100)).toFixed(0)}</span>
-                                          <span className="text-white/50 line-through text-sm font-bold">GH₵{deal.product.price}</span>
+                                          <span className="text-3xl font-black text-primary">GH₵{(parseFloat(weeklyDeals[currentDealIndex].product.price.toString()) * (1 - (weeklyDeals[currentDealIndex].discountPercentage || 0) / 100)).toFixed(0)}</span>
+                                          <span className="text-white/50 line-through text-sm font-bold">GH₵{weeklyDeals[currentDealIndex].product.price}</span>
                                        </div>
                                        <Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary transition-colors">
                                          Grab Deal Now
@@ -244,12 +245,13 @@ export default function Home() {
                                     </div>
                                  </div>
                               </Link>
-                           </motion.div>
-                         ))
-                       ) : (
+                         </motion.div>
+                       ) : !dealsLoading && (
                          <motion.div 
+                           key="empty-state"
                            initial={{ opacity: 0 }}
                            animate={{ opacity: 1 }}
+                           exit={{ opacity: 0 }}
                            className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 bg-black text-white text-center"
                          >
                             <div className="p-4 bg-primary/20 rounded-full mb-6">
