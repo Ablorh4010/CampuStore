@@ -572,9 +572,327 @@ export default function AdminDashboard() {
              {pendingPayouts.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest text-xs">No pending payouts.</p>}
           </TabsContent>
 
+          <TabsContent value="product-mgmt" className="mt-0">
+             <Card className="rounded-[2.5rem] border-none shadow-sm bg-white overflow-hidden">
+                <div className="p-0">
+                   <table className="w-full text-left border-collapse">
+                      <thead>
+                         <tr className="border-b bg-gray-50/50">
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Product</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Store</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Price</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Status</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 text-right">Actions</th>
+                         </tr>
+                      </thead>
+                      <tbody>
+                         {allProducts.map(product => (
+                           <tr key={product.id} className="border-b last:border-0 hover:bg-gray-50/30 transition-colors">
+                              <td className="px-8 py-5">
+                                 <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden border bg-gray-50 shrink-0"><img src={product.images[0]} className="w-full h-full object-cover" /></div>
+                                    <span className="font-bold text-sm uppercase truncate max-w-[200px]">{product.title}</span>
+                                 </div>
+                              </td>
+                              <td className="px-8 py-5"><span className="text-xs font-bold text-gray-500 uppercase">{product.store.name}</span></td>
+                              <td className="px-8 py-5"><span className="text-sm font-black">GH₵{product.price}</span></td>
+                              <td className="px-8 py-5">
+                                 <Badge className={`${product.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' : product.approvalStatus === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'} border-none text-[8px] font-black uppercase`}>
+                                    {product.approvalStatus}
+                                 </Badge>
+                              </td>
+                              <td className="px-8 py-5 text-right">
+                                 <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}><Eye className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-500" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'delete', title: product.title }); setModModalOpen(true); }}><XCircle className="h-4 w-4" /></Button>
+                                 </div>
+                              </td>
+                           </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+             </Card>
+          </TabsContent>
+
+          <TabsContent value="users-mgmt" className="mt-0">
+             <Card className="rounded-[2.5rem] border-none shadow-sm bg-white overflow-hidden">
+                <div className="p-0">
+                   <table className="w-full text-left border-collapse">
+                      <thead>
+                         <tr className="border-b bg-gray-50/50">
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">User</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Type</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Contact</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Merchant</th>
+                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 text-right">Actions</th>
+                         </tr>
+                      </thead>
+                      <tbody>
+                         {allUsers.map(user => (
+                           <tr key={user.id} className="border-b last:border-0 hover:bg-gray-50/30 transition-colors">
+                              <td className="px-8 py-5">
+                                 <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-black text-xs uppercase">{user.firstName?.[0]}{user.lastName?.[0]}</div>
+                                    <div className="flex flex-col">
+                                       <span className="font-bold text-sm uppercase">{user.firstName} {user.lastName}</span>
+                                       <span className="text-[10px] font-medium text-gray-400 lowercase">{user.email}</span>
+                                    </div>
+                                 </div>
+                              </td>
+                              <td className="px-8 py-5">
+                                 <Badge className={`${user.userType === 'admin' ? 'bg-purple-100 text-purple-700' : user.userType === 'seller' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'} border-none text-[8px] font-black uppercase`}>
+                                    {user.userType}
+                                 </Badge>
+                              </td>
+                              <td className="px-8 py-5"><span className="text-[10px] font-bold text-gray-500 uppercase">{user.phoneNumber || 'No phone'}</span></td>
+                              <td className="px-8 py-5">
+                                 <div className="flex items-center gap-2">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${user.isMerchant ? 'bg-green-500' : 'bg-gray-300'}`} />
+                                    <span className="text-[10px] font-bold uppercase">{user.isMerchant ? 'Yes' : 'No'}</span>
+                                 </div>
+                              </td>
+                              <td className="px-8 py-5 text-right">
+                                 <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-500" onClick={() => { setModItem({ id: user.id, type: 'user', action: 'delete', title: `${user.firstName} ${user.lastName}` }); setModModalOpen(true); }}><XCircle className="h-4 w-4" /></Button>
+                                 </div>
+                              </td>
+                           </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+             </Card>
+          </TabsContent>
+
+          <TabsContent value="pending-logos" className="mt-0 space-y-6">
+             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pendingLogos.map(store => (
+                  <Card key={store.id} className="rounded-3xl border-none shadow-sm bg-white overflow-hidden">
+                     <div className="p-6 space-y-6">
+                        <div className="flex justify-between items-start">
+                           <div className="space-y-1">
+                              <h4 className="font-black uppercase text-sm">{store.name}</h4>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{store.user.firstName} {store.user.lastName}</p>
+                           </div>
+                           <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase">Pending Approval</Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-2">
+                              <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Current Logo</p>
+                              <div className="aspect-square rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50">
+                                 <img src={store.logoUrl || '/placeholder-logo.png'} className="w-full h-full object-cover" />
+                              </div>
+                           </div>
+                           <div className="space-y-2">
+                              <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest text-primary">New Logo</p>
+                              <div className="aspect-square rounded-2xl overflow-hidden border-4 border-primary/20 bg-primary/5">
+                                 <img src={store.pendingLogoUrl!} className="w-full h-full object-cover" />
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                           <Button className="flex-1 bg-green-500 hover:bg-green-600 rounded-xl font-black uppercase text-[10px] h-11" onClick={() => updateLogoStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>Approve</Button>
+                           <Button variant="outline" className="flex-1 border-2 border-red-100 text-red-500 hover:bg-red-50 rounded-xl font-black uppercase text-[10px] h-11" onClick={() => updateLogoStatusMutation.mutate({ storeId: store.id, status: 'rejected' })}>Reject</Button>
+                        </div>
+                     </div>
+                  </Card>
+                ))}
+             </div>
+             {pendingLogos.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending logo changes.</p>}
+          </TabsContent>
+
+          <TabsContent value="pending-stores" className="mt-0 space-y-6">
+             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pendingStores.map(store => (
+                  <Card key={store.id} className="rounded-3xl border-none shadow-sm bg-white overflow-hidden">
+                     <div className="p-6 space-y-6">
+                        <div className="flex justify-between items-start">
+                           <div className="space-y-1">
+                              <h4 className="font-black uppercase text-sm">{store.name}</h4>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{store.university} • {store.city}</p>
+                           </div>
+                           <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase">Pending Review</Badge>
+                        </div>
+
+                        <div className="space-y-2">
+                           <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Store Description</p>
+                           <p className="text-xs font-medium text-gray-600 line-clamp-3">{store.description}</p>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                           <Button className="flex-1 bg-black text-white rounded-xl font-black uppercase text-[10px] h-11" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'approved' })}>Approve Store</Button>
+                           <Button variant="outline" className="flex-1 border-2 border-red-100 text-red-500 hover:bg-red-50 rounded-xl font-black uppercase text-[10px] h-11" onClick={() => updateStoreStatusMutation.mutate({ storeId: store.id, status: 'rejected' })}>Reject</Button>
+                        </div>
+                     </div>
+                  </Card>
+                ))}
+             </div>
+             {pendingStores.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending stores.</p>}
+          </TabsContent>
+
+          <TabsContent value="pending-products" className="mt-0 space-y-6">
+             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allProducts.filter(p => p.approvalStatus === 'pending').map(product => (
+                  <Card key={product.id} className="rounded-3xl border-none shadow-sm bg-white overflow-hidden">
+                     <div className="p-6 space-y-6">
+                        <div className="flex justify-between items-start">
+                           <div className="space-y-1">
+                              <h4 className="font-black uppercase text-sm">{product.title}</h4>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.store.name} • GH₵{product.price}</p>
+                           </div>
+                           <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase">Pending Approval</Badge>
+                        </div>
+
+                        <div className="aspect-video rounded-2xl overflow-hidden border-2 border-gray-100 bg-gray-50">
+                           <img src={product.images[0]} className="w-full h-full object-cover" />
+                        </div>
+
+                        <div className="space-y-2">
+                           <p className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Description</p>
+                           <p className="text-xs font-medium text-gray-600 line-clamp-2">{product.description}</p>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                           <Button className="flex-1 bg-black text-white rounded-xl font-black uppercase text-[10px] h-11" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}>Approve</Button>
+                           <Button variant="outline" className="flex-1 border-2 border-red-100 text-red-500 hover:bg-red-50 rounded-xl font-black uppercase text-[10px] h-11" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'reject', title: product.title }); setModModalOpen(true); }}>Reject</Button>
+                        </div>
+                     </div>
+                  </Card>
+                ))}
+             </div>
+             {allProducts.filter(p => p.approvalStatus === 'pending').length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending products.</p>}
+          </TabsContent>
+
+          <TabsContent value="installment-approvals" className="mt-0 space-y-6">
+             <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6">
+                {pendingBuyerVerifications.map(user => (
+                  <Card key={user.id} className="rounded-[2.5rem] border-none shadow-sm bg-white overflow-hidden">
+                     <div className="p-8 space-y-8">
+                        <div className="flex justify-between items-start">
+                           <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center border-2 border-white shadow-sm font-black text-primary uppercase">{user.firstName?.[0]}{user.lastName?.[0]}</div>
+                              <div>
+                                 <h4 className="font-black uppercase text-lg leading-tight">{user.firstName} {user.lastName}</h4>
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user.email}</p>
+                              </div>
+                           </div>
+                           <Badge className="bg-blue-100 text-blue-700 border-none text-[8px] font-black uppercase">Buyer Installment Request</Badge>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                           <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Ghana Card (Front)</p>
+                              <div className="aspect-[3/2] rounded-3xl overflow-hidden border-2 border-gray-100 bg-gray-50">
+                                 <img src={user.buyerIdScanUrl!} className="w-full h-full object-cover" />
+                              </div>
+                           </div>
+                           <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Selfie Verification</p>
+                              <div className="aspect-[3/2] rounded-3xl overflow-hidden border-2 border-gray-100 bg-gray-50">
+                                 <img src={user.buyerFaceScanUrl!} className="w-full h-full object-cover" />
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                           <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-14 rounded-2xl font-black uppercase text-xs shadow-xl shadow-blue-100" onClick={() => approveBuyerMutation.mutate(user.id)}>Approve for Installments</Button>
+                           <Button variant="outline" className="flex-1 border-2 border-red-100 text-red-500 hover:bg-red-50 h-14 rounded-2xl font-black uppercase text-xs" onClick={() => { setModItem({ id: user.id, type: 'user', action: 'reject', title: `${user.firstName} ${user.lastName}` }); setModModalOpen(true); }}>Reject</Button>
+                        </div>
+                     </div>
+                  </Card>
+                ))}
+             </div>
+             {pendingBuyerVerifications.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending buyer installment verifications.</p>}
+          </TabsContent>
+
+          <TabsContent value="pending-verifications" className="mt-0 space-y-6">
+             <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6">
+                {pendingUsers.map(user => (
+                  <Card key={user.id} className="rounded-[2.5rem] border-none shadow-sm bg-white overflow-hidden">
+                     <div className="p-8 space-y-8">
+                        <div className="flex justify-between items-start">
+                           <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center border-2 border-white shadow-sm font-black text-primary uppercase">{user.firstName?.[0]}{user.lastName?.[0]}</div>
+                              <div>
+                                 <h4 className="font-black uppercase text-lg leading-tight">{user.firstName} {user.lastName}</h4>
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user.email}</p>
+                              </div>
+                           </div>
+                           <Badge className="bg-primary/20 text-primary-foreground border-none text-[8px] font-black uppercase">Seller ID Verification</Badge>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                           <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Ghana Card (Front)</p>
+                              <div className="aspect-[3/2] rounded-3xl overflow-hidden border-2 border-gray-100 bg-gray-50">
+                                 <img src={user.idScanUrl!} className="w-full h-full object-cover" />
+                              </div>
+                           </div>
+                           <div className="space-y-3">
+                              <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Selfie Verification</p>
+                              <div className="aspect-[3/2] rounded-3xl overflow-hidden border-2 border-gray-100 bg-gray-50">
+                                 <img src={user.faceScanUrl!} className="w-full h-full object-cover" />
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-4">
+                           <Button className="flex-1 bg-green-500 hover:bg-green-600 h-14 rounded-2xl font-black uppercase text-xs shadow-xl shadow-green-100" onClick={() => updateUserVerificationMutation.mutate({ userId: user.id, status: 'verified' })}>Approve Verification</Button>
+                           <Button variant="outline" className="flex-1 border-2 border-red-100 text-red-500 hover:bg-red-50 h-14 rounded-2xl font-black uppercase text-xs" onClick={() => { setModItem({ id: user.id, type: 'user', action: 'reject', title: `${user.firstName} ${user.lastName}` }); setModModalOpen(true); }}>Reject</Button>
+                        </div>
+                     </div>
+                  </Card>
+                ))}
+             </div>
+             {pendingUsers.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No pending verifications.</p>}
+          </TabsContent>
+
           <TabsContent value="inbox" className="mt-0"><InboxComponent /></TabsContent>
           
           {/* Other TabsContent items should go here if needed */}
+          <TabsContent value="app-mgmt" className="mt-0 space-y-6">
+             <Card className="rounded-[2.5rem] border-none shadow-sm bg-white p-8">
+                <div className="flex justify-between items-center mb-8">
+                   <h3 className="text-2xl font-black uppercase tracking-tight italic">Campus Activity Feed</h3>
+                   <div className="flex gap-2">
+                      {/* Form for new activity would go here, for now just a list and simple inputs if state exists */}
+                   </div>
+                </div>
+
+                <div className="space-y-6">
+                   <div className="bg-gray-50 p-6 rounded-3xl border-2 border-dashed border-gray-100">
+                      <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-4">Post New Activity</h4>
+                      <div className="grid md:grid-cols-2 gap-4 mb-4">
+                         <Input placeholder="Title" value={newActivity.title} onChange={e => setNewActivity({...newActivity, title: e.target.value})} className="h-12 rounded-xl border-2" />
+                         <Input placeholder="Image URL (Optional)" value={newActivity.imageUrl} onChange={e => setNewActivity({...newActivity, imageUrl: e.target.value})} className="h-12 rounded-xl border-2" />
+                      </div>
+                      <Textarea placeholder="Content" value={newActivity.content} onChange={e => setNewActivity({...newActivity, content: e.target.value})} className="rounded-xl border-2 mb-4 min-h-[100px]" />
+                      <div className="flex justify-end">
+                         <Button className="bg-black text-white rounded-xl font-black uppercase text-[10px] px-8 h-12" onClick={() => createActivityMutation.mutate(newActivity)} disabled={!newActivity.title || !newActivity.content}>Post to Feed</Button>
+                      </div>
+                   </div>
+
+                   <div className="grid gap-4">
+                      {campusActivities.map(activity => (
+                        <Card key={activity.id} className="rounded-2xl border-none bg-gray-50/50 p-6 flex justify-between items-center">
+                           <div className="flex items-center gap-4">
+                              {activity.imageUrl && <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0"><img src={activity.imageUrl} className="w-full h-full object-cover" /></div>}
+                              <div>
+                                 <h5 className="font-black text-sm uppercase">{activity.title}</h5>
+                                 <p className="text-xs text-gray-500 line-clamp-1">{activity.content}</p>
+                              </div>
+                           </div>
+                           <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deleteActivityMutation.mutate(activity.id)}><XCircle className="w-4 h-4" /></Button>
+                        </Card>
+                      ))}
+                   </div>
+                </div>
+             </Card>
+          </TabsContent>
+
           <TabsContent value="settings" className="mt-0">
              <div className="max-w-2xl">
                 <Card className="rounded-[3rem] p-10 border-none shadow-sm bg-white">
