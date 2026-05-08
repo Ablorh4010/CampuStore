@@ -209,9 +209,9 @@ export default function Header() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all">
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={user.avatar || ''} alt={user.firstName || 'User'} />
+                        <AvatarImage src={user?.avatar || ''} alt={user?.firstName || 'User'} />
                         <AvatarFallback className="bg-primary/5 text-primary">
-                          {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                          {user?.firstName?.[0] || ''}{user?.lastName?.[0] || ''}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -220,10 +220,10 @@ export default function Header() {
                     <DropdownMenuLabel className="font-normal p-4">
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-black uppercase tracking-tight leading-none">
-                          {user.firstName} {user.lastName}
+                          {user?.firstName} {user?.lastName}
                         </p>
                         <p className="text-xs leading-none text-muted-foreground">
-                          {user.email}
+                          {user?.email}
                         </p>
                       </div>
                     </DropdownMenuLabel>
@@ -235,7 +235,7 @@ export default function Header() {
                       <LayoutDashboard className="mr-3 h-4 w-4 text-primary" />
                       Seller Dashboard
                     </DropdownMenuItem>
-                    {user.isAdmin && (
+                    {user?.isAdmin && (
                       <DropdownMenuItem 
                         className="h-11 rounded-lg cursor-pointer font-bold uppercase tracking-widest text-[10px]"
                         onClick={() => handleProfileAction('admin')}
@@ -275,14 +275,14 @@ export default function Header() {
                     {user ? (
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-                          <AvatarImage src={user.avatar || ''} alt={user.firstName || 'User'} />
+                          <AvatarImage src={user?.avatar || ''} alt={user?.firstName || 'User'} />
                           <AvatarFallback className="bg-primary/5 text-primary">
-                            {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+                            {user?.firstName?.[0] || ''}{user?.lastName?.[0] || ''}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-black uppercase tracking-tight text-sm">{user.firstName} {user.lastName}</p>
-                          <p className="text-xs text-gray-500 font-medium truncate max-w-[150px]">{user.email}</p>
+                          <p className="font-black uppercase tracking-tight text-sm">{user?.firstName} {user?.lastName}</p>
+                          <p className="text-xs text-gray-500 font-medium truncate max-w-[150px]">{user?.email}</p>
                         </div>
                       </div>
                     ) : (
@@ -301,7 +301,7 @@ export default function Header() {
                             <Button variant="ghost" onClick={() => { handleProfileAction('dashboard'); setIsMobileMenuOpen(false); }} className="w-full justify-start h-12 rounded-xl font-bold uppercase tracking-widest text-[10px]">
                                <LayoutDashboard className="mr-3 h-4 w-4" /> Seller Dashboard
                             </Button>
-                            {user.isAdmin && (
+                            {user?.isAdmin && (
                               <Button variant="ghost" onClick={() => { handleProfileAction('admin'); setIsMobileMenuOpen(false); }} className="w-full justify-start h-12 rounded-xl font-bold uppercase tracking-widest text-[10px]">
                                  <Shield className="mr-3 h-4 w-4 text-secondary" /> Admin Portal
                               </Button>
