@@ -74,6 +74,7 @@ export interface IStorage {
   createBookmark(bookmark: any): Promise<any>;
   getBookmarksByUserId(userId: number): Promise<any[]>;
   updateBookmarkStatus(id: number, status: string): Promise<any>;
+  updateBookmark(id: number, data: Partial<any>): Promise<any>;
   deleteBookmark(id: number): Promise<boolean>;
 
   // Products
@@ -793,6 +794,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateBookmarkStatus(id: number, status: string): Promise<any> {
     const [bookmark] = await db.update(bookmarks).set({ status }).where(eq(bookmarks.id, id)).returning();
+    return bookmark;
+  }
+
+  async updateBookmark(id: number, data: Partial<any>): Promise<any> {
+    const [bookmark] = await db.update(bookmarks).set(data).where(eq(bookmarks.id, id)).returning();
     return bookmark;
   }
 

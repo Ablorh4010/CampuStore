@@ -450,7 +450,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ ...extractedData, categoryId });
     } catch (error) {
       console.error("AI Fetch Error:", error);
-      res.status(500).json({ message: "Gemini failed to analyze the product details." });
+      const errorMessage = error instanceof Error ? error.message : "Gemini failed to analyze the product details.";
+      res.status(500).json({ message: errorMessage });
     }
   });
 
