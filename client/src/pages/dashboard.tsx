@@ -11,7 +11,7 @@ import {
   Trash2, Eye, ExternalLink, MessageCircle, MapPin, 
   Clock, CheckCircle2, AlertCircle, Loader2, RefreshCcw,
   Sparkles, Wallet, Smartphone, ChevronRight, Info, Download,
-  Store as StoreIcon, Star, CreditCard, User as UserIcon, Building2, Upload, ShieldCheck, XCircle, Image as ImageIcon
+  Store as StoreIcon, Star, CreditCard, User as UserIcon, Building2, Upload, ShieldCheck, XCircle, Image as ImageIcon, Brain
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';

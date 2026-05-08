@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Users as UsersIcon, Package, Store as StoreIcon, DollarSign, Activity,
   Settings, Plus, Tag, Mail, Loader2, RefreshCcw, ShieldAlert,
-  ShieldCheck, XCircle, CheckCircle2, Clock, Eye, Zap, Newspaper, Menu, Sparkles
+  ShieldCheck, XCircle, CheckCircle2, Clock, Eye, Zap, Newspaper, Menu, Sparkles, CreditCard
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -603,8 +603,26 @@ export default function AdminDashboard() {
                               </td>
                               <td className="px-8 py-5 text-right">
                                  <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}><Eye className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-500" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'delete', title: product.title }); setModModalOpen(true); }}><XCircle className="h-4 w-4" /></Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className={`h-8 w-8 rounded-lg ${product.isAvailable ? 'text-amber-500' : 'text-green-500'}`}
+                                      title={product.isAvailable ? 'Sleep Listing' : 'Wake Listing'}
+                                      onClick={() => updateProductMutation.mutate({ productId: product.id, data: { isAvailable: !product.isAvailable } })}
+                                    >
+                                      {product.isAvailable ? <Clock className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className={`h-8 w-8 rounded-lg ${product.isInstallmentEligible ? 'text-green-500' : 'text-gray-400'}`}
+                                      title={product.isInstallmentEligible ? 'Disable Installments' : 'Enable Installments'}
+                                      onClick={() => updateProductMutation.mutate({ productId: product.id, data: { isInstallmentEligible: !product.isInstallmentEligible } })}
+                                    >
+                                      <CreditCard className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" title="Edit Listing" onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}><Settings className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-500" title="Delete Listing" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'delete', title: product.title }); setModModalOpen(true); }}><XCircle className="h-4 w-4" /></Button>
                                  </div>
                               </td>
                            </tr>
@@ -757,6 +775,7 @@ export default function AdminDashboard() {
 
                         <div className="flex gap-2 pt-2">
                            <Button className="flex-1 bg-black text-white rounded-xl font-black uppercase text-[10px] h-11" onClick={() => updateProductStatusMutation.mutate({ productId: product.id, status: 'approved' })}>Approve</Button>
+                           <Button variant="outline" className="h-11 w-11 rounded-xl border-2" title="Edit Listing" onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}><Settings className="h-4 w-4" /></Button>
                            <Button variant="outline" className="flex-1 border-2 border-red-100 text-red-500 hover:bg-red-50 rounded-xl font-black uppercase text-[10px] h-11" onClick={() => { setModItem({ id: product.id, type: 'product', action: 'reject', title: product.title }); setModModalOpen(true); }}>Reject</Button>
                         </div>
                      </div>
