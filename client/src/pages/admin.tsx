@@ -22,7 +22,7 @@ import { Link, useLocation } from 'wouter';
 import type { User, Store, Product, Category, Order, WeeklyDeal, CampusActivity, ProductWithStore, StoreWithUser, OrderWithDetails, WeeklyDealWithProduct, CampusActivityWithUser } from '@shared/schema';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ProductForm from '@/components/modals/product-form';
-import MagicImportModal from '@/components/modals/magic-import-modal';
+import AIProductListerModal from '@/components/modals/ai-product-lister';
 import InboxComponent from '@/components/chat/InboxComponent';
 
 export default function AdminDashboard() {
@@ -31,18 +31,18 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductWithStore | null>(null);
-  const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
-  const [initialMagicUrl, setInitialMagicUrl] = useState('');
+  const [isAIProductListerOpen, setIsAIProductListerOpen] = useState(false);
+  const [initialAIUrl, setInitialAIUrl] = useState('');
   const [rejectingOrder, setRejectingOrder] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Handle magic_url query parameter
+  // Handle ai_url query parameter
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const magicUrl = params.get('magic_url');
-    if (magicUrl) {
-      setInitialMagicUrl(magicUrl);
-      setIsMagicImportOpen(true);
+    const aiUrl = params.get('ai_url');
+    if (aiUrl) {
+      setInitialAIUrl(aiUrl);
+      setIsAIProductListerOpen(true);
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -973,7 +973,7 @@ export default function AdminDashboard() {
          </DialogContent>
       </Dialog>
 
-      <MagicImportModal isOpen={isMagicImportOpen} onClose={() => { setIsMagicImportOpen(false); setInitialMagicUrl(''); }} userStores={[]} initialUrl={initialMagicUrl} />
+      <AIProductListerModal isOpen={isAIProductListerOpen} onClose={() => { setIsAIProductListerOpen(false); setInitialAIUrl(''); }} userStores={[]} initialUrl={initialAIUrl} />
 
       {/* Weekly Deal / Flyer Creator Dialog */}
       <Dialog open={dealModalOpen} onOpenChange={setDealModalOpen}>

@@ -413,7 +413,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Magic Product Import - Extract from URL
+  // AI Product Lister - Direct Fetch & Analysis
+  app.post("/api/products/ai-fetch", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ message: "URL is required" });
+
+      console.log(`Gemini AI Lister: Fetching and analyzing product from ${url}`);
+      
+      const { smartFetch } = await import('./scraper');
+      const { extractProductFromHtml } = await import('./ai');
+      
+      let html = '';
+      try {
+        const result = await smartFetch(url);
+        html = result.html;
+        
+        if (!html) {
+          return res.status(400).json({ message: "Gemini couldn't browse this site. Please try a different product link." });
+        }
+      } catch (fetchErr) {
+        return res.status(400).json({ message: "Failed to connect to the URL." });
+      }
+
+      const extractedData = await extractProductFromHtml(html);
+      
+      // Resolve category ID
+      const categories = await storage.getAllCategories();
+      let categoryId = 1;
+      const matchedCat = categories.find(c => 
+        c.name.toLowerCase() === extractedData.subcategoryName?.toLowerCase() ||
+        c.name.toLowerCase() === extractedData.categoryName?.toLowerCase()
+      );
+      if (matchedCat) categoryId = matchedCat.id;
+
+      res.json({ ...extractedData, categoryId });
+    } catch (error) {
+      console.error("AI Fetch Error:", error);
+      res.status(500).json({ message: "Gemini failed to analyze the product details." });
+    }
+  });
+
+  // Deprecated: Magic Product Import (Keeping temporarily for compat)
   app.post("/api/products/extract-url", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { url } = req.body;
@@ -421,7 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "URL is required" });
       }
 
-      console.log(`Magic Import: Fetching content from ${url}`);
+      console.log(`AI Lister: Fetching content from ${url}`);
       
       const { smartFetch } = await import('./scraper');
       let html = '';
@@ -430,50 +471,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         html = result.html;
         
         if (!html) {
-          if (result.status === 403 || result.status === 401) {
-            return res.status(400).json({ message: "This website is protecting its data from being imported. Please try another product link." });
-          }
-          return res.status(400).json({ message: `Failed to retrieve content. Status: ${result.status}` });
+          return res.status(400).json({ message: "Site blocked browsing. Try another link." });
         }
       } catch (fetchErr) {
-        console.error("Fetch Error:", fetchErr);
-        return res.status(400).json({ message: "Could not connect to the provided URL. Please check the link and try again." });
-      }
-
-      if (!html) {
-        return res.status(400).json({ message: "Failed to retrieve content from the provided URL." });
+        return res.status(400).json({ message: "Connection failed." });
       }
 
       let extractedData;
       try {
+        const { isWooCommerce, extractWooCommerceProduct } = await import('./woocommerce-service');
         if (isWooCommerce(html)) {
-          console.log("Magic Import: WooCommerce site detected, using specialized extraction");
+          console.log("AI Lister: WooCommerce site detected");
           extractedData = await extractWooCommerceProduct(html, url);
         } else {
+          const { extractProductFromHtml } = await import('./ai');
           extractedData = await extractProductFromHtml(html);
         }
       } catch (aiErr) {
-        console.error("AI Extraction error in route:", aiErr);
-        return res.status(400).json({ message: aiErr instanceof Error ? aiErr.message : "AI extraction failed" });
+        return res.status(400).json({ message: "Extraction failed" });
       }
       
-      // Resolve category ID from AI suggestion
       const categories = await storage.getAllCategories();
-      let categoryId = 1; // Default
-      
+      let categoryId = 1;
       const matchedCat = categories.find(c => 
         c.name.toLowerCase() === extractedData.subcategoryName?.toLowerCase() ||
         c.name.toLowerCase() === extractedData.categoryName?.toLowerCase()
       );
-      
-      if (matchedCat) {
-        categoryId = matchedCat.id;
-      }
+      if (matchedCat) categoryId = matchedCat.id;
 
       res.json({ ...extractedData, categoryId });
     } catch (error) {
-      console.error("Magic Import Error:", error);
-      res.status(500).json({ message: "Failed to extract product data from the provided URL." });
+      res.status(500).json({ message: "Failed to extract product data." });
     }
   });
 

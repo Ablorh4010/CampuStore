@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import ProductForm from '@/components/modals/product-form';
-import MagicImportModal from '@/components/modals/magic-import-modal';
+import AIProductListerModal from '@/components/modals/ai-product-lister';
 import InboxComponent from '@/components/chat/InboxComponent';
 import ProductCard from '@/components/product/product-card';
 import { IdScanCapture, FacialCapture } from '@/components/verification';
@@ -47,8 +47,8 @@ export default function Dashboard() {
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [isMagicImportOpen, setIsMagicImportOpen] = useState(false);
-  const [initialMagicUrl, setInitialMagicUrl] = useState('');
+  const [isAIProductListerOpen, setIsAIProductListerOpen] = useState(false);
+  const [initialAIUrl, setInitialAIUrl] = useState('');
   const [reviewOrder, setReviewOrder] = useState<OrderWithDetails | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
@@ -78,13 +78,13 @@ export default function Dashboard() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isSubmittingChecklist, setIsSubmittingChecklist] = useState(false);
 
-  // Handle magic_url query parameter
+  // Handle ai_url query parameter
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const magicUrl = params.get('magic_url');
-    if (magicUrl) {
-      setInitialMagicUrl(magicUrl);
-      setIsMagicImportOpen(true);
+    const aiUrl = params.get('ai_url');
+    if (aiUrl) {
+      setInitialAIUrl(aiUrl);
+      setIsAIProductListerOpen(true);
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -506,7 +506,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setIsMagicImportOpen(true)} className="rounded-xl border-primary/20 text-primary font-black uppercase tracking-widest text-[10px] h-12 px-6"><Sparkles className="w-4 h-4 mr-2" /> Magic Import</Button>
+            <Button variant="outline" onClick={() => setIsAIProductListerOpen(true)} className="rounded-xl border-primary/20 text-primary font-black uppercase tracking-widest text-[10px] h-12 px-6"><Brain className="w-4 h-4 mr-2" /> AI Product Lister</Button>
             <Button onClick={() => setIsProductFormOpen(true)} className="rounded-xl bg-black text-white font-black uppercase tracking-widest text-[10px] h-12 px-6"><Plus className="w-4 h-4 mr-2" /> New Listing</Button>
           </div>
         </div>
@@ -692,7 +692,7 @@ export default function Dashboard() {
         </Tabs>
 
         <ProductForm isOpen={isProductFormOpen} onClose={() => { setIsProductFormOpen(false); setEditingProduct(null); }} userStores={userStores} initialData={editingProduct} />
-        <MagicImportModal isOpen={isMagicImportOpen} onClose={() => {setIsMagicImportOpen(false); setInitialMagicUrl('');}} userStores={userStores} initialUrl={initialMagicUrl} />
+        <AIProductListerModal isOpen={isAIProductListerOpen} onClose={() => {setIsAIProductListerOpen(false); setInitialAIUrl('');}} userStores={userStores} initialUrl={initialAIUrl} />
         
         {/* Installment Payment Dialog */}
         <Dialog open={!!payingInstallmentOrder} onOpenChange={(open) => !open && setPayingInstallmentOrder(null)}>
