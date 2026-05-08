@@ -134,7 +134,8 @@ export default function Store() {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="flex items-start space-x-6">
               <Avatar className="h-20 w-20">
-                <AvatarFallback className="text-2xl">{store.name[0]}</AvatarFallback>
+                <AvatarImage src={store.logoUrl || undefined} />
+                <AvatarFallback className="text-2xl">{store.name?.[0] || 'S'}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">

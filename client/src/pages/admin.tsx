@@ -20,12 +20,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Link, useLocation } from 'wouter';
 import type { User, Store, Product, Category, Order, WeeklyDeal, CampusActivity, ProductWithStore, StoreWithUser, OrderWithDetails, WeeklyDealWithProduct, CampusActivityWithUser } from '@shared/schema';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ProductForm from '@/components/modals/product-form';
 import MagicImportModal from '@/components/modals/magic-import-modal';
 import InboxComponent from '@/components/chat/InboxComponent';
 
 export default function AdminDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -292,8 +293,6 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => { await logout(); setLocation('/'); };
 
-  const authLoading = false; // Add actual authLoading logic if available
-
   if (authLoading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
   if (!user || !user.isAdmin) return null;
 
@@ -370,19 +369,19 @@ export default function AdminDashboard() {
             {/* System Health Indicators */}
             <div className="flex flex-wrap gap-4 mb-8">
                <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-gray-50">
-                  <div className={`w-2 h-2 rounded-full ${healthData?.database.status === 'up' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                  <div className={`w-2 h-2 rounded-full ${healthData?.database?.status === 'up' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Neon DB:</span>
-                  <span className="text-[10px] font-bold uppercase">{healthData?.database.status === 'up' ? 'Online' : 'Offline'}</span>
+                  <span className="text-[10px] font-bold uppercase">{healthData?.database?.status === 'up' ? 'Online' : 'Offline'}</span>
                </div>
                <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-gray-50">
-                  <div className={`w-2 h-2 rounded-full ${healthData?.gcp.status === 'configured' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                  <div className={`w-2 h-2 rounded-full ${healthData?.gcp?.status === 'configured' ? 'bg-blue-500' : 'bg-gray-300'}`} />
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">GCP:</span>
-                  <span className="text-[10px] font-bold uppercase">{healthData?.gcp.project}</span>
+                  <span className="text-[10px] font-bold uppercase">{healthData?.gcp?.project}</span>
                </div>
                <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-gray-50">
-                  <div className={`w-2 h-2 rounded-full ${healthData?.resend.status === 'configured' ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                  <div className={`w-2 h-2 rounded-full ${healthData?.resend?.status === 'configured' ? 'bg-purple-500' : 'bg-gray-300'}`} />
                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Resend:</span>
-                  <span className="text-[10px] font-bold uppercase">{healthData?.resend.status === 'configured' ? 'Active' : 'Missing API Key'}</span>
+                  <span className="text-[10px] font-bold uppercase">{healthData?.resend?.status === 'configured' ? 'Active' : 'Missing API Key'}</span>
                </div>
             </div>
 
