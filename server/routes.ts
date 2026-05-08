@@ -13,7 +13,15 @@ import { eq, sql, or } from "drizzle-orm";
 import multer from "multer";
 import fs, { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
-import { generateStoreProfile, generateProductDescription, analyzeProductImage, verifyFaceMatch, extractProductFromHtml } from "./ai";
+import { 
+  generateStoreProfile, 
+  generateProductDescription, 
+  analyzeProductImage, 
+  verifyFaceMatch, 
+  extractProductFromHtml,
+  generateActivitySummary,
+  generateWeeklyDealFlyerContent
+} from "./ai";
 import { isWooCommerce, extractWooCommerceProduct } from "./woocommerce-service";
 import { uploadToGCS } from "./gcs-storage";
 import { sendVerificationEmail, sendEmail as sendLocalEmail, sendPurchaseConfirmationEmail } from "./email";
@@ -292,100 +300,102 @@ async function finalizePaystackOrder(data: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // EMERGENCY DB SCHEMA FIXES FOR PRODUCTION
-  try {
-    console.log("PRODUCTION DB SYNC: Checking and fixing schema...");
-    const { sql } = await import('drizzle-orm');
-    
-    // Categories Table Fixes - MUST BE FIRST to avoid errors in subsequent steps
+  // EMERGENCY DB SCHEMA FIXES FOR PRODUCTION - Now non-blocking
+  (async () => {
     try {
-      await db.execute(sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INTEGER;`);
-      console.log("PRODUCTION DB SYNC: parent_id column checked/added.");
-    } catch (e) { console.log("Note: Categories schema updates skipped or already present."); }
+      console.log("PRODUCTION DB SYNC: Starting background schema check...");
+      const { sql } = await import('drizzle-orm');
+      
+      // Categories Table Fixes - MUST BE FIRST to avoid errors in subsequent steps
+      try {
+        await db.execute(sql`ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INTEGER;`);
+        console.log("PRODUCTION DB SYNC: parent_id column checked/added.");
+      } catch (e) { console.log("Note: Categories schema updates skipped or already present."); }
 
-    // Products Table Fixes
-    try {
-      await db.execute(sql`ALTER TABLE products ALTER COLUMN media_gif_url DROP NOT NULL;`);
-      await db.execute(sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_installment_eligible BOOLEAN DEFAULT true NOT NULL;`);
-    } catch (e) { console.log("Note: Products schema updates skipped."); }
+      // Products Table Fixes
+      try {
+        await db.execute(sql`ALTER TABLE products ALTER COLUMN media_gif_url DROP NOT NULL;`);
+        await db.execute(sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS is_installment_eligible BOOLEAN DEFAULT true NOT NULL;`);
+      } catch (e) { console.log("Note: Products schema updates skipped."); }
 
-    // Orders Table Fixes
-    try {
-      await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_status TEXT DEFAULT 'pending';`);
-      await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_processed_at TIMESTAMP;`);
-      await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_installment BOOLEAN DEFAULT false NOT NULL;`);
-      await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS installments_paid INTEGER DEFAULT 0 NOT NULL;`);
-      await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS installment_amount DECIMAL(10,2);`);
-      await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS next_installment_date TIMESTAMP;`);
-      await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS paystack_auth_code TEXT;`);
-    } catch (e) { console.log("Note: Orders schema updates skipped."); }
+      // Orders Table Fixes
+      try {
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_status TEXT DEFAULT 'pending';`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payout_processed_at TIMESTAMP;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_installment BOOLEAN DEFAULT false NOT NULL;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS installments_paid INTEGER DEFAULT 0 NOT NULL;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS installment_amount DECIMAL(10,2);`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS next_installment_date TIMESTAMP;`);
+        await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS paystack_auth_code TEXT;`);
+      } catch (e) { console.log("Note: Orders schema updates skipped."); }
 
-    // Users Table Fixes
-    try {
-      await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP;`);
-      await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS id_scan_url_back TEXT;`);
-      await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_notes TEXT;`);
-    } catch (e) { console.log("Note: Users schema updates skipped."); }
+      // Users Table Fixes
+      try {
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP;`);
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS id_scan_url_back TEXT;`);
+        await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_notes TEXT;`);
+      } catch (e) { console.log("Note: Users schema updates skipped."); }
 
-    // Seed Categories if needed
-    try {
-      const existingCategories = await storage.getAllCategories();
-      if (existingCategories.length <= 6) { 
-        console.log("PRODUCTION DB SEED: Seeding proper categories...");
-        const categoryData = [
-          { name: "Electronics", icon: "fas fa-laptop", color: "blue-100", subcategories: [
-            { name: "Laptops", icon: "fas fa-laptop", color: "blue-100" },
-            { name: "Smartphones", icon: "fas fa-mobile", color: "blue-100" },
-            { name: "Headphones", icon: "fas fa-headphones", color: "blue-100" },
-            { name: "Accessories", icon: "fas fa-plug", color: "blue-100" },
-          ]},
-          { name: "Academic", icon: "fas fa-book", color: "yellow-100", subcategories: [
-            { name: "Textbooks", icon: "fas fa-book", color: "yellow-100" },
-            { name: "Stationery", icon: "fas fa-pen", color: "yellow-100" },
-            { name: "Lab Gear", icon: "fas fa-microscope", color: "yellow-100" },
-          ]},
-          { name: "Fashion", icon: "fas fa-tshirt", color: "pink-100", subcategories: [
-            { name: "Clothing", icon: "fas fa-tshirt", color: "pink-100" },
-            { name: "Shoes", icon: "fas fa-shoe-prints", color: "pink-100" },
-            { name: "Accessories", icon: "fas fa-hat-cowboy", color: "pink-100" },
-          ]},
-          { name: "Home & Dorm", icon: "fas fa-home", color: "green-100", subcategories: [
-            { name: "Furniture", icon: "fas fa-chair", color: "green-100" },
-            { name: "Kitchenware", icon: "fas fa-utensils", color: "green-100" },
-            { name: "Bedding", icon: "fas fa-bed", color: "green-100" },
-          ]},
-          { name: "Sports & Leisure", icon: "fas fa-football", color: "red-100", subcategories: [
-            { name: "Gym Gear", icon: "fas fa-dumbbell", color: "red-100" },
-            { name: "Musical Instruments", icon: "fas fa-music", color: "red-100" },
-            { name: "Games", icon: "fas fa-gamepad", color: "red-100" },
-          ]},
-          { name: "Services", icon: "fas fa-graduation-cap", color: "purple-100", subcategories: [
-            { name: "Tutoring", icon: "fas fa-user-graduate", color: "purple-100" },
-            { name: "Delivery", icon: "fas fa-car", color: "purple-100" },
-            { name: "Hair & Beauty", icon: "fas fa-heart", color: "purple-100" },
-          ]},
-        ];
+      // Seed Categories if needed
+      try {
+        const existingCategories = await storage.getAllCategories();
+        if (existingCategories.length <= 6) { 
+          console.log("PRODUCTION DB SEED: Seeding proper categories...");
+          const categoryData = [
+            { name: "Electronics", icon: "fas fa-laptop", color: "blue-100", subcategories: [
+              { name: "Laptops", icon: "fas fa-laptop", color: "blue-100" },
+              { name: "Smartphones", icon: "fas fa-mobile", color: "blue-100" },
+              { name: "Headphones", icon: "fas fa-headphones", color: "blue-100" },
+              { name: "Accessories", icon: "fas fa-plug", color: "blue-100" },
+            ]},
+            { name: "Academic", icon: "fas fa-book", color: "yellow-100", subcategories: [
+              { name: "Textbooks", icon: "fas fa-book", color: "yellow-100" },
+              { name: "Stationery", icon: "fas fa-pen", color: "yellow-100" },
+              { name: "Lab Gear", icon: "fas fa-microscope", color: "yellow-100" },
+            ]},
+            { name: "Fashion", icon: "fas fa-tshirt", color: "pink-100", subcategories: [
+              { name: "Clothing", icon: "fas fa-tshirt", color: "pink-100" },
+              { name: "Shoes", icon: "fas fa-shoe-prints", color: "pink-100" },
+              { name: "Accessories", icon: "fas fa-hat-cowboy", color: "pink-100" },
+            ]},
+            { name: "Home & Dorm", icon: "fas fa-home", color: "green-100", subcategories: [
+              { name: "Furniture", icon: "fas fa-chair", color: "green-100" },
+              { name: "Kitchenware", icon: "fas fa-utensils", color: "green-100" },
+              { name: "Bedding", icon: "fas fa-bed", color: "green-100" },
+            ]},
+            { name: "Sports & Leisure", icon: "fas fa-football", color: "red-100", subcategories: [
+              { name: "Gym Gear", icon: "fas fa-dumbbell", color: "red-100" },
+              { name: "Musical Instruments", icon: "fas fa-music", color: "red-100" },
+              { name: "Games", icon: "fas fa-gamepad", color: "red-100" },
+            ]},
+            { name: "Services", icon: "fas fa-graduation-cap", color: "purple-100", subcategories: [
+              { name: "Tutoring", icon: "fas fa-user-graduate", color: "purple-100" },
+              { name: "Delivery", icon: "fas fa-car", color: "purple-100" },
+              { name: "Hair & Beauty", icon: "fas fa-heart", color: "purple-100" },
+            ]},
+          ];
 
-        for (const cat of categoryData) {
-          let parent = existingCategories.find(c => c.name.toLowerCase() === cat.name.toLowerCase());
-          if (!parent) {
-            parent = await storage.createCategory({ name: cat.name, icon: cat.icon, color: cat.color });
-          }
-          for (const sub of cat.subcategories) {
-            const existingSub = existingCategories.find(c => c.name.toLowerCase() === sub.name.toLowerCase());
-            if (!existingSub) {
-              await storage.createCategory({ name: sub.name, icon: sub.icon, color: sub.color, parentId: parent.id });
+          for (const cat of categoryData) {
+            let parent = existingCategories.find(c => c.name.toLowerCase() === cat.name.toLowerCase());
+            if (!parent) {
+              parent = await storage.createCategory({ name: cat.name, icon: cat.icon, color: cat.color });
+            }
+            for (const sub of cat.subcategories) {
+              const existingSub = existingCategories.find(c => c.name.toLowerCase() === sub.name.toLowerCase());
+              if (!existingSub) {
+                await storage.createCategory({ name: sub.name, icon: sub.icon, color: sub.color, parentId: parent.id });
+              }
             }
           }
+          console.log("PRODUCTION DB SEED: Categories seeded!");
         }
-        console.log("PRODUCTION DB SEED: Categories seeded!");
-      }
-    } catch (e) { console.log("Note: Category seeding failed:", e); }
-    
-    console.log("PRODUCTION DB SYNC: Success!");
-  } catch (error) {
-    console.log("PRODUCTION DB SYNC: Note - Critical failure in schema sync:", error instanceof Error ? error.message : String(error));
-  }
+      } catch (e) { console.log("Note: Category seeding failed:", e); }
+      
+      console.log("PRODUCTION DB SYNC: Success!");
+    } catch (error) {
+      console.log("PRODUCTION DB SYNC: Note - Critical failure in background schema sync:", error instanceof Error ? error.message : String(error));
+    }
+  })();
 
   // Identity Verification - Face Matching
   app.post("/api/verify/face-match", async (req: any, res: any) => {
@@ -2466,6 +2476,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes for moderation and analytics
+  app.get("/api/admin/health", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const health: any = {
+        database: { status: 'down', message: 'Not connected' },
+        gcp: { status: 'unconfigured', project: process.env.GOOGLE_CLOUD_PROJECT || 'unknown' },
+        resend: { status: 'unconfigured' },
+      };
+
+      // Check Database (Neon)
+      try {
+        await db.execute(sql`SELECT 1`);
+        health.database = { status: 'up', message: 'Connected to Neon' };
+      } catch (e) {
+        health.database.message = String(e);
+      }
+
+      // Check GCP
+      if (process.env.GOOGLE_CLOUD_PROJECT) {
+        health.gcp.status = 'configured';
+      }
+
+      // Check Resend
+      if (process.env.RESEND_API_KEY) {
+        health.resend.status = 'configured';
+      }
+
+      res.json(health);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch system health" });
+    }
+  });
+
+  app.get("/api/admin/ai-insights", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      // Fetch recent activities
+      const recentOrders = await storage.getOrders();
+      const recentUsers = await storage.getAllUsers();
+      const recentStores = await storage.getStores();
+
+      const activities = [
+        ...recentOrders.slice(0, 5).map(o => `New order for ${o.totalAmount} GH₵`),
+        ...recentUsers.slice(0, 5).map(u => `New user: ${u.username}`),
+        ...recentStores.slice(0, 5).map(s => `New store: ${s.name}`)
+      ];
+
+      const insights = await generateActivitySummary(activities);
+      res.json(insights);
+    } catch (error) {
+      console.error("AI Insights Error:", error);
+      res.status(500).json({ message: "Failed to generate AI insights" });
+    }
+  });
+
+  app.post("/api/admin/weekly-deals/generate-flyer", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { productId } = req.body;
+      const product = await storage.getProduct(productId);
+      if (!product) return res.status(404).json({ message: "Product not found" });
+
+      const content = await generateWeeklyDealFlyerContent(product);
+      res.json(content);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate flyer content" });
+    }
+  });
+
   app.get("/api/admin/analytics", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const analytics = await storage.getAnalytics();

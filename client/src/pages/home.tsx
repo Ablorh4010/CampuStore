@@ -62,14 +62,26 @@ export default function Home() {
   const scrollPrev = useCallback(() => { if (emblaApi) emblaApi.scrollPrev(); }, [emblaApi]);
   const scrollNext = useCallback(() => { if (emblaApi) emblaApi.scrollNext(); }, [emblaApi]);
 
-  // Auto-play for Pulse
+  const [currentDealIndex, setCurrentDealIndex] = useState(0);
+
+  // Auto-play for Pulse and Weekly Deals
   useEffect(() => {
-    if (!pulseApi) return;
-    const interval = setInterval(() => {
-      pulseApi.scrollNext();
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [pulseApi]);
+    const intervals: NodeJS.Timeout[] = [];
+
+    if (pulseApi) {
+      intervals.push(setInterval(() => pulseApi.scrollNext(), 4000));
+    }
+
+    const dealsInterval = setInterval(() => {
+      setCurrentDealIndex(prev => {
+        const count = weeklyDeals?.length || 0;
+        return count > 0 ? (prev + 1) % count : 0;
+      });
+    }, 5000);
+    intervals.push(dealsInterval);
+
+    return () => intervals.forEach(clearInterval);
+  }, [pulseApi, weeklyDeals?.length]);
 
   const { data: featuredProducts = [], isLoading: productsLoading } = useQuery<ProductWithStore[]>({
     queryKey: ['/api/products/featured', user?.university, user?.city, user?.campus],
@@ -184,62 +196,86 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center lg:justify-end relative mt-16 lg:mt-0">
-               {weeklyDeals.length > 0 && (
-                  <motion.div 
-                    initial={{ x: 50, opacity: 0 }} 
-                    animate={{ x: 0, opacity: 1 }} 
-                    transition={{ duration: 0.8 }} 
-                    className="relative w-full max-w-[320px] aspect-[9/16] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border-[10px] border-[#222] overflow-hidden z-20 group/phone"
-                  >
-                     {/* Dynamic Ad Flyer Carousel within the Phone */}
-                     <div className="relative h-full w-full bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
-                        <AnimatePresence mode="wait">
-                          {weeklyDeals.map((deal, idx) => (
-                            <motion.div 
-                              key={deal.id}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={{ duration: 1 }}
-                              className={`absolute inset-0 z-10 ${idx === (Math.floor(Date.now() / 4000) % weeklyDeals.length) ? 'block' : 'hidden'}`}
-                            >
-                               <Link href={`/product/${deal.productId}`}>
-                                  <div className="h-full w-full relative cursor-pointer overflow-hidden">
-                                     {/* Background Image (The Flyer) */}
-                                     <img src={deal.product.images[0]} alt="" className="w-full h-full object-cover scale-105 group-hover/phone:scale-110 transition-transform duration-[2s]" />
-                                     
-                                     {/* Gradient Overlay */}
-                                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                                     
-                                     {/* Promo Content */}
-                                     <div className="absolute bottom-0 left-0 w-full p-8 text-white">
-                                        <Badge className="bg-primary text-black font-black text-[8px] uppercase px-3 py-1 rounded-full mb-4 animate-bounce">
-                                          Deal of the Week
-                                        </Badge>
-                                        <h4 className="text-2xl font-black uppercase leading-tight mb-2 tracking-tighter drop-shadow-2xl">
-                                          {deal.product.title}
-                                        </h4>
-                                        <div className="flex items-center gap-3 mb-6">
-                                           <span className="text-3xl font-black text-primary">GH₵{(parseFloat(deal.product.price.toString()) * (1 - (deal.discountPercentage || 0) / 100)).toFixed(0)}</span>
-                                           <span className="text-white/50 line-through text-sm font-bold">GH₵{deal.product.price}</span>
-                                        </div>
-                                        <Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary transition-colors">
-                                          Grab Deal Now
-                                        </Button>
-                                     </div>
-                                  </div>
-                               </Link>
-                            </motion.div>
-                          ))}
-                        </AnimatePresence>
-                        
-                        {/* Status Bar */}
-                        <div className="absolute top-0 left-0 w-full h-12 bg-gradient-to-b from-black/40 to-transparent z-30 flex items-center justify-center pt-2">
-                           <div className="w-16 h-1 bg-white/30 rounded-full"></div>
-                        </div>
+               <motion.div 
+                 initial={{ x: 50, opacity: 0 }} 
+                 animate={{ x: 0, opacity: 1 }} 
+                 transition={{ duration: 0.8 }} 
+                 className="relative w-full max-w-[320px] aspect-[9/16] bg-[#1a1a1a] rounded-[3.5rem] p-3 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] border-[10px] border-[#222] overflow-hidden z-20 group/phone"
+               >
+                  {/* Dynamic Ad Flyer Carousel within the Phone */}
+                  <div className="relative h-full w-full bg-white rounded-[2.8rem] overflow-hidden flex flex-col">
+                     <AnimatePresence mode="wait">
+                       {weeklyDeals.length > 0 ? (
+                         weeklyDeals.map((deal, idx) => (
+                           <motion.div 
+                             key={deal.id}
+                             initial={{ opacity: 0 }}
+                             animate={{ opacity: 1 }}
+                             exit={{ opacity: 0 }}
+                             transition={{ duration: 1 }}
+                             className={`absolute inset-0 z-10 ${idx === currentDealIndex ? 'block' : 'hidden'}`}
+                           >
+                              <Link href={`/product/${deal.productId}`}>
+                                 <div className="h-full w-full relative cursor-pointer overflow-hidden">
+                                    {/* Background Image (The Flyer) */}
+                                    <img src={deal.product.images[0]} alt="" className="w-full h-full object-cover scale-105 group-hover/phone:scale-110 transition-transform duration-[2s]" />
+                                    
+                                    {/* Gradient Overlay */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                                    
+                                    {/* Promo Content */}
+                                    <div className="absolute bottom-0 left-0 w-full p-8 text-white">
+                                       <Badge className="bg-primary text-black font-black text-[8px] uppercase px-3 py-1 rounded-full mb-4 animate-bounce">
+                                         {deal.dealLabel}
+                                       </Badge>
+                                       <h4 className="text-2xl font-black uppercase leading-tight mb-2 tracking-tighter drop-shadow-2xl">
+                                         {deal.flyerHeadline || deal.product.title}
+                                       </h4>
+                                       <p className="text-xs font-bold text-gray-300 leading-snug mb-6 line-clamp-2">
+                                          {deal.flyerSubtext || "Exclusive savings for students this week only!"}
+                                       </p>
+                                       <div className="flex items-center gap-3 mb-6">
+                                          <span className="text-3xl font-black text-primary">GH₵{(parseFloat(deal.product.price.toString()) * (1 - (deal.discountPercentage || 0) / 100)).toFixed(0)}</span>
+                                          <span className="text-white/50 line-through text-sm font-bold">GH₵{deal.product.price}</span>
+                                       </div>
+                                       <Button className="w-full h-14 rounded-2xl bg-white text-black font-black uppercase tracking-widest text-[10px] hover:bg-primary transition-colors">
+                                         Grab Deal Now
+                                       </Button>
+                                    </div>
+                                 </div>
+                              </Link>
+                           </motion.div>
+                         ))
+                       ) : (
+                         <motion.div 
+                           initial={{ opacity: 0 }}
+                           animate={{ opacity: 1 }}
+                           className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 bg-black text-white text-center"
+                         >
+                            <div className="p-4 bg-primary/20 rounded-full mb-6">
+                               <Sparkles className="w-10 h-10 text-primary animate-pulse" />
+                            </div>
+                            <h4 className="text-3xl font-black uppercase tracking-tighter mb-4 leading-none">Deals Coming Soon</h4>
+                            <p className="text-sm font-medium text-gray-400 leading-relaxed px-4">
+                               Our AI is currently scouting for the hottest student deals. Check back in a few hours!
+                            </p>
+                            <div className="mt-10 w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                               <motion.div 
+                                 animate={{ x: [-100, 320] }} 
+                                 transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                                 className="w-24 h-full bg-primary" 
+                               />
+                            </div>
+                         </motion.div>
+                       )}
+                     </AnimatePresence>
+                     
+                     {/* Status Bar */}
+                     <div className="absolute top-0 left-0 w-full h-12 bg-gradient-to-b from-black/40 to-transparent z-30 flex items-center justify-center pt-2">
+                        <div className="w-16 h-1 bg-white/30 rounded-full"></div>
                      </div>
-                  </motion.div>
-               )}
+                  </div>
+               </motion.div>
             </div>
           </div>
         </div>

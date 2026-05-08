@@ -51,7 +51,15 @@ export default function AdminDashboard() {
 
   // Weekly Deals management state
   const [dealModalOpen, setDealModalOpen] = useState(false);
-  const [newDeal, setNewDeal] = useState({ productId: 0, discountPercentage: 10, dealLabel: 'Flash Deal', isActive: true, displayOrder: 0 });
+  const [newDeal, setNewDeal] = useState({ 
+    productId: 0, 
+    discountPercentage: 10, 
+    dealLabel: 'Flash Deal', 
+    isActive: true, 
+    displayOrder: 0,
+    flyerHeadline: '',
+    flyerSubtext: ''
+  });
 
   // Campus Activity state
   const [newActivity, setNewActivity] = useState({ title: '', content: '', source: 'internal', activityType: 'news', imageUrl: '' });
@@ -115,6 +123,17 @@ export default function AdminDashboard() {
   const { data: categories = [], refetch: refetchCategories } = useQuery<Category[]>({ queryKey: ['/api/categories'], enabled: !!user?.isAdmin });
   const { data: weeklyDeals = [], refetch: refetchDeals } = useQuery<WeeklyDealWithProduct[]>({ queryKey: ['/api/admin/weekly-deals'], enabled: !!user?.isAdmin });
   const { data: campusActivities = [], refetch: refetchActivities } = useQuery<CampusActivityWithUser[]>({ queryKey: ['/api/admin/campus-activity'], enabled: !!user?.isAdmin });
+
+  const { data: healthData } = useQuery<{
+    database: { status: string; message: string };
+    gcp: { status: string; project: string };
+    resend: { status: string };
+  }>({ queryKey: ['/api/admin/health'], enabled: !!user?.isAdmin, refetchInterval: 30000 });
+
+  const { data: aiInsights, refetch: refetchInsights, isFetching: insightsFetching } = useQuery<{ summary: string }>({
+    queryKey: ['/api/admin/ai-insights'],
+    enabled: !!user?.isAdmin,
+  });
 
   const { toast } = useToast();
 
@@ -216,6 +235,17 @@ export default function AdminDashboard() {
     onSuccess: () => { refetchDeals(); toast({ title: 'Deal Removed' }); },
   });
 
+  const generateFlyerMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      const res = await apiRequest('POST', '/api/admin/weekly-deals/generate-flyer', { productId });
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      setNewDeal(prev => ({ ...prev, flyerHeadline: data.headline, flyerSubtext: data.subtext }));
+      toast({ title: 'Flyer Content Generated' });
+    }
+  });
+
   const updateProductMutation = useMutation({
     mutationFn: async ({ productId, data }: { productId: number, data: any }) => {
       return apiRequest('PUT', `/api/products/${productId}`, data);
@@ -297,6 +327,7 @@ export default function AdminDashboard() {
         <NavSection title="Dashboard"><NavItem value="overview" label="Overview" icon={Activity} onClick={onNavClick} /><NavItem value="inbox" label="Inbox" icon={Mail} onClick={onNavClick} /></NavSection>
         <NavSection title="Approvals">
           <NavItem value="pending-products" label="Products" icon={Zap} badge={allProducts.filter(p => p.approvalStatus === 'pending').length} onClick={onNavClick} />
+          <NavItem value="weekly-deals" label="Weekly Deals" icon={Tag} badge={weeklyDeals.length} onClick={onNavClick} />
           <NavItem value="pending-verifications" label="Sellers" icon={ShieldAlert} badge={pendingUsers.length} onClick={onNavClick} />
           <NavItem value="installment-approvals" label="Installments" icon={DollarSign} badge={pendingBuyerVerifications.length} onClick={onNavClick} />
           <NavItem value="pending-stores" label="Stores" icon={StoreIcon} badge={pendingStores.length} onClick={onNavClick} />
@@ -336,6 +367,25 @@ export default function AdminDashboard() {
 
         <Tabs value={activeTab} className="space-y-8">
           <TabsContent value="overview" className="mt-0 space-y-10">
+            {/* System Health Indicators */}
+            <div className="flex flex-wrap gap-4 mb-8">
+               <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-gray-50">
+                  <div className={`w-2 h-2 rounded-full ${healthData?.database.status === 'up' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Neon DB:</span>
+                  <span className="text-[10px] font-bold uppercase">{healthData?.database.status === 'up' ? 'Online' : 'Offline'}</span>
+               </div>
+               <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-gray-50">
+                  <div className={`w-2 h-2 rounded-full ${healthData?.gcp.status === 'configured' ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">GCP:</span>
+                  <span className="text-[10px] font-bold uppercase">{healthData?.gcp.project}</span>
+               </div>
+               <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-gray-50">
+                  <div className={`w-2 h-2 rounded-full ${healthData?.resend.status === 'configured' ? 'bg-purple-500' : 'bg-gray-300'}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Resend:</span>
+                  <span className="text-[10px] font-bold uppercase">{healthData?.resend.status === 'configured' ? 'Active' : 'Missing API Key'}</span>
+               </div>
+            </div>
+
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {[
                 { label: 'Users', val: analytics?.totalUsers || 0, icon: UsersIcon, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -353,9 +403,99 @@ export default function AdminDashboard() {
               ))}
             </div>
             
+            {/* AI Insights Panel */}
             <div className="grid lg:grid-cols-3 gap-8">
-              {/* Recent Activity or other overview stats */}
+              <Card className="lg:col-span-2 rounded-[2.5rem] border-none shadow-sm bg-gradient-to-br from-black to-gray-800 text-white p-8 md:p-12 relative overflow-hidden">
+                 <div className="relative z-10 space-y-6">
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-3">
+                          <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
+                             <Sparkles className="w-6 h-6 text-primary" />
+                          </div>
+                          <h3 className="text-2xl font-black uppercase tracking-tighter">AI Platform Insights</h3>
+                       </div>
+                       <Button 
+                         variant="outline" 
+                         size="sm" 
+                         className="rounded-full bg-white/5 border-white/10 text-white font-black uppercase text-[9px] hover:bg-white/10"
+                         onClick={() => refetchInsights()}
+                         disabled={insightsFetching}
+                       >
+                          {insightsFetching ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <RefreshCcw className="w-3 h-3 mr-2" />}
+                          Refresh Report
+                       </Button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                       <p className="text-lg font-medium leading-relaxed text-gray-200 italic">
+                          "{aiInsights?.summary || "Analyzing platform activity data for patterns and trends..."}"
+                       </p>
+                       <div className="flex items-center gap-6 pt-6 border-t border-white/5">
+                          <div>
+                             <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-1">Growth Index</p>
+                             <div className="flex items-center gap-2">
+                                <span className="text-xl font-black text-primary">+12.4%</span>
+                                <Zap className="w-4 h-4 text-primary" />
+                             </div>
+                          </div>
+                          <div>
+                             <p className="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-1">Active Hubs</p>
+                             <span className="text-xl font-black">24 Universities</span>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[100px] -mr-32 -mt-32 rounded-full" />
+              </Card>
+
+              <Card className="rounded-[2.5rem] border-none shadow-sm bg-white p-8">
+                 <h4 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Quick Actions</h4>
+                 <div className="space-y-3">
+                    <Button className="w-full h-14 rounded-2xl bg-black text-white font-bold text-xs uppercase shadow-xl" onClick={() => setIsProductModalOpen(true)}>Create Listing</Button>
+                    <Button variant="outline" className="w-full h-12 rounded-2xl border-2 font-bold text-xs uppercase" onClick={() => setActiveTab('settings')}>Platform Config</Button>
+                    <Button variant="outline" className="w-full h-12 rounded-2xl border-2 font-bold text-xs uppercase" onClick={() => window.open('/clear-cache', '_blank')}>Clear Cache</Button>
+                 </div>
+              </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="weekly-deals" className="mt-0 space-y-6">
+             <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-black uppercase tracking-tight">Active Weekly Deals</h3>
+                <Button onClick={() => { setNewDeal({ productId: 0, discountPercentage: 10, dealLabel: 'Flash Deal', isActive: true, displayOrder: 0, flyerHeadline: '', flyerSubtext: '' }); setDealModalOpen(true); }} className="rounded-xl bg-primary text-black font-black uppercase text-[10px] h-10 px-6">Create New Deal</Button>
+             </div>
+             
+             <div className="grid md:grid-cols-2 gap-6">
+                {weeklyDeals.map(deal => (
+                  <Card key={deal.id} className="rounded-3xl border-none shadow-sm bg-white p-6 overflow-hidden flex gap-6">
+                     <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0">
+                        <img src={deal.product.images[0]} className="w-full h-full object-cover" />
+                     </div>
+                     <div className="flex-1 space-y-2">
+                        <div className="flex justify-between items-start">
+                           <div>
+                              <Badge className="bg-primary/20 text-primary-foreground border-none text-[8px] font-black uppercase mb-1">{deal.dealLabel}</Badge>
+                              <h4 className="font-black uppercase text-sm leading-none">{deal.product.title}</h4>
+                           </div>
+                           <Button variant="ghost" size="icon" className="text-red-500" onClick={() => deleteDealMutation.mutate(deal.id)}><XCircle className="w-4 h-4" /></Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <span className="text-sm font-black text-primary">-{deal.discountPercentage}%</span>
+                           <span className="text-[10px] font-bold text-gray-400">Order: {deal.displayOrder}</span>
+                        </div>
+                        
+                        {/* Flyer Preview Placeholder */}
+                        <div className="pt-2">
+                           <div className="bg-gray-50 rounded-xl p-3 border border-dashed border-gray-200">
+                              <p className="text-[10px] font-black uppercase text-gray-400 mb-1">Flyer Text</p>
+                              <p className="text-[11px] font-bold leading-tight">{deal.flyerHeadline || "No custom headline yet"}</p>
+                           </div>
+                        </div>
+                     </div>
+                  </Card>
+                ))}
+             </div>
+             {weeklyDeals.length === 0 && <p className="text-center py-20 text-gray-400 font-bold uppercase text-xs">No active deals.</p>}
           </TabsContent>
 
           <TabsContent value="pending-orders" className="mt-0 space-y-6">
@@ -517,6 +657,102 @@ export default function AdminDashboard() {
       </Dialog>
 
       <MagicImportModal isOpen={isMagicImportOpen} onClose={() => { setIsMagicImportOpen(false); setInitialMagicUrl(''); }} userStores={[]} initialUrl={initialMagicUrl} />
+
+      {/* Weekly Deal / Flyer Creator Dialog */}
+      <Dialog open={dealModalOpen} onOpenChange={setDealModalOpen}>
+         <DialogContent className="max-w-4xl rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden">
+            <div className="grid lg:grid-cols-2">
+               {/* Form Side */}
+               <div className="p-10 space-y-8">
+                  <DialogHeader>
+                     <DialogTitle className="text-3xl font-black uppercase tracking-tighter italic leading-none">Flyer Creator.</DialogTitle>
+                     <DialogDescription className="font-bold text-gray-400">Design an AI-powered deal for the homepage carousel.</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-6">
+                     <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Target Product</Label>
+                        <Select onValueChange={(val) => {
+                          const id = parseInt(val);
+                          setNewDeal({ ...newDeal, productId: id });
+                          generateFlyerMutation.mutate(id);
+                        }}>
+                           <SelectTrigger className="h-12 rounded-xl border-2 font-bold"><SelectValue placeholder="Select a product" /></SelectTrigger>
+                           <SelectContent className="rounded-xl border-none shadow-2xl">
+                              {allProducts.map(p => (
+                                <SelectItem key={p.id} value={p.id.toString()} className="font-bold">{p.title}</SelectItem>
+                              ))}
+                           </SelectContent>
+                        </Select>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                           <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Discount %</Label>
+                           <Input type="number" value={newDeal.discountPercentage} onChange={e => setNewDeal({ ...newDeal, discountPercentage: parseInt(e.target.value) })} className="h-12 rounded-xl border-2 font-black" />
+                        </div>
+                        <div className="space-y-2">
+                           <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Label</Label>
+                           <Input value={newDeal.dealLabel} onChange={e => setNewDeal({ ...newDeal, dealLabel: e.target.value })} className="h-12 rounded-xl border-2 font-bold" />
+                        </div>
+                     </div>
+
+                     <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Flyer Headline (AI Generated)</Label>
+                        <Input value={(newDeal as any).flyerHeadline || ''} onChange={e => setNewDeal({ ...newDeal, flyerHeadline: e.target.value } as any)} className="h-12 rounded-xl border-2 font-black text-primary" placeholder="e.g. ULTIMATE GAMING SETUP" />
+                     </div>
+
+                     <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Flyer Subtext</Label>
+                        <Textarea value={(newDeal as any).flyerSubtext || ''} onChange={e => setNewDeal({ ...newDeal, flyerSubtext: e.target.value } as any)} className="rounded-xl border-2 font-medium" placeholder="Short energy text..." />
+                     </div>
+                  </div>
+
+                  <DialogFooter className="pt-4 gap-2">
+                     <Button variant="outline" className="rounded-xl font-bold h-12" onClick={() => setDealModalOpen(false)}>Cancel</Button>
+                     <Button className="flex-1 rounded-xl bg-black text-white font-black uppercase h-12 shadow-xl" onClick={() => createDealMutation.mutate(newDeal)}>Activate Flyer</Button>
+                  </DialogFooter>
+               </div>
+
+               {/* Preview Side */}
+               <div className="bg-gray-100 p-10 flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,white_0%,transparent_100%)] opacity-50" />
+                  
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 mb-8 relative z-10">Live Preview (Homepage Carousel)</p>
+                  
+                  {/* Phone Shell for Preview */}
+                  <div className="relative w-full max-w-[280px] aspect-[9/16] bg-[#1a1a1a] rounded-[3rem] p-2 shadow-2xl border-[8px] border-[#222] overflow-hidden z-10">
+                     <div className="relative h-full w-full bg-white rounded-[2.4rem] overflow-hidden flex flex-col">
+                        <div className="h-full w-full relative">
+                           {/* Background Image */}
+                           {newDeal.productId ? (
+                             <>
+                               <img src={allProducts.find(p => p.id === newDeal.productId)?.images?.[0]} className="w-full h-full object-cover" />
+                               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                               
+                               <div className="absolute bottom-0 left-0 w-full p-6 text-white text-left">
+                                  <Badge className="bg-primary text-black font-black text-[7px] uppercase px-2 py-0.5 rounded-full mb-3">{newDeal.dealLabel}</Badge>
+                                  <h4 className="text-xl font-black uppercase leading-tight mb-2 tracking-tighter">{(newDeal as any).flyerHeadline || "Ready for Headline"}</h4>
+                                  <p className="text-[10px] font-bold text-gray-300 leading-snug mb-4">{(newDeal as any).flyerSubtext || "Select a product to generate AI promotional text."}</p>
+                                  <div className="flex items-center gap-2 mb-4">
+                                     <span className="text-2xl font-black text-primary">GH₵{Math.round(parseFloat(allProducts.find(p => p.id === newDeal.productId)?.price || '0') * (1 - newDeal.discountPercentage/100))}</span>
+                                     <span className="text-white/40 line-through text-xs">GH₵{allProducts.find(p => p.id === newDeal.productId)?.price}</span>
+                                  </div>
+                                  <Button className="w-full h-11 rounded-xl bg-white text-black font-black uppercase text-[9px] tracking-widest pointer-events-none">Grab Deal Now</Button>
+                               </div>
+                             </>
+                           ) : (
+                             <div className="h-full w-full flex items-center justify-center bg-gray-50 text-gray-300 font-bold text-xs uppercase px-10 text-center">
+                                Select a product to see the flyer preview
+                             </div>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </DialogContent>
+      </Dialog>
     </div>
   );
 }

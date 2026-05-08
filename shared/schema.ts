@@ -397,6 +397,8 @@ export const weeklyDeals = pgTable("weekly_deals", {
   dealLabel: text("deal_label").notNull().default("Flash Deal"),
   isActive: boolean("is_active").notNull().default(true),
   displayOrder: integer("display_order").notNull().default(0),
+  flyerHeadline: text("flyer_headline"),
+  flyerSubtext: text("flyer_subtext"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

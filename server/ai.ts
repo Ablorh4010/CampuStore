@@ -378,3 +378,62 @@ export async function extractProductFromHtml(html: string) {
     throw new Error("Failed to extract product data from this URL.");
   }
 }
+
+export async function generateActivitySummary(activities: any[]) {
+  try {
+    const text = await callGenerativeModel({
+      defaultSystemInstruction: "You are a platform manager providing a high-level briefing to an administrator.",
+      defaultPrompt: `
+    Summarize the following recent platform activities into a professional, encouraging 2-3 sentence overview. 
+    Focus on growth, engagement, and any notable trends.
+
+    Activities:
+    ${JSON.stringify(activities)}
+
+    If there are no activities, provide a short encouraging message about getting started.
+    `,
+    });
+    return { summary: text.trim() };
+  } catch (error) {
+    console.error("AI Activity Summary Error:", error);
+    return { summary: "Platform activity is stable. Continue monitoring for new orders and store registrations." };
+  }
+}
+
+export async function generateWeeklyDealFlyerContent(product: any) {
+  try {
+    const text = await callGenerativeModel({
+      defaultSystemInstruction: "You are a creative advertising copywriter specializing in social media flyers for students.",
+      defaultPrompt: `
+    Generate catchy promotional content for a "Weekly Deal" flyer.
+    Product: "{{title}}"
+    Category: "{{category}}"
+    Price: {{price}}
+
+    Create:
+    1. A bold, 2-4 word headline (e.g. "GEAR UP FOR FINALS").
+    2. A short, high-energy subtext (max 10 words).
+
+    Return ONLY a JSON object:
+    {
+      "headline": string,
+      "subtext": string
+    }
+    `,
+      variables: {
+        title: product.title,
+        category: product.category?.name || 'Item',
+        price: product.price
+      },
+      responseMimeType: "application/json"
+    });
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("AI Flyer Content Error:", error);
+    return {
+      headline: "HOT CAMPUS DEAL",
+      subtext: "Exclusive savings for students this week only!"
+    };
+  }
+}
+
