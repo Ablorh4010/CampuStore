@@ -430,7 +430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         html = result.html;
         
         if (!html) {
-          return res.status(400).json({ message: "Gemini couldn't browse this site. Please try a different product link." });
+          return res.status(400).json({ message: "Gemini couldn't fetch this site. Please try a different product link." });
         }
       } catch (fetchErr) {
         return res.status(400).json({ message: "Failed to connect to the URL." });

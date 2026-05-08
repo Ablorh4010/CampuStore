@@ -12,6 +12,7 @@ const USER_AGENTS = [
 ];
 
 export async function smartFetch(url: string): Promise<{ html: string; status: number }> {
+  const PROXY_LIST = ["https://api.allorigins.win/raw?url=","https://api.codetabs.com/v1/proxy/?quest=","https://thingproxy.freeboard.io/fetch/"];
   const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
   
   const baseHeaders = {
@@ -58,6 +59,22 @@ export async function smartFetch(url: string): Promise<{ html: string; status: n
       return { html, status: response2.status };
     }
 
+    console.log('SmartFetch: Tier 2 failed. Trying proxy fallback...');
+    for (const proxyBase of PROXY_LIST) {
+      try {
+        const proxyUrl = proxyBase + encodeURIComponent(url);
+        console.log('SmartFetch: Trying proxy: ' + proxyBase);
+        const proxyRes = await fetch(proxyUrl, { headers: baseHeaders });
+        if (proxyRes.ok) {
+          const html = await proxyRes.text();
+          if (html.length > 5000) {
+             return { html, status: 200 };
+          }
+        }
+      } catch (proxyErr) {
+        console.error('SmartFetch: Proxy attempt failed', proxyErr);
+      }
+    }
     return { html: '', status: response2.status };
   } catch (error) {
     console.error("SmartFetch Error:", error);
