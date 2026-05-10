@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Internship Opportunities | University Hub GH</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,600;0,700;0,900;1,900&family=Barlow+Condensed:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy: #0d1b4b;
+    --purple: #4f35e8;
+    --purple-light: #6c55f0;
+    --black: #0a0a0a;
+    --white: #ffffff;
+    --gray: #f4f5f9;
+    --gray2: #e8eaf0;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --green: #16a34a;
+    --orange: #ea580c;
+    --teal: #0891b2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--white); color: var(--text); }
+
+  /* ticker */
+  .ticker-bar {
+    background: var(--black);
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .ticker-inner { display: inline-flex; gap: 60px; animation: ticker 26s linear infinite; }
+  .ticker-inner span::before { content: "✦  "; color: var(--purple); }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* nav */
+  nav {
+    background: var(--white);
+    border-bottom: 2px solid var(--gray2);
+    padding: 14px 40px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-icon { width: 42px; height: 42px; background: var(--purple); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 20px; color: #fff; }
+  .logo-text { line-height: 1.1; }
+  .logo-text strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 17px; color: var(--navy); letter-spacing: 0.02em; text-transform: uppercase; }
+  .logo-text span { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .nav-links { display: flex; gap: 24px; margin-left: auto; align-items: center; }
+  .nav-links a { text-decoration: none; font-size: 14px; font-weight: 500; color: var(--text); transition: color 0.2s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--purple); }
+  .nav-links a.active { font-weight: 700; border-bottom: 2px solid var(--purple); padding-bottom: 2px; }
+  .btn-signin { background: var(--navy); color: var(--white); border: none; padding: 9px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+  .btn-signin:hover { background: var(--purple); }
+
+  /* hero */
+  .hero {
+    background: linear-gradient(135deg, #0a1628 0%, var(--navy) 40%, #1a237e 100%);
+    padding: 64px 40px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before { content: ''; position: absolute; top: -60px; right: -60px; width: 420px; height: 420px; background: radial-gradient(circle, rgba(79,53,232,0.3) 0%, transparent 70%); border-radius: 50%; }
+  .hero::after { content: ''; position: absolute; bottom: -40px; left: 300px; width: 280px; height: 280px; background: radial-gradient(circle, rgba(8,145,178,0.2) 0%, transparent 70%); border-radius: 50%; }
+  .hero-label { display: inline-flex; align-items: center; gap: 6px; background: rgba(79,53,232,0.25); border: 1px solid rgba(79,53,232,0.5); color: #a5b4fc; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 12px; border-radius: 20px; margin-bottom: 20px; }
+  .hero h1 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: clamp(40px, 6vw, 72px); color: var(--white); line-height: 1.0; text-transform: uppercase; margin-bottom: 8px; }
+  .hero h1 em { font-style: italic; color: #67e8f9; }
+  .hero p { color: rgba(255,255,255,0.65); font-size: 16px; max-width: 520px; margin-bottom: 32px; line-height: 1.6; }
+
+  /* search */
+  .search-card { background: var(--white); border-radius: 16px; padding: 28px 32px; max-width: 900px; box-shadow: 0 24px 60px rgba(0,0,0,0.3); position: relative; z-index: 2; }
+  .search-card h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--purple); margin-bottom: 16px; }
+  .search-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+  .field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+  .field select, .field input { width: 100%; padding: 11px 14px; border: 2px solid var(--gray2); border-radius: 10px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--gray); outline: none; transition: border-color 0.2s; appearance: none; }
+  .field select:focus, .field input:focus { border-color: var(--purple); background: #fff; }
+  .btn-search { background: var(--purple); color: #fff; border: none; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background 0.2s, transform 0.15s; display: flex; align-items: center; gap: 8px; }
+  .btn-search:hover { background: var(--navy); transform: translateY(-1px); }
+
+  /* stats */
+  .stats-bar { background: var(--gray); border-bottom: 2px solid var(--gray2); padding: 16px 40px; display: flex; gap: 40px; align-items: center; }
+  .stat { display: flex; align-items: center; gap: 8px; }
+  .stat-num { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 22px; color: var(--navy); }
+  .stat-lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .stat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray2); }
+
+  /* filters */
+  .filters-row { padding: 18px 40px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--gray2); flex-wrap: wrap; }
+  .filters-row span { font-size: 13px; font-weight: 600; color: var(--muted); margin-right: 4px; }
+  .filter-chip { padding: 7px 16px; border-radius: 20px; border: 2px solid var(--gray2); background: var(--white); font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; transition: all 0.18s; }
+  .filter-chip:hover, .filter-chip.active { border-color: var(--purple); color: var(--purple); background: #f0edff; }
+  .results-count { margin-left: auto; font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  /* main layout */
+  .main { display: flex; min-height: 60vh; }
+  .sidebar { width: 260px; flex-shrink: 0; border-right: 2px solid var(--gray2); padding: 28px 24px; }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--navy); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--gray2); }
+  .check-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: var(--text); cursor: pointer; }
+  .check-item input[type="checkbox"] { accent-color: var(--purple); width: 15px; height: 15px; cursor: pointer; }
+
+  /* internship cards - LIST style */
+  .cards-area { flex: 1; padding: 28px 32px; }
+  .list-stack { display: flex; flex-direction: column; gap: 16px; }
+
+  .intern-card {
+    border-radius: 14px;
+    border: 2px solid var(--gray2);
+    padding: 22px 24px;
+    background: var(--white);
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    transition: transform 0.22s, box-shadow 0.22s, border-color 0.22s;
+    cursor: pointer;
+    animation: fadeUp 0.4s ease both;
+  }
+  .intern-card:hover { transform: translateY(-3px); box-shadow: 0 12px 36px rgba(79,53,232,0.1); border-color: var(--purple); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  .company-logo {
+    width: 60px; height: 60px;
+    border-radius: 12px;
+    background: var(--gray);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+    border: 2px solid var(--gray2);
+  }
+  .intern-main { flex: 1; }
+  .intern-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .intern-title { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 20px; color: var(--navy); text-transform: uppercase; line-height: 1.1; }
+  .intern-company { font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 6px; }
+  .intern-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .intern-meta span { display: flex; align-items: center; gap: 4px; }
+  .intern-desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+  .intern-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { padding: 3px 10px; border-radius: 20px; background: var(--gray); font-size: 11px; font-weight: 600; color: var(--text); }
+  .tag-sector { background: #ede9fe; color: var(--purple); }
+  .tag-paid { background: #dcfce7; color: var(--green); }
+  .tag-remote { background: #cffafe; color: var(--teal); }
+  
+  .intern-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex-shrink: 0; }
+  .deadline-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .deadline-hot { background: #fef3c7; color: #92400e; }
+  .deadline-open { background: #dcfce7; color: var(--green); }
+  .deadline-soon { background: #fee2e2; color: #991b1b; }
+  .btn-apply { background: var(--navy); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .btn-apply:hover { background: var(--purple); }
+  .btn-save { background: none; border: 2px solid var(--gray2); padding: 9px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+  .btn-save:hover { border-color: var(--purple); color: var(--purple); }
+
+  /* featured banner */
+  .featured-banner {
+    background: linear-gradient(90deg, var(--navy), #1a237e);
+    border-radius: 14px;
+    padding: 22px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    border: 2px solid rgba(79,53,232,0.3);
+  }
+  .featured-banner .icon { font-size: 36px; }
+  .featured-banner h4 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 18px; color: #fff; text-transform: uppercase; }
+  .featured-banner p { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+  .featured-banner .btn-post { margin-left: auto; background: var(--purple); color: #fff; border: none; padding: 10px 22px; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+  .featured-banner .btn-post:hover { background: #fff; color: var(--purple); }
+
+  /* modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 999; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--white); border-radius: 18px; max-width: 600px; width: 100%; overflow: hidden; animation: modalIn 0.3s ease; max-height: 90vh; overflow-y: auto; }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.92) translateY(20px); } to { opacity: 1; transform: none; } }
+  .modal-header { background: var(--navy); color: #fff; padding: 24px 28px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .modal-header h2 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 24px; text-transform: uppercase; }
+  .modal-header p { font-size: 13px; opacity: 0.7; margin-top: 4px; }
+  .modal-close { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+  .modal-close:hover { opacity: 1; }
+  .modal-body { padding: 28px; }
+  .modal-section { margin-bottom: 20px; }
+  .modal-section h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--navy); margin-bottom: 10px; }
+  .modal-section p { font-size: 14px; line-height: 1.7; color: var(--text); }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .info-item label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); display: block; margin-bottom: 3px; }
+  .info-item p { font-size: 14px; font-weight: 600; color: var(--navy); }
+  .modal-actions { display: flex; gap: 12px; }
+  .btn-apply-lg { flex: 1; background: var(--purple); color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+  .btn-apply-lg:hover { background: var(--navy); }
+  .btn-share { background: var(--gray); color: var(--navy); border: 2px solid var(--gray2); padding: 14px 20px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn-share:hover { border-color: var(--navy); }
+  .requirements-list { list-style: none; }
+  .requirements-list li { padding: 5px 0; font-size: 14px; color: var(--text); display: flex; align-items: flex-start; gap: 8px; }
+  .requirements-list li::before { content: "✓"; color: var(--green); font-weight: 700; flex-shrink: 0; }
+
+  footer { background: var(--black); color: rgba(255,255,255,0.5); text-align: center; padding: 20px; font-size: 13px; }
+  footer strong { color: var(--purple); }
+
+  @media (max-width: 768px) {
+    nav { padding: 12px 16px; }
+    .hero { padding: 40px 16px 32px; }
+    .search-grid { grid-template-columns: 1fr 1fr; }
+    .stats-bar { padding: 12px 16px; gap: 20px; flex-wrap: wrap; }
+    .filters-row { padding: 12px 16px; }
+    .main { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 2px solid var(--gray2); padding: 20px 16px; }
+    .cards-area { padding: 16px; }
+    .intern-card { flex-direction: column; }
+    .intern-right { flex-direction: row; align-items: center; }
+    .nav-links { display: none; }
+    .featured-banner { flex-direction: column; text-align: center; }
+    .featured-banner .btn-post { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Ticker -->
+<div class="ticker-bar">
+  <div class="ticker-inner">
+    <span>Internships Across Ghana</span>
+    <span>Corporate & NGO Opportunities</span>
+    <span>Students by Students</span>
+    <span>Apply & Kickstart Your Career</span>
+    <span>University Hub GH</span>
+    <span>Internships Across Ghana</span>
+    <span>Corporate & NGO Opportunities</span>
+    <span>Students by Students</span>
+    <span>Apply & Kickstart Your Career</span>
+    <span>University Hub GH</span>
+  </div>
+</div>
+
+<!-- Nav -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="logo-icon">U</div>
+    <div class="logo-text">
+      <strong>University Hub <span style="color:var(--purple)">GH</span></strong>
+      <span>Buy. Sell. Campus.</span>
+    </div>
+  </a>
+  <div class="nav-links">
+    <a href="#">Marketplace</a>
+    <a href="hostel-search.html">Hostels</a>
+    <a href="#" class="active">Internships</a>
+    <a href="#">Stores</a>
+    <a href="#">Latest Deals</a>
+    <button class="btn-signin">Sign In</button>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-label">💼 2026 Career Opportunities</div>
+  <h1>Launch Your<br/><em>Career.</em></h1>
+  <p>Discover verified internship opportunities at top corporate institutions and NGOs across Ghana — curated exclusively for tertiary students.</p>
+
+  <div class="search-card">
+    <h3>🔍 Search Internships</h3>
+    <div class="search-grid">
+      <div class="field">
+        <label>Industry / Sector</label>
+        <select id="sel-sector">
+          <option value="">All Sectors</option>
+          <option>Banking & Finance</option>
+          <option>Technology & IT</option>
+          <option>Healthcare</option>
+          <option>Engineering</option>
+          <option>Marketing & Media</option>
+          <option>Government & NGO</option>
+          <option>Education</option>
+          <option>Energy & Resources</option>
+          <option>Legal</option>
+          <option>Agriculture</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Location</label>
+        <select id="sel-location">
+          <option value="">All Regions</option>
+          <option>Accra</option>
+          <option>Kumasi</option>
+          <option>Cape Coast</option>
+          <option>Tamale</option>
+          <option>Takoradi</option>
+          <option>Remote</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Keyword / Company</label>
+        <input type="text" id="inp-keyword" placeholder="e.g. MTN, software, finance"/>
+      </div>
+      <button class="btn-search" onclick="doSearch()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Search
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat"><span class="stat-num">196</span><span class="stat-lbl">Open Positions</span></div>
+  <div class="stat-dot"></div>
+  <div class="stat"><span class="stat-num">84</span><span class="stat-lbl">Companies</span></div>
+  <div class="stat-dot"></div>
+  <div class="stat"><span class="stat-num">62%</span><span class="stat-lbl">Paid Internships</span></div>
+  <div class="stat-dot"></div>
+  <div class="stat"><span class="stat-num">12</span><span class="stat-lbl">Closing This Week</span></div>
+</div>
+
+<!-- Filters -->
+<div class="filters-row">
+  <span>Filter:</span>
+  <button class="filter-chip active" onclick="setFilter(this,'all')">All</button>
+  <button class="filter-chip" onclick="setFilter(this,'paid')">💰 Paid</button>
+  <button class="filter-chip" onclick="setFilter(this,'remote')">🌐 Remote</button>
+  <button class="filter-chip" onclick="setFilter(this,'tech')">💻 Tech</button>
+  <button class="filter-chip" onclick="setFilter(this,'finance')">🏦 Finance</button>
+  <button class="filter-chip" onclick="setFilter(this,'closing')">🔥 Closing Soon</button>
+  <div class="results-count" id="results-count">Showing 9 results</div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <h4>Stipend</h4>
+      <label class="check-item"><input type="checkbox"/> Paid (Any Amount)</label>
+      <label class="check-item"><input type="checkbox"/> GH₵500–GH₵1,000/mo</label>
+      <label class="check-item"><input type="checkbox"/> GH₵1,000–GH₵2,000/mo</label>
+      <label class="check-item"><input type="checkbox"/> GH₵2,000+/mo</label>
+      <label class="check-item"><input type="checkbox"/> Unpaid / Volunteer</label>
+    </div>
+
+    <div class="sidebar-section">
+      <h4>Duration</h4>
+      <label class="check-item"><input type="checkbox"/> 1–3 Months</label>
+      <label class="check-item"><input type="checkbox"/> 3–6 Months</label>
+      <label class="check-item"><input type="checkbox"/> 6–12 Months</label>
+    </div>
+
+    <div class="sidebar-section">
+      <h4>Work Mode</h4>
+      <label class="check-item"><input type="checkbox"/> On-site</label>
+      <label class="check-item"><input type="checkbox"/> Remote</label>
+      <label class="check-item"><input type="checkbox"/> Hybrid</label>
+    </div>
+
+    <div class="sidebar-section">
+      <h4>Level</h4>
+      <label class="check-item"><input type="checkbox"/> Undergraduate</label>
+      <label class="check-item"><input type="checkbox"/> Postgraduate</label>
+      <label class="check-item"><input type="checkbox"/> HND / Diploma</label>
+    </div>
+
+    <div class="sidebar-section">
+      <h4>Company Type</h4>
+      <label class="check-item"><input type="checkbox"/> Corporate / Private</label>
+      <label class="check-item"><input type="checkbox"/> Government / Public</label>
+      <label class="check-item"><input type="checkbox"/> NGO / Non-Profit</label>
+      <label class="check-item"><input type="checkbox"/> Startup</label>
+    </div>
+  </aside>
+
+  <div class="cards-area">
+    <!-- Post opportunity CTA -->
+    <div class="featured-banner">
+      <div class="icon">🏢</div>
+      <div>
+        <h4>Are you a company or institution?</h4>
+        <p>Post your internship opportunity and reach thousands of verified Ghanaian students.</p>
+      </div>
+      <button class="btn-post">Post an Opportunity →</button>
+    </div>
+
+    <div class="list-stack" id="cards-list"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <p id="modal-company">Company Name</p>
+        <h2 id="modal-title">Internship Title</h2>
+        <p id="modal-location-type" style="margin-top:6px"></p>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid" id="modal-grid"></div>
+      <div class="modal-section">
+        <h4>About the Role</h4>
+        <p id="modal-desc"></p>
+      </div>
+      <div class="modal-section">
+        <h4>Requirements</h4>
+        <ul class="requirements-list" id="modal-reqs"></ul>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-apply-lg">📋 Apply Now</button>
+        <button class="btn-share">🔗 Share</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 <strong>University Hub GH</strong> · Internship Opportunities · Built for Ghanaian Students</p>
+</footer>
+
+<script>
+const internships = [
+  {
+    id:1, title:"Software Engineering Intern", company:"MTN Ghana", sector:"Technology & IT", location:"Accra", mode:"Hybrid", paid:true, stipend:"GH₵1,500/mo", duration:"6 Months", deadline:"Jun 30, 2026", status:"open", icon:"📡", level:"Undergraduate",
+    desc:"Join MTN Ghana's digital team to work on mobile app development, internal tools, and fintech APIs. You'll collaborate with senior engineers on real production systems.",
+    requirements:["Studying Computer Science, IT, or related field","Knowledge of JavaScript or Python","Strong problem-solving skills","Available for 6 months starting July 2026"],
+    tags:["Tech","Paid","Hybrid"], type:"Corporate"
+  },
+  {
+    id:2, title:"Finance & Accounting Intern", company:"Ecobank Ghana", sector:"Banking & Finance", location:"Accra", mode:"On-site", paid:true, stipend:"GH₵1,200/mo", duration:"3 Months", deadline:"May 25, 2026", status:"closing", icon:"🏦", level:"Undergraduate",
+    desc:"Support the financial reporting and treasury team at Ecobank Ghana. Work with real data, prepare financial models, and gain exposure to banking operations.",
+    requirements:["Studying Finance, Accounting, or Economics","Proficiency in Microsoft Excel","Attention to detail","Minimum 2nd year of study"],
+    tags:["Finance","Paid","On-site"], type:"Corporate"
+  },
+  {
+    id:3, title:"Marketing & Communications Intern", company:"Vodafone Ghana", sector:"Marketing & Media", location:"Accra", mode:"Hybrid", paid:true, stipend:"GH₵900/mo", duration:"3 Months", deadline:"Jun 15, 2026", status:"open", icon:"📣", level:"Undergraduate",
+    desc:"Work with the brand and marketing team to create social media content, conduct market research, and support campaign execution across digital and traditional media.",
+    requirements:["Studying Marketing, Communications, or Business","Creative writing and storytelling skills","Familiarity with social media platforms","Portfolio of previous creative work (optional)"],
+    tags:["Marketing","Paid","Hybrid"], type:"Corporate"
+  },
+  {
+    id:4, title:"Data Science & Analytics Intern", company:"GCB Bank", sector:"Banking & Finance", location:"Accra", mode:"On-site", paid:true, stipend:"GH₵1,800/mo", duration:"6 Months", deadline:"Jul 10, 2026", status:"open", icon:"📊", level:"Postgraduate",
+    desc:"Apply machine learning and data analytics to improve GCB Bank's risk models and customer segmentation. Work directly with the data science team on strategic projects.",
+    requirements:["Studying Data Science, Statistics, or Computer Science","Experience with Python (pandas, scikit-learn)","Basic SQL knowledge","Postgraduate or final-year undergraduate preferred"],
+    tags:["Tech","Finance","Paid"], type:"Corporate"
+  },
+  {
+    id:5, title:"Public Health Research Intern", company:"Ghana Health Service", sector:"Healthcare", location:"Accra", mode:"On-site", paid:false, stipend:"Unpaid", duration:"3 Months", deadline:"Jun 5, 2026", status:"closing", icon:"🏥", level:"Undergraduate",
+    desc:"Assist in community health surveys, data collection, and health education campaigns across Greater Accra region. Ideal for students pursuing public health or nursing.",
+    requirements:["Studying Medicine, Public Health, Nursing, or related","Willing to travel within Greater Accra","Strong interpersonal communication","Valid student ID"],
+    tags:["Health","Government","On-site"], type:"Government"
+  },
+  {
+    id:6, title:"Civil & Structural Engineering Intern", company:"Stanbic Bank (Infrastructure)", sector:"Engineering", location:"Kumasi", mode:"On-site", paid:true, stipend:"GH₵1,400/mo", duration:"6 Months", deadline:"Jul 20, 2026", status:"open", icon:"🏗️", level:"Undergraduate",
+    desc:"Join construction supervision and project management teams on active infrastructure projects across Ashanti Region. Hands-on exposure to real-world civil engineering.",
+    requirements:["Studying Civil or Structural Engineering","AutoCAD or similar design software skills","Able to work on-site in Kumasi","Available for 6 months from August 2026"],
+    tags:["Engineering","Paid","Kumasi"], type:"Corporate"
+  },
+  {
+    id:7, title:"Content & Digital Strategy Intern", company:"Graphic Communications", sector:"Marketing & Media", location:"Accra", mode:"Hybrid", paid:true, stipend:"GH₵700/mo", duration:"3 Months", deadline:"Jun 20, 2026", status:"open", icon:"📰", level:"Undergraduate",
+    desc:"Support editorial and digital content creation for Ghana's largest media house. Write articles, manage social media, and assist with digital advertising campaigns.",
+    requirements:["Studying Journalism, Communications, or Media Studies","Excellent written English","Photography or videography skills (a plus)","Passion for news and storytelling"],
+    tags:["Media","Paid","Hybrid"], type:"Corporate"
+  },
+  {
+    id:8, title:"Remote UX/UI Design Intern", company:"Hubtel", sector:"Technology & IT", location:"Remote", mode:"Remote", paid:true, stipend:"GH₵1,100/mo", duration:"3 Months", deadline:"Jun 28, 2026", status:"open", icon:"🎨", level:"Undergraduate",
+    desc:"Design user experiences for Hubtel's fintech and payments platform. Work remotely with product designers to create wireframes, prototypes, and final designs.",
+    requirements:["Studying Design, HCI, or Computer Science","Proficiency in Figma or Adobe XD","Portfolio of design work required","Strong understanding of UX principles"],
+    tags:["Tech","Remote","Paid"], type:"Corporate"
+  },
+  {
+    id:9, title:"Agricultural Extension Intern", company:"Ministry of Food & Agriculture", sector:"Agriculture", location:"Tamale", mode:"On-site", paid:false, stipend:"Allowance Provided", duration:"3 Months", deadline:"May 30, 2026", status:"closing", icon:"🌾", level:"Undergraduate",
+    desc:"Support agricultural extension officers in the Northern Region to train smallholder farmers on modern farming techniques, crop disease management, and irrigation.",
+    requirements:["Studying Agriculture, Agribusiness, or related","Ability to speak Dagbani or Twi is an advantage","Willing to relocate to Tamale for 3 months","Passionate about food security and rural development"],
+    tags:["Agriculture","Government","Tamale"], type:"Government"
+  },
+];
+
+function deadlineClass(s){ return s==='open'?'deadline-open':s==='closing'?'deadline-soon':'deadline-hot'; }
+function deadlineText(s){ return s==='open'?'✓ Open':'🔥 Closing Soon'; }
+
+function renderCards(data){
+  const list = document.getElementById('cards-list');
+  document.getElementById('results-count').textContent = `Showing ${data.length} result${data.length!==1?'s':''}`;
+  list.innerHTML = data.map((r,i)=>`
+    <div class="intern-card" style="animation-delay:${i*0.07}s" onclick="openModal(${r.id})">
+      <div class="company-logo">${r.icon}</div>
+      <div class="intern-main">
+        <div class="intern-top">
+          <div>
+            <div class="intern-company">${r.company} · ${r.type}</div>
+            <div class="intern-title">${r.title}</div>
+          </div>
+          <div class="deadline-badge ${deadlineClass(r.status)}">${deadlineText(r.status)}</div>
+        </div>
+        <div class="intern-meta">
+          <span>📍 ${r.location}</span>
+          <span>🗂️ ${r.mode}</span>
+          <span>⏳ ${r.duration}</span>
+          <span>📅 Deadline: ${r.deadline}</span>
+        </div>
+        <div class="intern-desc">${r.desc.substring(0,120)}…</div>
+        <div class="intern-tags">
+          <span class="tag tag-sector">${r.sector}</span>
+          ${r.paid ? '<span class="tag tag-paid">💰 Paid</span>' : '<span class="tag">Voluntary</span>'}
+          ${r.mode==='Remote' ? '<span class="tag tag-remote">🌐 Remote</span>' : ''}
+          <span class="tag">${r.level}</span>
+        </div>
+      </div>
+      <div class="intern-right">
+        <div style="text-align:right">
+          <div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:900;font-size:18px;color:var(--navy)">${r.stipend}</div>
+          <div style="font-size:11px;color:var(--muted)">stipend</div>
+        </div>
+        <button class="btn-apply" onclick="event.stopPropagation()">Apply →</button>
+        <button class="btn-save" onclick="event.stopPropagation()" title="Save">🔖</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openModal(id){
+  const r = internships.find(x=>x.id===id);
+  document.getElementById('modal-company').textContent = r.company;
+  document.getElementById('modal-title').textContent = r.title;
+  document.getElementById('modal-location-type').textContent = `📍 ${r.location} · ${r.mode} · ${r.duration}`;
+  document.getElementById('modal-grid').innerHTML = `
+    <div class="info-item"><label>Sector</label><p>${r.sector}</p></div>
+    <div class="info-item"><label>Stipend</label><p>${r.stipend}</p></div>
+    <div class="info-item"><label>Duration</label><p>${r.duration}</p></div>
+    <div class="info-item"><label>Deadline</label><p>${r.deadline}</p></div>
+    <div class="info-item"><label>Work Mode</label><p>${r.mode}</p></div>
+    <div class="info-item"><label>Level</label><p>${r.level}</p></div>
+  `;
+  document.getElementById('modal-desc').textContent = r.desc;
+  document.getElementById('modal-reqs').innerHTML = r.requirements.map(req=>`<li>${req}</li>`).join('');
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e=>{ if(e.target===document.getElementById('modal')) closeModal(); });
+
+function doSearch(){
+  const sector = document.getElementById('sel-sector').value;
+  const location = document.getElementById('sel-location').value;
+  const keyword = document.getElementById('inp-keyword').value.toLowerCase();
+  const filtered = internships.filter(r=>{
+    if(sector && r.sector !== sector) return false;
+    if(location && location !== 'Remote' && r.location !== location) return false;
+    if(location === 'Remote' && r.mode !== 'Remote') return false;
+    if(keyword && !r.company.toLowerCase().includes(keyword) && !r.title.toLowerCase().includes(keyword) && !r.sector.toLowerCase().includes(keyword)) return false;
+    return true;
+  });
+  renderCards(filtered);
+}
+
+function setFilter(el, filter){
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  let filtered = [...internships];
+  if(filter==='paid') filtered = internships.filter(r=>r.paid);
+  if(filter==='remote') filtered = internships.filter(r=>r.mode==='Remote');
+  if(filter==='tech') filtered = internships.filter(r=>r.sector==='Technology & IT');
+  if(filter==='finance') filtered = internships.filter(r=>r.sector==='Banking & Finance');
+  if(filter==='closing') filtered = internships.filter(r=>r.status==='closing');
+  renderCards(filtered);
+}
+
+renderCards(internships);
+</script>
+</body>
+</html>
