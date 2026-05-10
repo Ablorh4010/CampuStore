@@ -416,3 +416,64 @@ For issues or questions:
 - Resend for email service
 - Drizzle ORM for database management
 - shadcn/ui for UI components
+
+- # 🏪 CampuStore
+
+A comprehensive platform for students to find hostels, internships, and engage with the campus community.
+
+## ✨ Features
+
+- 🏠 **Hostel Listings & Reviews** - Browse and review student accommodations
+- 💼 **Internship Opportunities** - Discover job and internship positions from companies
+- 📧 **AI-Powered Email Applications** - Generate professional application emails using OpenAI
+- 👥 **Student Profiles** - LinkedIn-style professional profiles for students
+- 💬 **Community Posts** - Create posts, comments, and engage with other students
+- 🔍 **Smart Search & Filters** - Find hostels and opportunities based on your criteria
+- ⭐ **Ratings & Reviews** - Rate and review hostels and opportunities
+- 🔐 **Secure Authentication** - JWT-based user authentication
+- 📊 **Admin Dashboard** - Monitor emails, users, and platform activity
+
+## 🛠 Tech Stack
+
+### Frontend
+- **Next.js 14** - React framework
+- **React 18** - UI library
+- **Tailwind CSS** - Styling
+- **Axios** - HTTP client
+
+### Backend
+- **Node.js** - Runtime
+- **Express.js** - Web framework
+- **PostgreSQL** - Database (Neon)
+- **OpenAI** - AI email generation
+- **Resend** - Email delivery
+- **Puppeteer** - Web scraping
+- **JWT** - Authentication
+- **bcryptjs** - Password hashing
+
+### Database
+- **PostgreSQL (Neon)** - Cloud database
+
+### External APIs
+- **OpenAI GPT-4** - AI email generation
+- **Resend** - Email sending service
+- **Puppeteer** - Job board scraping
+
+## 📋 Prerequisites
+
+Before you begin, you need:
+
+- **Node.js** v14 or higher
+- **npm** or **yarn**
+- **PostgreSQL** account (Neon recommended - free tier available)
+- **OpenAI API Key** (from https://platform.openai.com)
+- **Resend API Key** (from https://resend.com)
+- **Git**
+
+## 🚀 Quick Start
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/Ablorh4010/CampuStore.git
+cd CampuStore
