@@ -13,3 +13,15 @@ app.yaml
 *.swp
 uploads/*
 !uploads/.gitkeep
+node_modules/
+.env
+.env.local
+.next/
+dist/
+*.log
+.DS_Store
+.vscode/
+.idea/
+build/
+.turbo/
+coverage/
