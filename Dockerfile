@@ -1,21 +1,7 @@
-FROM node:24-slim AS builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install all dependencies (including devDependencies for build)
-RUN npm install
-
-# Copy the rest of the source code
-COPY . .
-
-# Build the application
-RUN npm run build
+# ... (builder stage remains the same)
 
 # Final stage
-FROM node:24-slim
+FROM node:24-slim As builder
 
 WORKDIR /app
 
@@ -25,8 +11,10 @@ COPY package*.json ./
 # Install ONLY production dependencies
 RUN npm install --omit=dev
 
-# Copy the build artifacts from the builder stage
+# --- THE FIX: Copy BOTH .next and dist folders ---
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/dist ./dist
+# ------------------------------------------------
 
 # Create uploads folder
 RUN mkdir -p uploads
